@@ -1,11 +1,13 @@
 ﻿FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 
+ENV npm_config_fund=false \
+    npm_config_audit=false \
+    npm_config_update_notifier=false \
+    npm_config_progress=false
+
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm install -g npm@11.14.1 \
-    && npm config set fund false \
-    && npm config set audit false \
-    && npm ci --include=dev --no-audit --no-fund
+RUN npm install --include=dev --no-audit --no-fund
 
 COPY frontend/ ./
 ARG VITE_API_URL=/api

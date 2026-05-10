@@ -1,10 +1,11 @@
-﻿FROM node:20-alpine AS builder
+﻿FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm config set fund false \
+RUN npm install -g npm@11.14.1 \
+    && npm config set fund false \
     && npm config set audit false \
-    && npm ci --no-audit --no-fund
+    && npm ci --include=dev --no-audit --no-fund
 
 COPY frontend/ ./
 ARG VITE_API_URL=/api

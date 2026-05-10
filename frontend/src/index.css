@@ -200,7 +200,7 @@ a { color: inherit; }
 
 .join-row {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 10px;
 }
 
@@ -236,6 +236,26 @@ input:focus { outline: 2px solid rgba(15,118,110,.25); border-color: var(--brand
 
 .join-panel { padding: 20px; display: grid; gap: 14px; }
 .join-panel h2, .video-stage h2, .panel-block h3, .whiteboard-header h3 { margin: 0; }
+.prejoin-preview {
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.prejoin-video {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: #0e1114;
+}
+
+.prejoin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
 .room-layout {
   display: grid;

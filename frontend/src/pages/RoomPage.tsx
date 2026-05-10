@@ -74,13 +74,17 @@ export function RoomPage() {
   const [chatInput, setChatInput] = useState('');
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [connecting, setConnecting] = useState(false);
+  const [preparingMedia, setPreparingMedia] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [previewReady, setPreviewReady] = useState(false);
 
   const roomRef = useRef<Room | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
+  const previewStreamRef = useRef<MediaStream | null>(null);
+  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -201,7 +205,38 @@ export function RoomPage() {
   useEffect(() => {
     return () => {
       roomRef.current?.disconnect();
+      previewStreamRef.current?.getTracks().forEach((track) => track.stop());
     };
+  }, []);
+
+  useEffect(() => {
+    const video = previewVideoRef.current;
+    const stream = previewStreamRef.current;
+    if (!video || !stream) {
+      return;
+    }
+
+    video.srcObject = stream;
+  }, [previewReady]);
+
+  const setupPreview = useCallback(async () => {
+    if (previewStreamRef.current) {
+      return;
+    }
+
+    setPreparingMedia(true);
+    setError(null);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      previewStreamRef.current = stream;
+      setPreviewReady(true);
+      setMicEnabled(true);
+      setCameraEnabled(true);
+    } catch (mediaError) {
+      setError(mediaError instanceof Error ? mediaError.message : 'Failed to access camera/microphone');
+    } finally {
+      setPreparingMedia(false);
+    }
   }, []);
 
   const onConnect = async (event: FormEvent<HTMLFormElement>) => {
@@ -248,22 +283,39 @@ export function RoomPage() {
       });
 
       await nextRoom.connect(getLiveKitUrl(), join.livekitToken);
-      await nextRoom.localParticipant.setMicrophoneEnabled(true);
-      await nextRoom.localParticipant.setCameraEnabled(true);
+      await nextRoom.localParticipant.setMicrophoneEnabled(micEnabled);
+      await nextRoom.localParticipant.setCameraEnabled(cameraEnabled);
 
       roomRef.current = nextRoom;
       setRoom(nextRoom);
       syncTracks(nextRoom);
-      setMicEnabled(true);
-      setCameraEnabled(true);
+
+      previewStreamRef.current?.getTracks().forEach((track) => track.stop());
+      previewStreamRef.current = null;
+      setPreviewReady(false);
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : 'Failed to join room');
+      const message = connectError instanceof Error ? connectError.message : 'Failed to join room';
+      if (message.toLowerCase().includes('pc manager is closed')) {
+        setError('WebRTC connection closed unexpectedly. Retry join once; if it repeats, refresh page and try again.');
+      } else {
+        setError(message);
+      }
     } finally {
       setConnecting(false);
     }
   };
 
   const onToggleMic = async () => {
+    if (!roomRef.current && previewStreamRef.current) {
+      const stream = previewStreamRef.current;
+      const next = !micEnabled;
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = next;
+      });
+      setMicEnabled(next);
+      return;
+    }
+
     if (!roomRef.current) {
       return;
     }
@@ -273,6 +325,16 @@ export function RoomPage() {
   };
 
   const onToggleCamera = async () => {
+    if (!roomRef.current && previewStreamRef.current) {
+      const stream = previewStreamRef.current;
+      const next = !cameraEnabled;
+      stream.getVideoTracks().forEach((track) => {
+        track.enabled = next;
+      });
+      setCameraEnabled(next);
+      return;
+    }
+
     if (!roomRef.current) {
       return;
     }
@@ -425,11 +487,36 @@ export function RoomPage() {
                 maxLength={64}
                 disabled={connecting}
               />
-              <button type="submit" className="primary-btn" disabled={connecting}>
+              <button
+                type="button"
+                className="secondary-btn"
+                disabled={preparingMedia || previewReady}
+                onClick={setupPreview}
+              >
+                {preparingMedia ? 'Preparing...' : previewReady ? 'Preview Ready' : 'Enable Camera & Mic'}
+              </button>
+              <button type="submit" className="primary-btn" disabled={connecting || !previewReady}>
                 {connecting ? 'Connecting...' : 'Join Room'}
               </button>
             </div>
           </form>
+          <div className="prejoin-preview card">
+            {previewReady ? (
+              <>
+                <video ref={previewVideoRef} autoPlay muted playsInline className="prejoin-video" />
+                <div className="prejoin-actions">
+                  <button type="button" className="secondary-btn" onClick={onToggleMic}>
+                    {micEnabled ? 'Mute Mic' : 'Unmute Mic'}
+                  </button>
+                  <button type="button" className="secondary-btn" onClick={onToggleCamera}>
+                    {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <p className="status-info">Allow camera and microphone access to preview before joining.</p>
+            )}
+          </div>
         </section>
       ) : (
         <section className="room-layout">

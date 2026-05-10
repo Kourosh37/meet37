@@ -10,6 +10,7 @@ use rand::{distr::Alphanumeric, Rng};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use url::Url;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -133,7 +134,7 @@ async fn join_room(
 
     let grants = VideoGrants {
         room_join: true,
-        room: token,
+        room: token.to_lowercase(),
         can_publish: true,
         can_subscribe: true,
         can_publish_data: true,
@@ -189,26 +190,36 @@ async fn create_upload_url(
         .await
         .map_err(|err| AppError::External(format!("failed to create download URL: {err}")))?;
 
+    let upload_url = to_public_s3_url(
+        upload_request.uri().to_string(),
+        &state.config.s3_public_base_url,
+    )?;
+    let download_url = to_public_s3_url(
+        download_request.uri().to_string(),
+        &state.config.s3_public_base_url,
+    )?;
+
     Ok(Json(UploadUrlResponse {
         file_id,
-        upload_url: upload_request.uri().to_string(),
-        download_url: download_request.uri().to_string(),
+        upload_url,
+        download_url,
     }))
 }
 
 async fn room_exists(state: &AppState, token: &str) -> Result<bool, AppError> {
-    if is_room_cached(state, token).await {
+    let normalized = token.to_lowercase();
+    if is_room_cached(state, &normalized).await {
         return Ok(true);
     }
 
-    let exists = sqlx::query("SELECT 1 FROM rooms WHERE token = $1")
-        .bind(token)
+    let exists = sqlx::query("SELECT 1 FROM rooms WHERE lower(token) = lower($1)")
+        .bind(&normalized)
         .fetch_optional(&state.db_pool)
         .await?
         .is_some();
 
     if exists {
-        cache_room_existence(state, token).await;
+        cache_room_existence(state, &normalized).await;
     }
 
     Ok(exists)
@@ -219,6 +230,7 @@ fn generate_room_token() -> String {
         .sample_iter(Alphanumeric)
         .take(12)
         .map(char::from)
+        .map(|ch| ch.to_ascii_lowercase())
         .collect()
 }
 
@@ -250,6 +262,29 @@ async fn cache_room_existence(state: &AppState, token: &str) {
 
 fn room_cache_key(token: &str) -> String {
     format!("room:exists:{token}")
+}
+
+fn to_public_s3_url(raw_url: String, public_base_url: &Option<String>) -> Result<String, AppError> {
+    let Some(base_url) = public_base_url.as_deref() else {
+        return Ok(raw_url);
+    };
+
+    let mut source =
+        Url::parse(&raw_url).map_err(|err| AppError::External(format!("invalid presigned URL: {err}")))?;
+    let target =
+        Url::parse(base_url).map_err(|err| AppError::Config(format!("invalid S3_PUBLIC_BASE_URL: {err}")))?;
+
+    source
+        .set_scheme(target.scheme())
+        .map_err(|_| AppError::Config("invalid scheme in S3_PUBLIC_BASE_URL".to_owned()))?;
+    source
+        .set_host(target.host_str())
+        .map_err(|_| AppError::Config("invalid host in S3_PUBLIC_BASE_URL".to_owned()))?;
+    source.set_port(target.port()).map_err(|_| {
+        AppError::Config("invalid port in S3_PUBLIC_BASE_URL".to_owned())
+    })?;
+
+    Ok(source.to_string())
 }
 
 fn sanitize_filename(filename: &str) -> String {

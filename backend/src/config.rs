@@ -15,6 +15,7 @@ pub struct AppConfig {
     pub s3_region: String,
     pub aws_access_key_id: String,
     pub aws_secret_access_key: String,
+    pub s3_public_base_url: Option<String>,
 }
 
 impl AppConfig {
@@ -33,6 +34,7 @@ impl AppConfig {
         let s3_region = env::var("S3_REGION").unwrap_or_else(|_| "us-east-1".to_owned());
         let aws_access_key_id = required_var("AWS_ACCESS_KEY_ID")?;
         let aws_secret_access_key = required_var("AWS_SECRET_ACCESS_KEY")?;
+        let s3_public_base_url = env::var("S3_PUBLIC_BASE_URL").ok();
 
         Ok(Self {
             port,
@@ -46,6 +48,7 @@ impl AppConfig {
             s3_region,
             aws_access_key_id,
             aws_secret_access_key,
+            s3_public_base_url,
         })
     }
 }

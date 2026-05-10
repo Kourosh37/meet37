@@ -2,7 +2,7 @@
 bind_addresses:
   - ""
 keys:
-  devkey: secret
+  devkey: devsecretdevsecretdevsecretdevsec
 rtc:
   use_external_ip: false
   node_ip: 127.0.0.1

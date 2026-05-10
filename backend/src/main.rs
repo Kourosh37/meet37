@@ -1,11 +1,12 @@
 mod config;
 mod error;
+mod rate_limit;
 mod routes;
 mod state;
 
 use std::net::SocketAddr;
 
-use axum::Router;
+use axum::{Router, middleware};
 use config::AppConfig;
 use error::AppError;
 use redis::Client as RedisClient;
@@ -45,7 +46,12 @@ async fn run() -> Result<(), AppError> {
 }
 
 fn build_router(state: AppState) -> Router {
+    let rate_limit_state = state.clone();
     routes::router()
+        .layer(middleware::from_fn_with_state(
+            rate_limit_state,
+            rate_limit::enforce_limits,
+        ))
         .route_layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
         .layer(CorsLayer::permissive())

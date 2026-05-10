@@ -1,0 +1,9 @@
+port: 7880
+bind_addresses:
+  - ""
+keys:
+  devkey: secret
+rtc:
+  use_external_ip: false
+room:
+  auto_create: true

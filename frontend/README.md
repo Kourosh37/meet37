@@ -1,4 +1,4 @@
-﻿# meet37 frontend
+# meet37 frontend
 
 React + Vite client for room lifecycle, LiveKit meeting, chat, whiteboard sync, and direct S3 file sharing.
 
@@ -8,7 +8,7 @@ Create `frontend/.env`:
 
 ```bash
 VITE_API_URL=/api
-VITE_LK_URL=ws://localhost/livekit
+VITE_LK_URL=ws://localhost:7880
 ```
 
 ## Scripts

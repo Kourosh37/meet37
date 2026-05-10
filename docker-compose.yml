@@ -93,7 +93,7 @@
       dockerfile: frontend/Dockerfile
       args:
         VITE_API_URL: /api
-        VITE_LK_URL: ws://localhost/livekit
+        VITE_LK_URL: ws://localhost:7880
     container_name: meet37-frontend
     depends_on:
       - backend-nginx

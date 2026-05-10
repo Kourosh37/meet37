@@ -1,16 +1,56 @@
-# meet37
+﻿# meet37
 
 Server-optimized real-time meeting platform focused on minimal backend load.
 
-## Monorepo Layout
+## Current implementation status
 
-- `backend/`: Rust + Axum API for room lifecycle, LiveKit token generation, and S3 presigned URLs.
-- `frontend/`: React + Vite client for room UI, media, chat, whiteboard sync, and file sharing.
-- `docker-compose.yml`: Local dev stack (PostgreSQL, Redis, LiveKit, MinIO, backend).
+- Backend (Rust + Axum)
+- `POST /rooms` create room token
+- `GET /rooms/:token` validate room token
+- `POST /rooms/:token/join` generate LiveKit participant token
+- `POST /files/upload-url` generate presigned S3 upload/download URLs
+- Redis fixed-window rate limiting for create/join/upload-url
+- PostgreSQL room storage + Redis room existence cache
 
-## Architecture Principles
+- Frontend (React + Vite)
+- Landing flow for room creation/join
+- Room connection with LiveKit token flow
+- Video grid + mic/camera bootstrap
+- Chat over LiveKit data channel
+- Yjs whiteboard sync over LiveKit data channel
+- Direct S3 file upload and link broadcast
 
-- Backend handles only stateless, lightweight REST operations.
-- Media, chat, and whiteboard sync run over LiveKit/WebRTC.
-- File bytes flow directly between browser and S3-compatible storage.
-- Redis is used for cache and rate limiting; PostgreSQL stores tiny room metadata.
+- Local infrastructure
+- Docker Compose for PostgreSQL, Redis, MinIO, LiveKit, backend
+
+## Quick start
+
+1. Start infrastructure
+
+```bash
+docker compose up -d postgres redis minio minio-init livekit
+```
+
+2. Run backend
+
+```bash
+cd backend
+cp .env.example .env
+cargo run
+```
+
+3. Run frontend
+
+```bash
+cd frontend
+cp .env.example .env
+npm install
+npm run dev
+```
+
+## Monorepo layout
+
+- `backend/`: Rust + Axum API
+- `frontend/`: React + Vite client
+- `infra/livekit.yaml`: local LiveKit config
+- `docker-compose.yml`: local stack

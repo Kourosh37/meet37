@@ -251,6 +251,10 @@ input:focus { outline: 2px solid rgba(15,118,110,.25); border-color: var(--brand
   background: #0e1114;
 }
 
+.compact-preview {
+  width: min(560px, 100%);
+}
+
 .prejoin-actions {
   display: flex;
   flex-wrap: wrap;
@@ -264,6 +268,72 @@ input:focus { outline: 2px solid rgba(15,118,110,.25); border-color: var(--brand
     'video side'
     'whiteboard side';
   gap: 14px;
+}
+
+.meet-room-shell {
+  min-height: 100vh;
+}
+
+.meet-header {
+  align-items: center;
+}
+
+.token-copy-btn {
+  margin-left: 12px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.meet-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  grid-template-rows: 1fr auto;
+  grid-template-areas:
+    'stage side'
+    'controls controls';
+  gap: 12px;
+}
+
+.meet-stage {
+  grid-area: stage;
+  padding: 12px;
+  min-height: 58vh;
+}
+
+.meet-grid {
+  margin-top: 0;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.meet-tile {
+  min-height: 210px;
+}
+
+.meet-side-panel {
+  grid-area: side;
+  max-height: 70vh;
+  overflow: auto;
+}
+
+.meet-controls {
+  grid-area: controls;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+}
+
+.control-btn {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #fff;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .video-stage { grid-area: video; padding: 14px; }
@@ -355,6 +425,14 @@ input:focus { outline: 2px solid rgba(15,118,110,.25); border-color: var(--brand
   .side-panel {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     align-items: start;
+  }
+
+  .meet-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'stage'
+      'side'
+      'controls';
   }
 }
 

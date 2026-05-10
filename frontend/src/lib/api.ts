@@ -55,8 +55,9 @@ export async function createRoom(): Promise<string> {
 }
 
 export async function validateRoom(token: string): Promise<boolean> {
+  const normalizedToken = token.trim().toLowerCase();
   try {
-    const body = await request<{ exists: boolean }>(`/rooms/${encodeURIComponent(token)}`);
+    const body = await request<{ exists: boolean }>(`/rooms/${encodeURIComponent(normalizedToken)}`);
     return body.exists;
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
@@ -68,7 +69,8 @@ export async function validateRoom(token: string): Promise<boolean> {
 }
 
 export async function joinRoom(token: string, displayName: string): Promise<JoinRoomResponse> {
-  return request<JoinRoomResponse>(`/rooms/${encodeURIComponent(token)}/join`, {
+  const normalizedToken = token.trim().toLowerCase();
+  return request<JoinRoomResponse>(`/rooms/${encodeURIComponent(normalizedToken)}/join`, {
     method: 'POST',
     body: JSON.stringify({ displayName }),
   });
@@ -82,5 +84,9 @@ export async function getUploadUrl(filename: string, size: number): Promise<Uplo
 }
 
 export function getLiveKitUrl(): string {
-  return import.meta.env.VITE_LK_URL ?? 'ws://localhost:7880';
+  const configured = import.meta.env.VITE_LK_URL ?? 'ws://localhost:7880';
+  if (configured.includes('/livekit') && configured.includes('localhost')) {
+    return 'ws://localhost:7880';
+  }
+  return configured;
 }

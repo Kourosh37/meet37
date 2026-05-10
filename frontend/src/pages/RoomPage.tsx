@@ -1,11 +1,9 @@
-﻿import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, type FormEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Room, RoomEvent, Track, type Participant } from 'livekit-client';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import * as Y from 'yjs';
 
-import { WhiteboardCanvas } from '../components/WhiteboardCanvas';
 import { getLiveKitUrl, getUploadUrl, joinRoom, validateRoom } from '../lib/api';
-import type { ChatMessage, FileMessage, RoomDataMessage, Stroke } from '../types';
+import type { ChatMessage, FileMessage, RoomDataMessage } from '../types';
 
 interface VideoTile {
   id: string;
@@ -17,6 +15,26 @@ interface VideoTile {
 interface AudioTrackItem {
   id: string;
   track: Track;
+}
+
+function IconMic() {
+  return <span aria-hidden>??</span>;
+}
+
+function IconCam() {
+  return <span aria-hidden>??</span>;
+}
+
+function IconShare() {
+  return <span aria-hidden>???</span>;
+}
+
+function IconLeave() {
+  return <span aria-hidden>??</span>;
+}
+
+function IconCopy() {
+  return <span aria-hidden>??</span>;
 }
 
 function MediaTrack({ track, muted }: { track: Track; muted?: boolean }) {
@@ -62,7 +80,7 @@ function HiddenAudioTracks({ tracks }: { tracks: AudioTrackItem[] }) {
 export function RoomPage() {
   const navigate = useNavigate();
   const params = useParams();
-  const token = params.token ?? '';
+  const token = (params.token ?? '').trim().toLowerCase();
 
   const [status, setStatus] = useState<'checking' | 'not-found' | 'ready'>('checking');
   const [displayName, setDisplayName] = useState('');
@@ -72,17 +90,17 @@ export function RoomPage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [files, setFiles] = useState<FileMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [connecting, setConnecting] = useState(false);
   const [preparingMedia, setPreparingMedia] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
+  const [screenShareEnabled, setScreenShareEnabled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const roomRef = useRef<Room | null>(null);
-  const ydocRef = useRef<Y.Doc | null>(null);
   const previewStreamRef = useRef<MediaStream | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -95,13 +113,11 @@ export function RoomPage() {
         if (!mounted) {
           return;
         }
-
         setStatus(exists ? 'ready' : 'not-found');
       } catch (checkError) {
         if (!mounted) {
           return;
         }
-
         setError(checkError instanceof Error ? checkError.message : 'Room validation failed');
         setStatus('not-found');
       }
@@ -168,41 +184,6 @@ export function RoomPage() {
   }, []);
 
   useEffect(() => {
-    if (!room) {
-      return;
-    }
-
-    const ydoc = new Y.Doc();
-    const yStrokes = ydoc.getArray<Stroke>('strokes');
-
-    const syncStrokes = () => {
-      setStrokes(yStrokes.toArray() as Stroke[]);
-    };
-
-    const onUpdate = async (update: Uint8Array, origin: unknown) => {
-      if (origin === 'remote') {
-        return;
-      }
-
-      const encodedUpdate = uint8ArrayToBase64(update);
-      await publishData({ type: 'yjs-update', payload: { update: encodedUpdate } });
-    };
-
-    yStrokes.observe(syncStrokes);
-    ydoc.on('update', onUpdate);
-    ydocRef.current = ydoc;
-    syncStrokes();
-
-    return () => {
-      yStrokes.unobserve(syncStrokes);
-      ydoc.off('update', onUpdate);
-      ydoc.destroy();
-      ydocRef.current = null;
-      setStrokes([]);
-    };
-  }, [publishData, room]);
-
-  useEffect(() => {
     return () => {
       roomRef.current?.disconnect();
       previewStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -215,7 +196,6 @@ export function RoomPage() {
     if (!video || !stream) {
       return;
     }
-
     video.srcObject = stream;
   }, [previewReady]);
 
@@ -262,6 +242,7 @@ export function RoomPage() {
       nextRoom.on(RoomEvent.ParticipantDisconnected, onTrackEvent);
       nextRoom.on(RoomEvent.LocalTrackPublished, onTrackEvent);
       nextRoom.on(RoomEvent.LocalTrackUnpublished, onTrackEvent);
+      nextRoom.on(RoomEvent.ActiveDeviceChanged, onTrackEvent);
 
       nextRoom.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
         try {
@@ -272,10 +253,6 @@ export function RoomPage() {
           }
           if (message.type === 'file') {
             setFiles((current) => [...current, message.payload]);
-            return;
-          }
-          if (message.type === 'yjs-update' && ydocRef.current) {
-            Y.applyUpdate(ydocRef.current, base64ToUint8Array(message.payload.update), 'remote');
           }
         } catch (decodeError) {
           console.warn('Failed to decode room data packet', decodeError);
@@ -295,11 +272,7 @@ export function RoomPage() {
       setPreviewReady(false);
     } catch (connectError) {
       const message = connectError instanceof Error ? connectError.message : 'Failed to join room';
-      if (message.toLowerCase().includes('pc manager is closed')) {
-        setError('WebRTC connection closed unexpectedly. Retry join once; if it repeats, refresh page and try again.');
-      } else {
-        setError(message);
-      }
+      setError(message);
     } finally {
       setConnecting(false);
     }
@@ -307,9 +280,8 @@ export function RoomPage() {
 
   const onToggleMic = async () => {
     if (!roomRef.current && previewStreamRef.current) {
-      const stream = previewStreamRef.current;
       const next = !micEnabled;
-      stream.getAudioTracks().forEach((track) => {
+      previewStreamRef.current.getAudioTracks().forEach((track) => {
         track.enabled = next;
       });
       setMicEnabled(next);
@@ -319,6 +291,7 @@ export function RoomPage() {
     if (!roomRef.current) {
       return;
     }
+
     const next = !micEnabled;
     await roomRef.current.localParticipant.setMicrophoneEnabled(next);
     setMicEnabled(next);
@@ -326,9 +299,8 @@ export function RoomPage() {
 
   const onToggleCamera = async () => {
     if (!roomRef.current && previewStreamRef.current) {
-      const stream = previewStreamRef.current;
       const next = !cameraEnabled;
-      stream.getVideoTracks().forEach((track) => {
+      previewStreamRef.current.getVideoTracks().forEach((track) => {
         track.enabled = next;
       });
       setCameraEnabled(next);
@@ -338,9 +310,26 @@ export function RoomPage() {
     if (!roomRef.current) {
       return;
     }
+
     const next = !cameraEnabled;
     await roomRef.current.localParticipant.setCameraEnabled(next);
     setCameraEnabled(next);
+  };
+
+  const onToggleScreenShare = async () => {
+    const activeRoom = roomRef.current;
+    if (!activeRoom) {
+      return;
+    }
+
+    const next = !screenShareEnabled;
+    try {
+      await activeRoom.localParticipant.setScreenShareEnabled(next);
+      setScreenShareEnabled(next);
+      syncTracks(activeRoom);
+    } catch (shareError) {
+      setError(shareError instanceof Error ? shareError.message : 'Screen share failed');
+    }
   };
 
   const onSendChat = async (event: FormEvent<HTMLFormElement>) => {
@@ -373,7 +362,11 @@ export function RoomPage() {
 
     try {
       const upload = await getUploadUrl(file.name, file.size);
-      const uploadResult = await fetch(upload.uploadUrl, { method: 'PUT', body: file });
+      const uploadResult = await fetch(upload.uploadUrl, {
+        method: 'PUT',
+        body: file,
+      });
+
       if (!uploadResult.ok) {
         throw new Error(`Upload failed with status ${uploadResult.status}`);
       }
@@ -396,23 +389,13 @@ export function RoomPage() {
     }
   };
 
-  const onCreateStroke = (stroke: Stroke) => {
-    const ydoc = ydocRef.current;
-    if (!ydoc) {
-      return;
-    }
-    ydoc.getArray<Stroke>('strokes').push([stroke]);
-  };
-
-  const onClearBoard = () => {
-    const ydoc = ydocRef.current;
-    if (!ydoc) {
-      return;
-    }
-
-    const yStrokes = ydoc.getArray<Stroke>('strokes');
-    if (yStrokes.length > 0) {
-      yStrokes.delete(0, yStrokes.length);
+  const onCopyToken = async () => {
+    try {
+      await navigator.clipboard.writeText(token);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      setError('Failed to copy room token');
     }
   };
 
@@ -437,45 +420,31 @@ export function RoomPage() {
   }
 
   return (
-    <main className="shell room-shell">
-      <header className="room-header">
+    <main className="shell room-shell meet-room-shell">
+      <header className="room-header meet-header">
         <div className="brand-mark compact">
           <img src="/logo.png" alt="meet37 logo" className="brand-logo" />
           <div>
             <p className="eyebrow">meet37 room</p>
             <h1>{roomTokenTitle}</h1>
           </div>
-        </div>
-
-        <div className="room-actions">
-          {room ? (
-            <>
-              <button type="button" className="secondary-btn" onClick={onToggleMic}>
-                {micEnabled ? 'Mute Mic' : 'Unmute Mic'}
-              </button>
-              <button type="button" className="secondary-btn" onClick={onToggleCamera}>
-                {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
-              </button>
-            </>
-          ) : null}
-          <button
-            type="button"
-            className="secondary-btn danger-btn"
-            onClick={() => {
-              roomRef.current?.disconnect();
-              roomRef.current = null;
-              setRoom(null);
-              navigate('/');
-            }}
-          >
-            Leave
+          <button type="button" className="token-copy-btn" onClick={onCopyToken} title="Copy room token">
+            <IconCopy /> {copied ? 'Copied' : 'Copy'}
           </button>
         </div>
       </header>
 
       {!room ? (
-        <section className="join-panel">
-          <h2>Join this room</h2>
+        <section className="join-panel prejoin-panel">
+          <h2>Ready to join?</h2>
+          <div className="prejoin-preview compact-preview card">
+            {previewReady ? (
+              <video ref={previewVideoRef} autoPlay muted playsInline className="prejoin-video" />
+            ) : (
+              <p className="status-info">Enable camera/mic for preview before joining.</p>
+            )}
+          </div>
+
           <form onSubmit={onConnect} className="join-room-form">
             <label htmlFor="displayName">Display name</label>
             <div className="join-row">
@@ -487,44 +456,30 @@ export function RoomPage() {
                 maxLength={64}
                 disabled={connecting}
               />
-              <button
-                type="button"
-                className="secondary-btn"
-                disabled={preparingMedia || previewReady}
-                onClick={setupPreview}
-              >
-                {preparingMedia ? 'Preparing...' : previewReady ? 'Preview Ready' : 'Enable Camera & Mic'}
+              <button type="button" className="secondary-btn" disabled={preparingMedia || previewReady} onClick={setupPreview}>
+                {preparingMedia ? 'Preparing...' : previewReady ? 'Ready' : 'Enable Cam/Mic'}
               </button>
               <button type="submit" className="primary-btn" disabled={connecting || !previewReady}>
                 {connecting ? 'Connecting...' : 'Join Room'}
               </button>
             </div>
           </form>
-          <div className="prejoin-preview card">
-            {previewReady ? (
-              <>
-                <video ref={previewVideoRef} autoPlay muted playsInline className="prejoin-video" />
-                <div className="prejoin-actions">
-                  <button type="button" className="secondary-btn" onClick={onToggleMic}>
-                    {micEnabled ? 'Mute Mic' : 'Unmute Mic'}
-                  </button>
-                  <button type="button" className="secondary-btn" onClick={onToggleCamera}>
-                    {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="status-info">Allow camera and microphone access to preview before joining.</p>
-            )}
+
+          <div className="prejoin-actions">
+            <button type="button" className="control-btn" onClick={onToggleMic} disabled={!previewReady}>
+              <IconMic /> {micEnabled ? 'Mic On' : 'Mic Off'}
+            </button>
+            <button type="button" className="control-btn" onClick={onToggleCamera} disabled={!previewReady}>
+              <IconCam /> {cameraEnabled ? 'Cam On' : 'Cam Off'}
+            </button>
           </div>
         </section>
       ) : (
-        <section className="room-layout">
-          <section className="video-stage card">
-            <h2>Participants</h2>
-            <div className="video-grid">
+        <section className="meet-layout">
+          <section className="video-stage card meet-stage">
+            <div className="video-grid meet-grid">
               {videoTiles.map((tile) => (
-                <article key={tile.id} className="video-tile">
+                <article key={tile.id} className="video-tile meet-tile">
                   <MediaTrack track={tile.track} muted={tile.isLocal} />
                   <p>{tile.participantName}{tile.isLocal ? ' (You)' : ''}</p>
                 </article>
@@ -533,7 +488,7 @@ export function RoomPage() {
             <HiddenAudioTracks tracks={audioTracks} />
           </section>
 
-          <section className="side-panel">
+          <aside className="side-panel meet-side-panel">
             <div className="panel-block card">
               <h3>Chat</h3>
               <div className="chat-log">
@@ -565,36 +520,35 @@ export function RoomPage() {
                 ))}
               </ul>
             </div>
-          </section>
+          </aside>
 
-          <section className="whiteboard-panel card">
-            <div className="whiteboard-header">
-              <h3>Whiteboard (Yjs over LiveKit)</h3>
-              <button type="button" className="secondary-btn" onClick={onClearBoard}>Clear</button>
-            </div>
-            <WhiteboardCanvas strokes={strokes} disabled={!room} onCreateStroke={onCreateStroke} />
-          </section>
+          <div className="meet-controls card">
+            <button type="button" className="control-btn" onClick={onToggleMic}>
+              <IconMic /> {micEnabled ? 'Mute' : 'Unmute'}
+            </button>
+            <button type="button" className="control-btn" onClick={onToggleCamera}>
+              <IconCam /> {cameraEnabled ? 'Camera Off' : 'Camera On'}
+            </button>
+            <button type="button" className="control-btn" onClick={onToggleScreenShare}>
+              <IconShare /> {screenShareEnabled ? 'Stop Share' : 'Share Screen'}
+            </button>
+            <button
+              type="button"
+              className="control-btn danger-btn"
+              onClick={() => {
+                roomRef.current?.disconnect();
+                roomRef.current = null;
+                setRoom(null);
+                navigate('/');
+              }}
+            >
+              <IconLeave /> Leave
+            </button>
+          </div>
         </section>
       )}
 
       {error ? <p className="status-error">{error}</p> : null}
     </main>
   );
-}
-
-function uint8ArrayToBase64(value: Uint8Array): string {
-  let binary = '';
-  for (let index = 0; index < value.byteLength; index += 1) {
-    binary += String.fromCharCode(value[index]);
-  }
-  return window.btoa(binary);
-}
-
-function base64ToUint8Array(value: string): Uint8Array {
-  const binary = window.atob(value);
-  const bytes = new Uint8Array(binary.length);
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-  return bytes;
 }

@@ -1,14 +1,3 @@
-﻿export interface Point {
-  x: number;
-  y: number;
-}
-
-export interface Stroke {
-  id: string;
-  color: string;
-  points: Point[];
-}
-
 export interface ChatMessage {
   id: string;
   from: string;
@@ -32,10 +21,4 @@ export type RoomDataMessage =
   | {
       type: 'file';
       payload: FileMessage;
-    }
-  | {
-      type: 'yjs-update';
-      payload: {
-        update: string;
-      };
     };

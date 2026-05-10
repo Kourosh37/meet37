@@ -4,9 +4,11 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use livekit_api::access_token::{AccessToken, VideoGrants};
 use rand::{distr::Alphanumeric, Rng};
 use redis::AsyncCommands;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::error::AppError;
 use crate::state::AppState;
@@ -16,6 +18,7 @@ pub fn router() -> Router<AppState> {
         .route("/health", get(health))
         .route("/rooms", post(create_room))
         .route("/rooms/{token}", get(check_room))
+        .route("/rooms/{token}/join", post(join_room))
 }
 
 #[derive(Serialize)]
@@ -39,6 +42,18 @@ struct CreateRoomResponse {
 #[derive(Serialize)]
 struct RoomExistsResponse {
     exists: bool,
+}
+
+#[derive(Deserialize)]
+struct JoinRoomRequest {
+    #[serde(rename = "displayName")]
+    display_name: String,
+}
+
+#[derive(Serialize)]
+struct JoinRoomResponse {
+    #[serde(rename = "livekitToken")]
+    livekit_token: String,
 }
 
 async fn create_room(
@@ -73,6 +88,51 @@ async fn check_room(
     }
 
     Err(AppError::NotFound(format!("room `{token}` was not found")))
+}
+
+async fn join_room(
+    Path(token): Path<String>,
+    State(state): State<AppState>,
+    Json(payload): Json<JoinRoomRequest>,
+) -> Result<Json<JoinRoomResponse>, AppError> {
+    let display_name = payload.display_name.trim();
+    if display_name.is_empty() {
+        return Err(AppError::BadRequest(
+            "`displayName` cannot be empty".to_owned(),
+        ));
+    }
+
+    if display_name.chars().count() > 64 {
+        return Err(AppError::BadRequest(
+            "`displayName` must be 64 characters or less".to_owned(),
+        ));
+    }
+
+    if !room_exists(&state, &token).await? {
+        return Err(AppError::NotFound(format!("room `{token}` was not found")));
+    }
+
+    let grants = VideoGrants {
+        room_join: true,
+        room: token,
+        can_publish: true,
+        can_subscribe: true,
+        can_publish_data: true,
+        ..Default::default()
+    };
+
+    let identity = format!("participant-{}", Uuid::new_v4().simple());
+    let livekit_token = AccessToken::with_api_key(
+        &state.config.livekit_api_key,
+        &state.config.livekit_api_secret,
+    )
+    .with_identity(&identity)
+    .with_name(display_name)
+    .with_grants(grants)
+    .to_jwt()
+    .map_err(|err| AppError::External(format!("failed to generate livekit token: {err}")))?;
+
+    Ok(Json(JoinRoomResponse { livekit_token }))
 }
 
 async fn room_exists(state: &AppState, token: &str) -> Result<bool, AppError> {

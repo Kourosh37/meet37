@@ -14,6 +14,8 @@ pub enum AppError {
     NotFound(String),
     #[error("bad request: {0}")]
     BadRequest(String),
+    #[error("external service error: {0}")]
+    External(String),
     #[error("internal server error")]
     Internal,
     #[error(transparent)]
@@ -34,6 +36,7 @@ impl IntoResponse for AppError {
         let (status, message) = match self {
             Self::Config(message) | Self::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
             Self::NotFound(message) => (StatusCode::NOT_FOUND, message),
+            Self::External(message) => (StatusCode::BAD_GATEWAY, message),
             Self::Io(_) | Self::Internal | Self::Sqlx(_) | Self::Redis(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal server error".to_owned(),

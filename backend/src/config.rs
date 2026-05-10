@@ -7,6 +7,9 @@ pub struct AppConfig {
     pub port: u16,
     pub database_url: String,
     pub redis_url: String,
+    pub livekit_api_key: String,
+    pub livekit_api_secret: String,
+    pub livekit_api_url: String,
 }
 
 impl AppConfig {
@@ -17,11 +20,17 @@ impl AppConfig {
             .unwrap_or(8080);
         let database_url = required_var("DATABASE_URL")?;
         let redis_url = required_var("REDIS_URL")?;
+        let livekit_api_key = required_var("LIVEKIT_API_KEY")?;
+        let livekit_api_secret = required_var("LIVEKIT_API_SECRET")?;
+        let livekit_api_url = required_var("LIVEKIT_API_URL")?;
 
         Ok(Self {
             port,
             database_url,
             redis_url,
+            livekit_api_key,
+            livekit_api_secret,
+            livekit_api_url,
         })
     }
 }

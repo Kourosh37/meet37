@@ -7,6 +7,8 @@ mod state;
 use std::net::SocketAddr;
 
 use axum::{Router, middleware};
+use aws_config::BehaviorVersion;
+use aws_sdk_s3::config::{Credentials, Region};
 use config::AppConfig;
 use error::AppError;
 use redis::Client as RedisClient;
@@ -34,7 +36,21 @@ async fn run() -> Result<(), AppError> {
         .connect(&config.database_url)
         .await?;
     let redis_client = RedisClient::open(config.redis_url.clone())?;
-    let state = AppState::new(config, db_pool, redis_client);
+    let s3_credentials = Credentials::new(
+        config.aws_access_key_id.clone(),
+        config.aws_secret_access_key.clone(),
+        None,
+        None,
+        "meet37-static-credentials",
+    );
+    let aws_shared_config = aws_config::defaults(BehaviorVersion::latest())
+        .credentials_provider(s3_credentials)
+        .region(Region::new(config.s3_region.clone()))
+        .endpoint_url(config.s3_endpoint.clone())
+        .load()
+        .await;
+    let s3_client = aws_sdk_s3::Client::new(&aws_shared_config);
+    let state = AppState::new(config, db_pool, redis_client, s3_client);
     let port = state.config.port;
     let app = build_router(state);
 

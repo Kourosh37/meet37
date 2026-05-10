@@ -4,10 +4,12 @@ use axum::{
     routing::{get, post},
     Json, Router,
 };
+use aws_sdk_s3::presigning::PresigningConfig;
 use livekit_api::access_token::{AccessToken, VideoGrants};
 use rand::{distr::Alphanumeric, Rng};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -19,6 +21,7 @@ pub fn router() -> Router<AppState> {
         .route("/rooms", post(create_room))
         .route("/rooms/{token}", get(check_room))
         .route("/rooms/{token}/join", post(join_room))
+        .route("/files/upload-url", post(create_upload_url))
 }
 
 #[derive(Serialize)]
@@ -54,6 +57,22 @@ struct JoinRoomRequest {
 struct JoinRoomResponse {
     #[serde(rename = "livekitToken")]
     livekit_token: String,
+}
+
+#[derive(Deserialize)]
+struct UploadUrlRequest {
+    filename: String,
+    size: i64,
+}
+
+#[derive(Serialize)]
+struct UploadUrlResponse {
+    #[serde(rename = "fileId")]
+    file_id: String,
+    #[serde(rename = "uploadUrl")]
+    upload_url: String,
+    #[serde(rename = "downloadUrl")]
+    download_url: String,
 }
 
 async fn create_room(
@@ -135,6 +154,48 @@ async fn join_room(
     Ok(Json(JoinRoomResponse { livekit_token }))
 }
 
+async fn create_upload_url(
+    State(state): State<AppState>,
+    Json(payload): Json<UploadUrlRequest>,
+) -> Result<Json<UploadUrlResponse>, AppError> {
+    if payload.size <= 0 {
+        return Err(AppError::BadRequest("`size` must be a positive number".to_owned()));
+    }
+
+    let file_id = Uuid::new_v4().to_string();
+    let clean_filename = sanitize_filename(&payload.filename);
+    let object_key = format!("uploads/{file_id}-{clean_filename}");
+
+    let upload_presign = PresigningConfig::expires_in(Duration::from_secs(300))
+        .map_err(|err| AppError::External(format!("failed to prepare upload presign: {err}")))?;
+    let upload_request = state
+        .s3_client
+        .put_object()
+        .bucket(&state.config.s3_bucket)
+        .key(&object_key)
+        .content_length(payload.size)
+        .presigned(upload_presign)
+        .await
+        .map_err(|err| AppError::External(format!("failed to create upload URL: {err}")))?;
+
+    let download_presign = PresigningConfig::expires_in(Duration::from_secs(3600))
+        .map_err(|err| AppError::External(format!("failed to prepare download presign: {err}")))?;
+    let download_request = state
+        .s3_client
+        .get_object()
+        .bucket(&state.config.s3_bucket)
+        .key(&object_key)
+        .presigned(download_presign)
+        .await
+        .map_err(|err| AppError::External(format!("failed to create download URL: {err}")))?;
+
+    Ok(Json(UploadUrlResponse {
+        file_id,
+        upload_url: upload_request.uri().to_string(),
+        download_url: download_request.uri().to_string(),
+    }))
+}
+
 async fn room_exists(state: &AppState, token: &str) -> Result<bool, AppError> {
     if is_room_cached(state, token).await {
         return Ok(true);
@@ -189,4 +250,23 @@ async fn cache_room_existence(state: &AppState, token: &str) {
 
 fn room_cache_key(token: &str) -> String {
     format!("room:exists:{token}")
+}
+
+fn sanitize_filename(filename: &str) -> String {
+    let sanitized: String = filename
+        .chars()
+        .map(|ch| {
+            if ch.is_ascii_alphanumeric() || matches!(ch, '-' | '_' | '.') {
+                ch
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    if sanitized.trim_matches('_').is_empty() {
+        "file.bin".to_owned()
+    } else {
+        sanitized
+    }
 }

@@ -7,7 +7,7 @@ ENV npm_config_fund=false \
     npm_config_progress=false
 
 COPY frontend/package.json frontend/package-lock.json ./
-RUN npm install --include=dev --no-audit --no-fund
+RUN npm config set registry https://registry.npmjs.org/ && npm install --include=dev --no-audit --no-fund
 
 COPY frontend/ ./
 ARG VITE_API_URL=/api

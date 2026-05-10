@@ -15,7 +15,7 @@ pub async fn enforce_limits(
     if let Some(limit) = limit_for_request(&request) {
         let ip = client_ip(&request);
         let window = current_window();
-        let key = format!("rate:{window}:{ip}:{limit.namespace}");
+        let key = format!("rate:{window}:{ip}:{}", limit.namespace);
 
         let mut conn = state.redis_client.get_multiplexed_async_connection().await?;
         let current: i64 = conn.incr(&key, 1).await?;

@@ -54,15 +54,38 @@ export function LandingPage() {
   return (
     <main className="shell landing-shell">
       <section className="hero-panel">
-        <p className="eyebrow">meet37</p>
-        <h1>Realtime meetings with a near-zero backend footprint</h1>
+        <div className="brand-mark">
+          <img src="/logo.png" alt="meet37 logo" className="brand-logo" />
+          <div>
+            <p className="eyebrow">meet37</p>
+            <p className="brand-subtitle">realtime collaboration</p>
+          </div>
+        </div>
+
+        <h1>Meet fast, collaborate instantly, and keep backend load minimal.</h1>
         <p className="hero-copy">
           Video, audio, chat, whiteboard sync, and file exchange run client-side over LiveKit and direct S3
-          transfers. Backend handles room lifecycle and token issuance only.
+          transfer. The API only handles room lifecycle and token issuance.
         </p>
+
+        <div className="quick-stats">
+          <article>
+            <strong>2 Calls</strong>
+            <span>Join flow</span>
+          </article>
+          <article>
+            <strong>0 File Proxy</strong>
+            <span>Direct S3 upload</span>
+          </article>
+          <article>
+            <strong>Data Channel</strong>
+            <span>Chat & whiteboard</span>
+          </article>
+        </div>
       </section>
 
       <section className="action-panel">
+        <h2>Start or join a room</h2>
         <button type="button" className="primary-btn" onClick={onCreateRoom} disabled={busy}>
           {busy ? 'Creating...' : 'Create Room'}
         </button>
@@ -89,4 +112,3 @@ export function LandingPage() {
     </main>
   );
 }
-

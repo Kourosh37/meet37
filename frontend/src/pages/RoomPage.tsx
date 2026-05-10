@@ -75,6 +75,8 @@ export function RoomPage() {
   const [strokes, setStrokes] = useState<Stroke[]>([]);
   const [connecting, setConnecting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [micEnabled, setMicEnabled] = useState(true);
+  const [cameraEnabled, setCameraEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const roomRef = useRef<Room | null>(null);
@@ -179,10 +181,7 @@ export function RoomPage() {
       }
 
       const encodedUpdate = uint8ArrayToBase64(update);
-      await publishData({
-        type: 'yjs-update',
-        payload: { update: encodedUpdate },
-      });
+      await publishData({ type: 'yjs-update', payload: { update: encodedUpdate } });
     };
 
     yStrokes.observe(syncStrokes);
@@ -236,17 +235,12 @@ export function RoomPage() {
             setChatMessages((current) => [...current, message.payload]);
             return;
           }
-
           if (message.type === 'file') {
             setFiles((current) => [...current, message.payload]);
             return;
           }
-
-          if (message.type === 'yjs-update') {
-            const update = base64ToUint8Array(message.payload.update);
-            if (ydocRef.current) {
-              Y.applyUpdate(ydocRef.current, update, 'remote');
-            }
+          if (message.type === 'yjs-update' && ydocRef.current) {
+            Y.applyUpdate(ydocRef.current, base64ToUint8Array(message.payload.update), 'remote');
           }
         } catch (decodeError) {
           console.warn('Failed to decode room data packet', decodeError);
@@ -260,6 +254,8 @@ export function RoomPage() {
       roomRef.current = nextRoom;
       setRoom(nextRoom);
       syncTracks(nextRoom);
+      setMicEnabled(true);
+      setCameraEnabled(true);
     } catch (connectError) {
       setError(connectError instanceof Error ? connectError.message : 'Failed to join room');
     } finally {
@@ -267,9 +263,26 @@ export function RoomPage() {
     }
   };
 
+  const onToggleMic = async () => {
+    if (!roomRef.current) {
+      return;
+    }
+    const next = !micEnabled;
+    await roomRef.current.localParticipant.setMicrophoneEnabled(next);
+    setMicEnabled(next);
+  };
+
+  const onToggleCamera = async () => {
+    if (!roomRef.current) {
+      return;
+    }
+    const next = !cameraEnabled;
+    await roomRef.current.localParticipant.setCameraEnabled(next);
+    setCameraEnabled(next);
+  };
+
   const onSendChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     const text = chatInput.trim();
     if (!text || !roomRef.current) {
       return;
@@ -284,11 +297,7 @@ export function RoomPage() {
 
     setChatInput('');
     setChatMessages((current) => [...current, message]);
-
-    await publishData({
-      type: 'chat',
-      payload: message,
-    });
+    await publishData({ type: 'chat', payload: message });
   };
 
   const onUploadFile = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -302,11 +311,7 @@ export function RoomPage() {
 
     try {
       const upload = await getUploadUrl(file.name, file.size);
-      const uploadResult = await fetch(upload.uploadUrl, {
-        method: 'PUT',
-        body: file,
-      });
-
+      const uploadResult = await fetch(upload.uploadUrl, { method: 'PUT', body: file });
       if (!uploadResult.ok) {
         throw new Error(`Upload failed with status ${uploadResult.status}`);
       }
@@ -320,10 +325,7 @@ export function RoomPage() {
       };
 
       setFiles((current) => [...current, payload]);
-      await publishData({
-        type: 'file',
-        payload,
-      });
+      await publishData({ type: 'file', payload });
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'File upload failed');
     } finally {
@@ -337,9 +339,7 @@ export function RoomPage() {
     if (!ydoc) {
       return;
     }
-
-    const yStrokes = ydoc.getArray<Stroke>('strokes');
-    yStrokes.push([stroke]);
+    ydoc.getArray<Stroke>('strokes').push([stroke]);
   };
 
   const onClearBoard = () => {
@@ -369,9 +369,7 @@ export function RoomPage() {
       <main className="shell room-shell">
         <h1>Room not found</h1>
         <p className="status-error">Token `{token}` does not exist or expired.</p>
-        <Link to="/" className="secondary-link">
-          Back to home
-        </Link>
+        <Link to="/" className="secondary-link">Back to home</Link>
       </main>
     );
   }
@@ -379,23 +377,38 @@ export function RoomPage() {
   return (
     <main className="shell room-shell">
       <header className="room-header">
-        <div>
-          <p className="eyebrow">meet37 room</p>
-          <h1>{roomTokenTitle}</h1>
+        <div className="brand-mark compact">
+          <img src="/logo.png" alt="meet37 logo" className="brand-logo" />
+          <div>
+            <p className="eyebrow">meet37 room</p>
+            <h1>{roomTokenTitle}</h1>
+          </div>
         </div>
 
-        <button
-          type="button"
-          className="secondary-btn"
-          onClick={() => {
-            roomRef.current?.disconnect();
-            roomRef.current = null;
-            setRoom(null);
-            navigate('/');
-          }}
-        >
-          Leave
-        </button>
+        <div className="room-actions">
+          {room ? (
+            <>
+              <button type="button" className="secondary-btn" onClick={onToggleMic}>
+                {micEnabled ? 'Mute Mic' : 'Unmute Mic'}
+              </button>
+              <button type="button" className="secondary-btn" onClick={onToggleCamera}>
+                {cameraEnabled ? 'Stop Camera' : 'Start Camera'}
+              </button>
+            </>
+          ) : null}
+          <button
+            type="button"
+            className="secondary-btn danger-btn"
+            onClick={() => {
+              roomRef.current?.disconnect();
+              roomRef.current = null;
+              setRoom(null);
+              navigate('/');
+            }}
+          >
+            Leave
+          </button>
+        </div>
       </header>
 
       {!room ? (
@@ -420,16 +433,13 @@ export function RoomPage() {
         </section>
       ) : (
         <section className="room-layout">
-          <section className="video-stage">
+          <section className="video-stage card">
             <h2>Participants</h2>
             <div className="video-grid">
               {videoTiles.map((tile) => (
                 <article key={tile.id} className="video-tile">
                   <MediaTrack track={tile.track} muted={tile.isLocal} />
-                  <p>
-                    {tile.participantName}
-                    {tile.isLocal ? ' (You)' : ''}
-                  </p>
+                  <p>{tile.participantName}{tile.isLocal ? ' (You)' : ''}</p>
                 </article>
               ))}
             </div>
@@ -437,7 +447,7 @@ export function RoomPage() {
           </section>
 
           <section className="side-panel">
-            <div className="panel-block">
+            <div className="panel-block card">
               <h3>Chat</h3>
               <div className="chat-log">
                 {chatMessages.map((message) => (
@@ -447,48 +457,33 @@ export function RoomPage() {
                   </article>
                 ))}
               </div>
-
               <form onSubmit={onSendChat} className="chat-form">
-                <input
-                  value={chatInput}
-                  onChange={(event) => setChatInput(event.target.value)}
-                  placeholder="Send a message"
-                />
-                <button type="submit" className="secondary-btn">
-                  Send
-                </button>
+                <input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Send a message" />
+                <button type="submit" className="secondary-btn">Send</button>
               </form>
             </div>
 
-            <div className="panel-block">
+            <div className="panel-block card">
               <div className="file-header">
                 <h3>Files</h3>
-                <label className="upload-btn" htmlFor="fileInput">
-                  {uploading ? 'Uploading...' : 'Upload'}
-                </label>
+                <label className="upload-btn" htmlFor="fileInput">{uploading ? 'Uploading...' : 'Upload'}</label>
                 <input id="fileInput" type="file" onChange={onUploadFile} hidden disabled={uploading} />
               </div>
               <ul className="file-list">
                 {files.map((file) => (
                   <li key={file.id}>
-                    <a href={file.downloadUrl} target="_blank" rel="noreferrer">
-                      {file.filename}
-                    </a>
-                    <span>
-                      {Math.ceil(file.size / 1024)} KB - from {file.from}
-                    </span>
+                    <a href={file.downloadUrl} target="_blank" rel="noreferrer">{file.filename}</a>
+                    <span>{Math.ceil(file.size / 1024)} KB - from {file.from}</span>
                   </li>
                 ))}
               </ul>
             </div>
           </section>
 
-          <section className="whiteboard-panel">
+          <section className="whiteboard-panel card">
             <div className="whiteboard-header">
               <h3>Whiteboard (Yjs over LiveKit)</h3>
-              <button type="button" className="secondary-btn" onClick={onClearBoard}>
-                Clear
-              </button>
+              <button type="button" className="secondary-btn" onClick={onClearBoard}>Clear</button>
             </div>
             <WhiteboardCanvas strokes={strokes} disabled={!room} onCreateStroke={onCreateStroke} />
           </section>
@@ -505,17 +500,14 @@ function uint8ArrayToBase64(value: Uint8Array): string {
   for (let index = 0; index < value.byteLength; index += 1) {
     binary += String.fromCharCode(value[index]);
   }
-
   return window.btoa(binary);
 }
 
 function base64ToUint8Array(value: string): Uint8Array {
   const binary = window.atob(value);
   const bytes = new Uint8Array(binary.length);
-
   for (let index = 0; index < binary.length; index += 1) {
     bytes[index] = binary.charCodeAt(index);
   }
-
   return bytes;
 }

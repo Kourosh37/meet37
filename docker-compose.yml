@@ -1,4 +1,4 @@
-services:
+﻿services:
   postgres:
     image: postgres:16-alpine
     container_name: meet37-postgres
@@ -77,8 +77,29 @@ services:
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       RUST_LOG: backend=info,tower_http=info
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_LK_URL: ws://localhost/livekit
+    container_name: meet37-frontend
+    depends_on:
+      - backend
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: meet37-nginx
+    depends_on:
+      - frontend
+      - backend
+      - livekit
+    volumes:
+      - ./infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
-      - "8080:8080"
+      - "80:80"
 
 volumes:
   postgres-data:

@@ -2,55 +2,31 @@
 
 Server-optimized real-time meeting platform focused on minimal backend load.
 
-## Current implementation status
+## Stack (implemented)
 
-- Backend (Rust + Axum)
-- `POST /rooms` create room token
-- `GET /rooms/:token` validate room token
-- `POST /rooms/:token/join` generate LiveKit participant token
-- `POST /files/upload-url` generate presigned S3 upload/download URLs
-- Redis fixed-window rate limiting for create/join/upload-url
-- PostgreSQL room storage + Redis room existence cache
+- Backend: Rust + Axum + SQLx + Redis
+- Frontend: React + Vite + LiveKit client + Yjs
+- Infra: PostgreSQL, Redis, LiveKit, MinIO, Nginx gateway
 
-- Frontend (React + Vite)
-- Landing flow for room creation/join
-- Room connection with LiveKit token flow
-- Video grid + mic/camera bootstrap
-- Chat over LiveKit data channel
-- Yjs whiteboard sync over LiveKit data channel
-- Direct S3 file upload and link broadcast
+## Docker Compose services
 
-- Local infrastructure
-- Docker Compose for PostgreSQL, Redis, MinIO, LiveKit, backend
+- `postgres`
+- `redis`
+- `minio` + `minio-init`
+- `livekit`
+- `backend`
+- `frontend` (built static app served by Nginx)
+- `nginx` (gateway/reverse-proxy, exposed on `:80`)
 
-## Quick start
+## Access points (local)
 
-1. Start infrastructure
+- App: `http://localhost`
+- Backend API via gateway: `http://localhost/api`
+- LiveKit WS via gateway: `ws://localhost/livekit`
+- MinIO console: `http://localhost:9001`
 
-```bash
-docker compose up -d postgres redis minio minio-init livekit
-```
-
-2. Run backend
+## Local start
 
 ```bash
-cd backend
-cp .env.example .env
-cargo run
+docker compose up -d --build
 ```
-
-3. Run frontend
-
-```bash
-cd frontend
-cp .env.example .env
-npm install
-npm run dev
-```
-
-## Monorepo layout
-
-- `backend/`: Rust + Axum API
-- `frontend/`: React + Vite client
-- `infra/livekit.yaml`: local LiveKit config
-- `docker-compose.yml`: local stack

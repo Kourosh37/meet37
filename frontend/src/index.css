@@ -1,6 +1,23 @@
 ﻿@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
 :root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --panel-soft: #1f2430;
+  --ink: #ecf1ff;
+  --muted: #9ea6bc;
+  --border: #2b3141;
+  --brand: #4f83ff;
+  --brand-strong: #3e70ec;
+  --danger: #ff6767;
+  --warning: #ffb14a;
+  --radius: 18px;
+  --shadow: 0 16px 30px rgba(10, 15, 18, 0.08);
+  --body: 'Space Grotesk', sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+:root[data-theme='light'] {
   --bg: #f4efe4;
   --panel: #fffdfa;
   --panel-soft: #faf4e9;
@@ -11,10 +28,6 @@
   --brand-strong: #115e59;
   --danger: #b42318;
   --warning: #c2410c;
-  --radius: 18px;
-  --shadow: 0 16px 30px rgba(10, 15, 18, 0.08);
-  --body: 'Space Grotesk', sans-serif;
-  --mono: 'JetBrains Mono', monospace;
 }
 
 * { box-sizing: border-box; }
@@ -27,15 +40,18 @@ body {
     radial-gradient(circle at 0% 0%, rgba(15, 118, 110, 0.2), transparent 38%),
     radial-gradient(circle at 100% 0%, rgba(194, 65, 12, 0.14), transparent 35%),
     var(--bg);
+  height: 100vh;
+  overflow: hidden;
 }
 
 a { color: inherit; }
-#root { min-height: 100vh; }
+#root { height: 100vh; overflow: hidden; }
 
 .shell {
   width: min(1280px, 100% - 32px);
   margin: 0 auto;
   padding: 20px 0 28px;
+  height: 100%;
 }
 
 .card {
@@ -218,6 +234,7 @@ input:focus { outline: 2px solid rgba(15,118,110,.25); border-color: var(--brand
 .status-info { margin: 0; color: var(--muted); }
 
 .room-shell { display: grid; gap: 14px; }
+.meet-room-shell { grid-template-rows: auto 1fr auto; }
 
 .room-header {
   padding: 16px;
@@ -295,12 +312,14 @@ input:focus { outline: 2px solid rgba(15,118,110,.25); border-color: var(--brand
     'stage side'
     'controls controls';
   gap: 12px;
+  min-height: 0;
 }
 
 .meet-stage {
   grid-area: stage;
   padding: 12px;
-  min-height: 58vh;
+  min-height: 0;
+  overflow: auto;
 }
 
 .meet-grid {
@@ -314,7 +333,7 @@ input:focus { outline: 2px solid rgba(15,118,110,.25); border-color: var(--brand
 
 .meet-side-panel {
   grid-area: side;
-  max-height: 70vh;
+  max-height: none;
   overflow: auto;
 }
 

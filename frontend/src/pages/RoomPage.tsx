@@ -18,23 +18,23 @@ interface AudioTrackItem {
 }
 
 function IconMic() {
-  return <span aria-hidden>??</span>;
+  return <span aria-hidden>🎙️</span>;
 }
 
 function IconCam() {
-  return <span aria-hidden>??</span>;
+  return <span aria-hidden>📹</span>;
 }
 
 function IconShare() {
-  return <span aria-hidden>???</span>;
+  return <span aria-hidden>🖥️</span>;
 }
 
 function IconLeave() {
-  return <span aria-hidden>??</span>;
+  return <span aria-hidden>⏏️</span>;
 }
 
 function IconCopy() {
-  return <span aria-hidden>??</span>;
+  return <span aria-hidden>📋</span>;
 }
 
 function MediaTrack({ track, muted }: { track: Track; muted?: boolean }) {
@@ -99,6 +99,7 @@ export function RoomPage() {
   const [error, setError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const roomRef = useRef<Room | null>(null);
   const previewStreamRef = useRef<MediaStream | null>(null);
@@ -182,6 +183,10 @@ export function RoomPage() {
       topic: 'meet37-room-sync',
     });
   }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   useEffect(() => {
     return () => {
@@ -324,7 +329,18 @@ export function RoomPage() {
 
     const next = !screenShareEnabled;
     try {
-      await activeRoom.localParticipant.setScreenShareEnabled(next);
+      await activeRoom.localParticipant.setScreenShareEnabled(
+        next,
+        next
+          ? {
+              resolution: {
+                width: 1920,
+                height: 1080,
+                frameRate: 30,
+              },
+            }
+          : undefined,
+      );
       setScreenShareEnabled(next);
       syncTracks(activeRoom);
     } catch (shareError) {
@@ -430,6 +446,9 @@ export function RoomPage() {
           </div>
           <button type="button" className="token-copy-btn" onClick={onCopyToken} title="Copy room token">
             <IconCopy /> {copied ? 'Copied' : 'Copy'}
+          </button>
+          <button type="button" className="token-copy-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
           </button>
         </div>
       </header>

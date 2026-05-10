@@ -52,7 +52,8 @@
       - ./infra/livekit.yaml:/etc/livekit.yaml:ro
     ports:
       - "7880:7880"
-      - "7881:7881/udp"
+      - "7881:7881"
+      - "7882:7882/udp"
 
   backend:
     build:
@@ -112,3 +113,4 @@
 volumes:
   postgres-data:
   minio-data:
+

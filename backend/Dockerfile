@@ -8,11 +8,8 @@ COPY backend/migrations ./migrations
 RUN cargo build --release
 
 FROM debian:bookworm-slim
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
-
 COPY --from=builder /app/target/release/backend /usr/local/bin/meet37-backend
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 
 EXPOSE 8080
 CMD ["/usr/local/bin/meet37-backend"]

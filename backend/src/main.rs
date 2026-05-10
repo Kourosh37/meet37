@@ -8,6 +8,8 @@ use std::net::SocketAddr;
 use axum::Router;
 use config::AppConfig;
 use error::AppError;
+use redis::Client as RedisClient;
+use sqlx::postgres::PgPoolOptions;
 use state::AppState;
 use tokio::net::TcpListener;
 use tower_http::{compression::CompressionLayer, cors::CorsLayer, trace::TraceLayer};
@@ -26,7 +28,12 @@ async fn run() -> Result<(), AppError> {
     init_tracing();
 
     let config = AppConfig::from_env()?;
-    let state = AppState::new(config);
+    let db_pool = PgPoolOptions::new()
+        .max_connections(16)
+        .connect(&config.database_url)
+        .await?;
+    let redis_client = RedisClient::open(config.redis_url.clone())?;
+    let state = AppState::new(config, db_pool, redis_client);
     let port = state.config.port;
     let app = build_router(state);
 

@@ -17,6 +17,10 @@ pub enum AppError {
     #[error("internal server error")]
     Internal,
     #[error(transparent)]
+    Sqlx(#[from] sqlx::Error),
+    #[error(transparent)]
+    Redis(#[from] redis::RedisError),
+    #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 
@@ -30,7 +34,7 @@ impl IntoResponse for AppError {
         let (status, message) = match self {
             Self::Config(message) | Self::BadRequest(message) => (StatusCode::BAD_REQUEST, message),
             Self::NotFound(message) => (StatusCode::NOT_FOUND, message),
-            Self::Io(_) | Self::Internal => (
+            Self::Io(_) | Self::Internal | Self::Sqlx(_) | Self::Redis(_) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "internal server error".to_owned(),
             ),

@@ -6,7 +6,7 @@ import { MediaTrack } from './MediaTrack';
 export type VideoTileData = {
   id: string;
   participantName: string;
-  track: Track;
+  track?: Track;
   isLocal: boolean;
   isScreenShare: boolean;
 };
@@ -14,7 +14,13 @@ export type VideoTileData = {
 function VideoTileBase({ tile }: { tile: VideoTileData }) {
   return (
     <article className="group relative h-full min-h-[200px] overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black/60">
-      <MediaTrack track={tile.track} muted={tile.isLocal} fit={tile.isScreenShare ? 'contain' : 'cover'} />
+      {tile.track ? (
+        <MediaTrack track={tile.track} muted={tile.isLocal} fit={tile.isScreenShare ? 'contain' : 'cover'} />
+      ) : (
+        <div className="flex h-full w-full items-center justify-center bg-black/70 text-center">
+          <span className="px-4 text-sm font-semibold text-white/90">{tile.participantName}</span>
+        </div>
+      )}
       <div className="absolute inset-x-4 bottom-4 flex items-center justify-between">
         <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">
           {tile.participantName}

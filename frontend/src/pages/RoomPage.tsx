@@ -112,23 +112,26 @@ export function RoomPage() {
 
     const collect = (participant: Participant, isLocal: boolean) => {
       let hasCamera = false;
+      let addedCameraTile = false;
       participant.trackPublications.forEach((publication, sid) => {
         const track = publication.track;
         if (!track) return;
+        if (publication.isMuted) return;
 
         if (track.kind === Track.Kind.Video) {
           const isScreenShare = publication.source === Track.Source.ScreenShare;
           const tile: VideoTileData = {
             id: `${participant.identity}-${sid}`,
             participantName: participant.name || participant.identity || (isLocal ? 'You' : 'Guest'),
-            track,
+            track: isScreenShare ? track : hasCamera ? undefined : track,
             isLocal,
             isScreenShare,
           };
           if (isScreenShare) {
             nextScreenTile = tile;
-          } else {
+          } else if (!hasCamera) {
             hasCamera = true;
+            addedCameraTile = true;
             nextCameraTiles.push(tile);
           }
           return;
@@ -144,6 +147,16 @@ export function RoomPage() {
         name: participant.name || participant.identity || (isLocal ? 'You' : 'Guest'),
         hasCamera,
       });
+
+      if (!addedCameraTile) {
+        nextCameraTiles.push({
+          id: `${participant.identity}-placeholder`,
+          participantName: participant.name || participant.identity || (isLocal ? 'You' : 'Guest'),
+          track: undefined,
+          isLocal,
+          isScreenShare: false,
+        });
+      }
     };
 
     collect(targetRoom.localParticipant, true);
@@ -408,7 +421,7 @@ export function RoomPage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col gap-4 px-6 py-5">
+    <main className={`flex ${room ? 'h-screen overflow-hidden' : 'min-h-screen'} flex-col gap-4 px-6 py-5`}>
       <header className="panel flex items-center justify-between">
         <div className="flex items-center gap-4">
           <img
@@ -480,6 +493,16 @@ export function RoomPage() {
               >
                 {connecting ? 'Joining...' : 'Join Room'}
               </button>
+              <div className="grid gap-2 sm:grid-cols-2">
+                <button type="button" className="btn btn-ghost" onClick={onToggleMic} disabled={!previewReady}>
+                  {micEnabled ? <MicIcon className="h-4 w-4" /> : <MicOffIcon className="h-4 w-4" />}
+                  {micEnabled ? 'Mic On' : 'Mic Off'}
+                </button>
+                <button type="button" className="btn btn-ghost" onClick={onToggleCamera} disabled={!previewReady}>
+                  {cameraEnabled ? <CameraIcon className="h-4 w-4" /> : <CameraOffIcon className="h-4 w-4" />}
+                  {cameraEnabled ? 'Cam On' : 'Cam Off'}
+                </button>
+              </div>
             </div>
           </form>
         </section>
@@ -523,7 +546,7 @@ export function RoomPage() {
                 </div>
               </div>
             ) : (
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {cameraTiles.map((tile) => (
                   <VideoTile key={tile.id} tile={tile} />
                 ))}
@@ -556,12 +579,15 @@ export function RoomPage() {
                   placeholder="Type a message"
                   className="input"
                 />
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto_auto]">
+                <div className="flex flex-wrap items-center gap-2">
                   <button className="btn btn-primary" type="submit">
                     <SendIcon className="h-4 w-4" />
                     Send
                   </button>
-                  <label className="btn btn-ghost" htmlFor="fileInput">
+                  <label
+                    className="btn btn-ghost max-w-full cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap"
+                    htmlFor="fileInput"
+                  >
                     <UploadIcon className="h-4 w-4" />
                     {uploading ? 'Uploading...' : 'File'}
                   </label>
@@ -578,7 +604,7 @@ export function RoomPage() {
       )}
 
       {room ? (
-        <footer className="panel flex flex-wrap items-center gap-2">
+        <footer className="panel sticky bottom-4 z-20 mt-auto flex flex-wrap items-center gap-2">
           <button className="btn btn-ghost" onClick={onToggleMic}>
             {micEnabled ? <MicIcon className="h-4 w-4" /> : <MicOffIcon className="h-4 w-4" />}
             {micEnabled ? 'Mute' : 'Unmute'}

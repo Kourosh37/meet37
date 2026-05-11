@@ -11,6 +11,15 @@ export type UploadUrls = {
   downloadUrl: string;
 };
 
+function toPublicUrl(url: string, publicBaseUrl?: string): string {
+  if (!publicBaseUrl) return url;
+  const source = new URL(url);
+  const base = new URL(publicBaseUrl);
+  source.protocol = base.protocol;
+  source.host = base.host;
+  return source.toString();
+}
+
 export async function createUploadUrls(
   config: AppConfig,
   s3: S3Client,
@@ -32,8 +41,10 @@ export async function createUploadUrls(
     Key: objectKey,
   });
 
-  const uploadUrl = await getSignedUrl(s3, uploadCommand, { expiresIn: 300 });
-  const downloadUrl = await getSignedUrl(s3, downloadCommand, { expiresIn: 3600 });
+  const signedUploadUrl = await getSignedUrl(s3, uploadCommand, { expiresIn: 300 });
+  const signedDownloadUrl = await getSignedUrl(s3, downloadCommand, { expiresIn: 3600 });
+  const uploadUrl = toPublicUrl(signedUploadUrl, config.S3_PUBLIC_BASE_URL);
+  const downloadUrl = toPublicUrl(signedDownloadUrl, config.S3_PUBLIC_BASE_URL);
 
   return { fileId, uploadUrl, downloadUrl };
 }

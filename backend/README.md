@@ -1,6 +1,6 @@
 # backend
 
-Rust + Axum API for meet37.
+Node.js + TypeScript API for meet37 (Fastify + Prisma + Redis + LiveKit).
 
 ## Endpoints
 
@@ -15,5 +15,14 @@ Rust + Axum API for meet37.
 1. Copy `.env.example` to `.env` and adjust values.
 2. Start dependencies with Docker Compose:
    - `docker compose up -d postgres redis minio minio-init livekit`
-3. Run backend:
-   - `cargo run`
+3. Install dependencies:
+   - `npm install`
+4. Generate Prisma client:
+   - `npm run prisma:generate`
+5. Run the API:
+   - `npm run dev`
+
+## Build
+
+- `npm run build`
+- `npm start`

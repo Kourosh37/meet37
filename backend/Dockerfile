@@ -1,15 +1,27 @@
-FROM rust:1.93-bookworm AS builder
+FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 
-COPY backend/Cargo.toml ./Cargo.toml
-COPY backend/src ./src
-COPY backend/migrations ./migrations
+ENV npm_config_fund=false \
+	npm_config_audit=false \
+	npm_config_update_notifier=false \
+	npm_config_progress=false
 
-RUN cargo build --release
+COPY package.json package-lock.json* ./
+RUN npm install --include=dev --no-audit --no-fund
 
-FROM debian:bookworm-slim
-COPY --from=builder /app/target/release/backend /usr/local/bin/meet37-backend
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+FROM deps AS build
+COPY tsconfig.json ./
+COPY prisma ./prisma
+COPY src ./src
+RUN npm run prisma:generate
+RUN npm run build
+
+FROM node:20-bookworm-slim
+WORKDIR /app
+ENV NODE_ENV=production
+
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
 
 EXPOSE 8080
-CMD ["/usr/local/bin/meet37-backend"]
+CMD ["node", "dist/index.js"]

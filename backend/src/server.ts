@@ -1,6 +1,7 @@
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import compress from '@fastify/compress';
+import formbody from '@fastify/formbody';
 
 import type { AppConfig } from './config';
 import type { Dependencies } from './deps';
@@ -18,6 +19,7 @@ export function createServer(config: AppConfig, deps: Dependencies) {
 
   app.register(cors, { origin: true });
   app.register(compress, { global: true });
+  app.register(formbody);
 
   app.addHook('onRequest', rateLimitHook(deps.redis));
 

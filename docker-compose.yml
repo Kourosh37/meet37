@@ -10,7 +10,6 @@
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
-      - ./backend/migrations/0001_create_rooms.sql:/docker-entrypoint-initdb.d/0001_create_rooms.sql:ro
 
   redis:
     image: redis:7-alpine
@@ -90,7 +89,6 @@
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
       S3_PUBLIC_BASE_URL: http://localhost:9000
-      RUST_LOG: backend=info,tower_http=info
 
   backend-nginx:
     image: nginx:1.27-alpine

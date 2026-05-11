@@ -69,6 +69,7 @@ export function RoomPage() {
   const [minimizeShare, setMinimizeShare] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
+  const [copiedItem, setCopiedItem] = useState<'token' | 'link' | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const stored = window.localStorage.getItem('meet37-theme');
     return stored === 'light' || stored === 'dark' ? stored : 'dark';
@@ -363,8 +364,19 @@ export function RoomPage() {
   };
 
   const roomTokenTitle = useMemo(() => token.toUpperCase(), [token]);
+  const roomLink = useMemo(() => `${window.location.origin}/room/${token}`, [token]);
   const showShareLayout = Boolean(screenTile) && !minimizeShare;
   const chatIdentity = displayName.trim();
+
+  const onCopy = useCallback(async (value: string, kind: 'token' | 'link') => {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedItem(kind);
+      window.setTimeout(() => setCopiedItem(null), 1400);
+    } catch {
+      setError('Copy failed');
+    }
+  }, []);
 
   if (status === 'checking') {
     return (
@@ -380,6 +392,14 @@ export function RoomPage() {
         <section className="panel max-w-lg text-center">
           <h1 className="text-2xl font-semibold text-main">Room not found</h1>
           <p className="mt-2 text-sm text-muted">Token "{token}" was not found.</p>
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+            <button type="button" className="btn btn-ghost" onClick={() => onCopy(token, 'token')}>
+              {copiedItem === 'token' ? 'Copied Token' : 'Copy Token'}
+            </button>
+            <button type="button" className="btn btn-ghost" onClick={() => onCopy(roomLink, 'link')}>
+              {copiedItem === 'link' ? 'Copied Link' : 'Copy Link'}
+            </button>
+          </div>
           <Link to="/" className="btn btn-ghost mt-6 inline-flex">
             Back home
           </Link>
@@ -400,6 +420,14 @@ export function RoomPage() {
           <div>
             <p className="text-xs uppercase tracking-[0.3em] text-muted">meet37</p>
             <p className="text-lg font-semibold text-main">Room {roomTokenTitle}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button type="button" className="btn btn-ghost" onClick={() => onCopy(token, 'token')}>
+                {copiedItem === 'token' ? 'Copied Token' : 'Copy Token'}
+              </button>
+              <button type="button" className="btn btn-ghost" onClick={() => onCopy(roomLink, 'link')}>
+                {copiedItem === 'link' ? 'Copied Link' : 'Copy Link'}
+              </button>
+            </div>
           </div>
         </div>
         <button className="btn btn-ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
@@ -412,7 +440,13 @@ export function RoomPage() {
         <section className="panel grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="mx-auto aspect-square w-full max-w-[22rem] rounded-3xl border border-[color:var(--border)] bg-black/60 p-4">
             {previewReady ? (
-              <video ref={previewVideoRef} autoPlay muted playsInline className="h-full w-full rounded-2xl object-cover" />
+              <video
+                ref={previewVideoRef}
+                autoPlay
+                muted
+                playsInline
+                className="h-full w-full rounded-2xl bg-black object-contain object-center"
+              />
             ) : (
               <div className="flex h-full w-full items-center justify-center rounded-2xl bg-black/30 text-sm text-muted">
                 Enable camera and mic for a preview.

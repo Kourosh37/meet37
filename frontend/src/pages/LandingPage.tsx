@@ -1,9 +1,7 @@
 import { type FormEvent, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { BoltIcon, ShieldIcon, SparkIcon } from '../components/icons';
 import { Badge, SectionCard } from '../components/ui';
-import { Stat } from '../components/stat';
 import { createRoom, validateRoom } from '../lib/api';
 
 export function LandingPage() {
@@ -60,15 +58,15 @@ export function LandingPage() {
   return (
     <main className="min-h-screen">
       <div className="shell grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <SectionCard className="relative overflow-hidden">
+        <SectionCard className="relative order-2 overflow-hidden lg:order-1">
           <div className="absolute -right-20 top-10 h-64 w-64 rounded-full bg-emerald-400/20 blur-3xl" />
           <div className="absolute -left-24 bottom-0 h-64 w-64 rounded-full bg-blue-500/20 blur-3xl" />
 
-          <div className="relative z-10 flex items-center gap-4">
+          <div className="relative z-10 flex items-center gap-5">
             <img
               src="/logo.png"
               alt="meet37 logo"
-              className="h-12 w-12 rounded-2xl border border-[color:var(--border)] bg-surface-2"
+              className="h-24 w-24 rounded-3xl border border-[color:var(--border)] bg-surface-2 p-1 sm:h-28 sm:w-28"
             />
             <div>
               <Badge>meet37</Badge>
@@ -77,36 +75,12 @@ export function LandingPage() {
           </div>
 
           <h1 className="relative z-10 mt-6 text-4xl font-semibold leading-tight text-main sm:text-5xl">
-            Meet faster, collaborate live, and keep the backend feather-light.
+            Fast meetings. Simple sharing.
           </h1>
-          <p className="relative z-10 mt-4 text-lg text-muted">
-            Video, audio, chat, whiteboard sync, and file exchange run client-side over LiveKit and direct S3
-            transfer. The API only handles room lifecycle and token issuance.
-          </p>
-
-          <div className="relative z-10 mt-8 grid gap-4 sm:grid-cols-3">
-            <Stat label="Join flow" value="2 Calls" icon={<SparkIcon className="h-5 w-5 text-emerald-300" />} />
-            <Stat label="File path" value="0 Proxy" icon={<ShieldIcon className="h-5 w-5 text-emerald-300" />} />
-            <Stat label="Latency" value="Live" icon={<BoltIcon className="h-5 w-5 text-emerald-300" />} />
-          </div>
-
-          <div className="relative z-10 mt-8 grid gap-3 text-sm text-muted">
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-emerald-300" />
-              <span>Peer-first media pipeline with adaptive streaming.</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-emerald-300" />
-              <span>Token-based room access with Redis-backed throttling.</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <span className="h-2 w-2 rounded-full bg-emerald-300" />
-              <span>Direct-to-object storage for uploads and downloads.</span>
-            </div>
-          </div>
+          <p className="relative z-10 mt-4 text-lg text-muted">Create a room, share the token, and jump in.</p>
         </SectionCard>
 
-        <SectionCard className="relative flex flex-col justify-between gap-8">
+        <SectionCard className="relative order-1 flex flex-col justify-between gap-8 lg:order-2">
           <div>
             <h2 className="text-2xl font-semibold text-main">Start or join a room</h2>
             <p className="mt-2 text-sm text-muted">Create a new room or jump in with a token.</p>

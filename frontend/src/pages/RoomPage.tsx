@@ -192,7 +192,8 @@ export function RoomPage() {
         },
         video: {
           width: { ideal: 640 },
-          height: { ideal: 360 },
+          height: { ideal: 640 },
+          aspectRatio: { ideal: 1 },
           frameRate: { ideal: 15, max: 24 },
         },
       });
@@ -409,11 +410,11 @@ export function RoomPage() {
 
       {!room ? (
         <section className="panel grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border border-[color:var(--border)] bg-black/60 p-4">
+          <div className="mx-auto aspect-square w-full max-w-[22rem] rounded-3xl border border-[color:var(--border)] bg-black/60 p-4">
             {previewReady ? (
-              <video ref={previewVideoRef} autoPlay muted playsInline className="h-72 w-full rounded-2xl object-cover" />
+              <video ref={previewVideoRef} autoPlay muted playsInline className="h-full w-full rounded-2xl object-cover" />
             ) : (
-              <div className="flex h-72 items-center justify-center text-sm text-muted">
+              <div className="flex h-full w-full items-center justify-center rounded-2xl bg-black/30 text-sm text-muted">
                 Enable camera and mic for a preview.
               </div>
             )}

@@ -1,9 +1,9 @@
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken, RoomServiceClient } from 'livekit-server-sdk';
 import { randomUUID } from 'crypto';
 
 import type { AppConfig } from '../config';
 
-export function createLivekitToken(config: AppConfig, room: string, displayName: string): string {
+export async function createLivekitToken(config: AppConfig, room: string, displayName: string): Promise<string> {
   const identity = `participant-${randomUUID().replace(/-/g, '')}`;
 
   const token = new AccessToken(config.LIVEKIT_API_KEY, config.LIVEKIT_API_SECRET, {
@@ -20,4 +20,9 @@ export function createLivekitToken(config: AppConfig, room: string, displayName:
   });
 
   return token.toJwt();
+}
+
+export async function verifyLivekitConfiguration(config: AppConfig): Promise<void> {
+  const client = new RoomServiceClient(config.LIVEKIT_API_URL, config.LIVEKIT_API_KEY, config.LIVEKIT_API_SECRET);
+  await client.listRooms();
 }

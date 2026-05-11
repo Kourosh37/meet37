@@ -43,7 +43,7 @@ export async function registerRoomRoutes(app: FastifyInstance, config: AppConfig
       throw notFound(`room \`${token}\` was not found`);
     }
 
-    const livekitToken = createLivekitToken(config, token, displayName);
+    const livekitToken = await createLivekitToken(config, token, displayName);
     return { livekitToken };
   });
 }

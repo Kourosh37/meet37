@@ -24,7 +24,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PRISMA_ENGINES_PATH=/app/node_modules/@prisma/engines
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh

@@ -27,6 +27,8 @@ export function createDependencies(): Dependencies {
       secretAccessKey: config.AWS_SECRET_ACCESS_KEY,
     },
     forcePathStyle: true,
+    requestChecksumCalculation: 'WHEN_REQUIRED',
+    responseChecksumValidation: 'WHEN_REQUIRED',
   });
 
   return { prisma, redis, s3 };

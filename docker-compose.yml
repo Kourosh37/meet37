@@ -88,7 +88,7 @@
       S3_REGION: us-east-1
       AWS_ACCESS_KEY_ID: minioadmin
       AWS_SECRET_ACCESS_KEY: minioadmin
-      S3_PUBLIC_BASE_URL: http://localhost:9000
+      S3_PUBLIC_BASE_URL: http://localhost/s3
 
   backend-nginx:
     image: nginx:1.27-alpine
@@ -116,6 +116,7 @@
       - frontend
       - backend-nginx
       - livekit
+      - minio
     volumes:
       - ./infra/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     ports:

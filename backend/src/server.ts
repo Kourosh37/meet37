@@ -21,6 +21,19 @@ export function createServer(config: AppConfig, deps: Dependencies) {
   app.register(compress, { global: true });
   app.register(formbody);
 
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    if (!body) {
+      done(null, {});
+      return;
+    }
+
+    try {
+      done(null, JSON.parse(body));
+    } catch (error) {
+      done(error as Error, undefined);
+    }
+  });
+
   app.addHook('onRequest', rateLimitHook(deps.redis));
 
   app.setErrorHandler((error, _request, reply) => {

@@ -51,3 +51,9 @@
 - [ ] Improve accessibility: keyboard navigation, focus states, ARIA labels in room controls.
 - [ ] Add responsive breakpoints audit for room layouts in small-height mobile screens.
 - [ ] Add user settings persistence (mic/cam defaults, compact layout preferences).
+
+## 9) Frontend Tooling Upgrades
+- [ ] Evaluate and adopt Zustand for shared UI/session state (room UI flags, media preferences, lightweight global state).
+- [ ] Add route-level lazy loading with `React.lazy` + `Suspense` for non-critical pages.
+- [ ] Add feature-level code splitting for heavy room modules (chat panel, file features, optional widgets).
+- [ ] Introduce TanStack Query for API server-state caching, retries, and invalidation patterns.

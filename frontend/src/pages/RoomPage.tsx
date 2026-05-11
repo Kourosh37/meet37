@@ -26,8 +26,6 @@ import {
 import {
   ChatItem,
   type ChatItemMessage,
-  ParticipantCard,
-  type ParticipantCardData,
   VideoTile,
   type VideoTileData,
   MediaTrack,
@@ -55,7 +53,7 @@ export function RoomPage() {
   const [status, setStatus] = useState<'checking' | 'not-found' | 'ready'>('checking');
   const [displayName, setDisplayName] = useState('');
   const [room, setRoom] = useState<Room | null>(null);
-  const [participantCards, setParticipantCards] = useState<ParticipantCardData[]>([]);
+  const [participantCount, setParticipantCount] = useState(0);
   const [cameraTiles, setCameraTiles] = useState<VideoTileData[]>([]);
   const [screenTile, setScreenTile] = useState<VideoTileData | null>(null);
   const [audioTracks, setAudioTracks] = useState<AudioTrackItem[]>([]);
@@ -69,6 +67,7 @@ export function RoomPage() {
   const [screenShareEnabled, setScreenShareEnabled] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [minimizeShare, setMinimizeShare] = useState(false);
+  const [expandedTileId, setExpandedTileId] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
   const [copiedItem, setCopiedItem] = useState<'token' | 'link' | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -107,7 +106,6 @@ export function RoomPage() {
   const syncTracks = useCallback((targetRoom: Room) => {
     const nextCameraTiles: VideoTileData[] = [];
     const nextAudioTracks: AudioTrackItem[] = [];
-    const nextCards: ParticipantCardData[] = [];
     let nextScreenTile: VideoTileData | null = null;
 
     const collect = (participant: Participant, isLocal: boolean) => {
@@ -142,12 +140,6 @@ export function RoomPage() {
         }
       });
 
-      nextCards.push({
-        id: participant.identity,
-        name: participant.name || participant.identity || (isLocal ? 'You' : 'Guest'),
-        hasCamera,
-      });
-
       if (!addedCameraTile) {
         nextCameraTiles.push({
           id: `${participant.identity}-placeholder`,
@@ -164,7 +156,7 @@ export function RoomPage() {
 
     setCameraTiles(nextCameraTiles);
     setAudioTracks(nextAudioTracks);
-    setParticipantCards(nextCards);
+    setParticipantCount(1 + targetRoom.remoteParticipants.size);
     setScreenTile(nextScreenTile);
     setScreenShareEnabled(targetRoom.localParticipant.isScreenShareEnabled);
   }, []);
@@ -378,6 +370,11 @@ export function RoomPage() {
   const roomLink = useMemo(() => `${window.location.origin}/room/${token}`, [token]);
   const showShareLayout = Boolean(screenTile) && !minimizeShare;
   const chatIdentity = displayName.trim();
+  const expandedTile = useMemo(() => {
+    if (!expandedTileId) return null;
+    if (screenTile && screenTile.id === expandedTileId) return screenTile;
+    return cameraTiles.find((tile) => tile.id === expandedTileId) ?? null;
+  }, [cameraTiles, expandedTileId, screenTile]);
 
   const onCopy = useCallback(async (value: string, kind: 'token' | 'link') => {
     try {
@@ -421,18 +418,18 @@ export function RoomPage() {
   }
 
   return (
-    <main className={`flex ${room ? 'h-screen overflow-hidden' : 'min-h-screen'} flex-col gap-4 px-6 py-5`}>
-      <header className="panel flex items-center justify-between">
+    <main className={`flex ${room ? 'h-screen overflow-hidden' : 'min-h-screen'} flex-col gap-3 px-4 py-3 sm:px-6`}>
+      <header className="panel flex items-center justify-between !rounded-2xl !p-3">
         <div className="flex items-center gap-4">
           <img
             src="/logo.png"
             alt="meet37 logo"
-            className="h-12 w-12 rounded-2xl border border-[color:var(--border)] bg-surface-2"
+            className="h-10 w-10 rounded-xl border border-[color:var(--border)] bg-surface-2"
           />
           <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-muted">meet37</p>
-            <p className="text-lg font-semibold text-main">Room {roomTokenTitle}</p>
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <p className="text-[10px] uppercase tracking-[0.25em] text-muted">meet37</p>
+            <p className="text-sm font-semibold text-main">Room {roomTokenTitle}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
               <button type="button" className="btn btn-ghost" onClick={() => onCopy(token, 'token')}>
                 {copiedItem === 'token' ? 'Copied Token' : 'Copy Token'}
               </button>
@@ -442,9 +439,9 @@ export function RoomPage() {
             </div>
           </div>
         </div>
-        <button className="btn btn-ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+        <button className="btn btn-ghost !rounded-xl !px-3 !py-1.5" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
           {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
-          {theme === 'dark' ? 'Light' : 'Dark'}
+          <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
       </header>
 
@@ -509,22 +506,10 @@ export function RoomPage() {
       ) : (
         <section
           className={`grid min-h-0 flex-1 gap-4 ${
-            showChat ? 'xl:grid-cols-[260px_minmax(0,1fr)_360px]' : 'xl:grid-cols-[260px_minmax(0,1fr)]'
+            showChat ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'xl:grid-cols-[minmax(0,1fr)]'
           }`}
         >
-          <aside className="panel flex min-h-0 flex-col gap-3 overflow-y-auto no-scrollbar">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.2em] text-muted">Participants</p>
-              <span className="badge">{participantCards.length}</span>
-            </div>
-            <div className="grid gap-3">
-              {participantCards.map((participant) => (
-                <ParticipantCard key={participant.id} participant={participant} />
-              ))}
-            </div>
-          </aside>
-
-          <section className="panel-dark grid min-h-0 gap-4">
+          <section className="panel-dark grid min-h-0 gap-3 !rounded-2xl !p-3">
             {showShareLayout && screenTile ? (
               <div className="grid gap-4">
                 <div className="flex items-center justify-between">
@@ -532,23 +517,29 @@ export function RoomPage() {
                     <p className="text-xs uppercase tracking-[0.2em] text-muted">Screen share</p>
                     <p className="text-lg font-semibold text-main">{screenTile.participantName}</p>
                   </div>
-                  <button className="btn btn-ghost" onClick={() => setMinimizeShare(true)}>
-                    Minimize
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <span className="badge">{participantCount} people</span>
+                    <button className="btn btn-ghost" onClick={() => setMinimizeShare(true)}>
+                      Minimize
+                    </button>
+                    <button className="btn btn-ghost" onClick={() => setExpandedTileId(screenTile.id)}>
+                      Fullscreen
+                    </button>
+                  </div>
                 </div>
                 <div className="h-[360px] overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black">
-                  <VideoTile tile={screenTile} />
+                  <VideoTile tile={screenTile} onExpand={setExpandedTileId} />
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                   {cameraTiles.map((tile) => (
-                    <VideoTile key={tile.id} tile={tile} />
+                    <VideoTile key={tile.id} tile={tile} onExpand={setExpandedTileId} />
                   ))}
                 </div>
               </div>
             ) : (
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                 {cameraTiles.map((tile) => (
-                  <VideoTile key={tile.id} tile={tile} />
+                  <VideoTile key={tile.id} tile={tile} onExpand={setExpandedTileId} />
                 ))}
               </div>
             )}
@@ -561,7 +552,7 @@ export function RoomPage() {
           </section>
 
           {showChat ? (
-            <aside className="panel flex min-h-0 flex-col gap-3">
+            <aside className="panel fixed inset-x-3 top-[5.2rem] bottom-[5.5rem] z-30 flex min-h-0 flex-col gap-3 !rounded-2xl !p-3 sm:static sm:inset-auto sm:z-auto sm:!rounded-3xl sm:!p-6">
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-[0.2em] text-muted">Chat</p>
                 <span className="badge">{messages.length}</span>
@@ -604,27 +595,28 @@ export function RoomPage() {
       )}
 
       {room ? (
-        <footer className="panel sticky bottom-4 z-20 mt-auto flex flex-wrap items-center gap-2">
+        <footer className="panel sticky bottom-3 z-20 mt-auto flex flex-wrap items-center justify-center gap-1.5 !rounded-2xl !p-2 sm:justify-start">
           <button className="btn btn-ghost" onClick={onToggleMic}>
             {micEnabled ? <MicIcon className="h-4 w-4" /> : <MicOffIcon className="h-4 w-4" />}
-            {micEnabled ? 'Mute' : 'Unmute'}
+            <span className="hidden sm:inline">{micEnabled ? 'Mute' : 'Unmute'}</span>
           </button>
           <button className="btn btn-ghost" onClick={onToggleCamera}>
             {cameraEnabled ? <CameraIcon className="h-4 w-4" /> : <CameraOffIcon className="h-4 w-4" />}
-            {cameraEnabled ? 'Camera Off' : 'Camera On'}
+            <span className="hidden sm:inline">{cameraEnabled ? 'Camera Off' : 'Camera On'}</span>
           </button>
           <button className="btn btn-ghost" onClick={onToggleScreenShare}>
             <ShareScreenIcon className="h-4 w-4" />
-            {screenShareEnabled ? 'Stop Share' : 'Share Screen'}
+            <span className="hidden sm:inline">{screenShareEnabled ? 'Stop Share' : 'Share Screen'}</span>
           </button>
           {screenTile ? (
             <button className="btn btn-ghost" onClick={() => setMinimizeShare((value) => !value)}>
-              {minimizeShare ? 'Show Share' : 'Hide Share'}
+              <span className="hidden sm:inline">{minimizeShare ? 'Show Share' : 'Hide Share'}</span>
+              <span className="sm:hidden">Share</span>
             </button>
           ) : null}
           <button className="btn btn-ghost" onClick={() => setShowChat((value) => !value)}>
             <ChatIcon className="h-4 w-4" />
-            {showChat ? 'Hide Chat' : 'Show Chat'}
+            <span className="hidden sm:inline">{showChat ? 'Hide Chat' : 'Show Chat'}</span>
           </button>
           <button
             className="btn btn-danger"
@@ -636,9 +628,23 @@ export function RoomPage() {
             }}
           >
             <LeaveIcon className="h-4 w-4" />
-            Leave
+            <span className="hidden sm:inline">Leave</span>
           </button>
         </footer>
+      ) : null}
+
+      {expandedTile ? (
+        <div className="fixed inset-0 z-50 bg-black/90 p-3 sm:p-6">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold text-white">{expandedTile.participantName}</p>
+            <button type="button" className="btn btn-ghost" onClick={() => setExpandedTileId(null)}>
+              Close
+            </button>
+          </div>
+          <div className="h-[calc(100%-3.25rem)] overflow-hidden rounded-3xl border border-white/20 bg-black">
+            <VideoTile tile={expandedTile} onExpand={setExpandedTileId} />
+          </div>
+        </div>
       ) : null}
     </main>
   );

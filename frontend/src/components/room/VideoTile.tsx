@@ -11,7 +11,13 @@ export type VideoTileData = {
   isScreenShare: boolean;
 };
 
-function VideoTileBase({ tile }: { tile: VideoTileData }) {
+function VideoTileBase({
+  tile,
+  onExpand,
+}: {
+  tile: VideoTileData;
+  onExpand?: (tileId: string) => void;
+}) {
   return (
     <article className="group relative h-full min-h-[200px] overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black/60">
       {tile.track ? (
@@ -25,11 +31,18 @@ function VideoTileBase({ tile }: { tile: VideoTileData }) {
         <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">
           {tile.participantName}
         </span>
-        {tile.isScreenShare ? (
-          <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white/70">
-            Screen
-          </span>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {tile.isScreenShare ? (
+            <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white/70">Screen</span>
+          ) : null}
+          <button
+            type="button"
+            className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white transition hover:bg-black/80"
+            onClick={() => onExpand?.(tile.id)}
+          >
+            Maximize
+          </button>
+        </div>
       </div>
     </article>
   );

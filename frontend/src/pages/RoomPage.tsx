@@ -419,28 +419,39 @@ export function RoomPage() {
 
   return (
     <main className={`flex ${room ? 'h-screen overflow-hidden' : 'min-h-screen'} flex-col gap-3 px-0 py-0`}>
-      <header className="sticky top-0 z-30 border-b border-[color:var(--border)] bg-[color:var(--bg)]/95 px-4 py-3 backdrop-blur sm:px-6">
-        <div className="panel flex items-center justify-between !rounded-2xl !p-3">
+      <header className="sticky top-0 z-30 border-b border-[color:var(--border)] bg-[color:var(--bg)]/95 px-3 py-2 backdrop-blur sm:px-6 sm:py-3">
+        <div className="panel flex items-center justify-between !rounded-2xl !p-2 sm:!p-3">
         <div className="flex items-center gap-4">
           <img
             src="/logo.png"
             alt="meet37 logo"
-            className="h-10 w-10 rounded-xl border border-[color:var(--border)] bg-surface-2"
+            className="h-8 w-8 rounded-lg border border-[color:var(--border)] bg-surface-2 sm:h-10 sm:w-10 sm:rounded-xl"
           />
           <div>
-            <p className="text-[10px] uppercase tracking-[0.25em] text-muted">meet37</p>
-            <p className="text-sm font-semibold text-main">Room {roomTokenTitle}</p>
+            <p className="text-[9px] uppercase tracking-[0.2em] text-muted">meet37</p>
+            <p className="text-xs font-semibold text-main sm:text-sm">Room {roomTokenTitle}</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <button type="button" className="btn btn-ghost" onClick={() => onCopy(token, 'token')}>
+              <button
+                type="button"
+                className="btn btn-ghost !rounded-lg !px-2.5 !py-1 text-[10px] tracking-[0.12em] sm:!rounded-xl sm:!px-3 sm:!py-1.5 sm:text-xs"
+                onClick={() => onCopy(token, 'token')}
+              >
                 {copiedItem === 'token' ? 'Copied Token' : 'Copy Token'}
               </button>
-              <button type="button" className="btn btn-ghost" onClick={() => onCopy(roomLink, 'link')}>
+              <button
+                type="button"
+                className="btn btn-ghost !rounded-lg !px-2.5 !py-1 text-[10px] tracking-[0.12em] sm:!rounded-xl sm:!px-3 sm:!py-1.5 sm:text-xs"
+                onClick={() => onCopy(roomLink, 'link')}
+              >
                 {copiedItem === 'link' ? 'Copied Link' : 'Copy Link'}
               </button>
             </div>
           </div>
         </div>
-        <button className="btn btn-ghost !rounded-xl !px-3 !py-1.5" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+        <button
+          className="btn btn-ghost !rounded-lg !px-2.5 !py-1 sm:!rounded-xl sm:!px-3 sm:!py-1.5"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        >
           {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
           <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
@@ -516,12 +527,12 @@ export function RoomPage() {
           <section className="panel-dark grid min-h-0 gap-3 !rounded-2xl !p-3">
             {showShareLayout && screenTile ? (
               <div className="grid gap-4">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <p className="text-xs uppercase tracking-[0.2em] text-muted">Screen share</p>
                     <p className="text-lg font-semibold text-main">{screenTile.participantName}</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="badge">{participantCount} people</span>
                     <button className="btn btn-ghost" onClick={() => setMinimizeShare(true)}>
                       Minimize
@@ -531,7 +542,7 @@ export function RoomPage() {
                     </button>
                   </div>
                 </div>
-                <div className="h-[360px] overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black">
+                <div className="h-[44vh] min-h-[220px] overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black sm:h-[360px]">
                   <VideoTile tile={screenTile} onExpand={setExpandedTileId} />
                 </div>
                 <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
@@ -556,7 +567,7 @@ export function RoomPage() {
           </section>
 
           {showChat ? (
-            <aside className="panel fixed inset-x-3 top-[5.2rem] bottom-[5.5rem] z-30 flex min-h-0 flex-col gap-3 !rounded-2xl !p-3 sm:static sm:inset-auto sm:z-auto sm:!rounded-3xl sm:!p-6">
+            <aside className="panel fixed inset-x-3 top-[4.4rem] bottom-[4.8rem] z-30 flex min-h-0 flex-col gap-3 !rounded-2xl !p-3 sm:static sm:inset-auto sm:z-auto sm:!rounded-3xl sm:!p-6">
               <div className="flex items-center justify-between">
                 <p className="text-xs uppercase tracking-[0.2em] text-muted">Chat</p>
                 <span className="badge">{messages.length}</span>

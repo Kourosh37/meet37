@@ -4,13 +4,15 @@ WORKDIR /app
 ENV npm_config_fund=false \
 	npm_config_audit=false \
 	npm_config_update_notifier=false \
-	npm_config_progress=false
+	npm_config_progress=false \
+	PRISMA_ENGINES_PATH=/app/node_modules/@prisma/engines
 
 
 COPY package.json package-lock.json* ./
 RUN npm install --include=dev --no-audit --no-fund
 
 FROM deps AS build
+ENV PRISMA_ENGINES_PATH=/app/node_modules/@prisma/engines
 COPY tsconfig.json ./
 COPY prisma ./prisma
 COPY src ./src
@@ -20,6 +22,7 @@ RUN npm run build
 FROM node:20-bookworm
 WORKDIR /app
 ENV NODE_ENV=production
+ENV PRISMA_ENGINES_PATH=/app/node_modules/@prisma/engines
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist

@@ -19,7 +19,9 @@ Node.js + TypeScript API for meet37 (Fastify + Prisma + Redis + LiveKit).
    - `npm install`
 4. Generate Prisma client:
    - `npm run prisma:generate`
-5. Run the API:
+5. Sync the schema:
+   - `npx prisma db push`
+6. Run the API:
    - `npm run dev`
 
 ## Build

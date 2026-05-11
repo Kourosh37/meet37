@@ -1,9 +1,9 @@
 #!/bin/sh
 set -e
 
-echo "[backend] Applying database migrations..."
-until npx prisma migrate deploy; do
-  echo "[backend] Migration failed, retrying in 3s..."
+echo "[backend] Ensuring database schema..."
+until npx prisma db push; do
+  echo "[backend] Schema sync failed, retrying in 3s..."
   sleep 3
 done
 

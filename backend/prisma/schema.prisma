@@ -9,7 +9,7 @@ datasource db {
 
 model Room {
   token     String   @id
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @map("created_at")
 
   @@map("rooms")
 }

@@ -2,57 +2,56 @@ import { type FormEvent, useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Badge, SectionCard } from '../components/ui';
+import { useNotify } from '../components/notificationsContext';
 import { createRoom, validateRoom } from '../lib/api';
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const notify = useNotify();
   const [roomToken, setRoomToken] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const trimmedToken = useMemo(() => roomToken.trim(), [roomToken]);
 
   const onCreateRoom = useCallback(async () => {
-    setError(null);
     setBusy(true);
 
     try {
       const token = await createRoom();
       navigate(`/room/${token}`);
     } catch (createError) {
-      setError(createError instanceof Error ? createError.message : 'Failed to create room');
+      notify.error(createError instanceof Error ? createError.message : 'Failed to create room');
     } finally {
       setBusy(false);
     }
-  }, [navigate]);
+  }, [navigate, notify]);
 
   const onJoinRoom = useCallback(
     async (event: FormEvent<HTMLFormElement>) => {
       event.preventDefault();
 
       if (!trimmedToken) {
-        setError('Enter a room token');
+        notify.error('Enter a room token');
         return;
       }
 
-      setError(null);
       setBusy(true);
 
       try {
         const exists = await validateRoom(trimmedToken);
         if (!exists) {
-          setError('Room was not found');
+          notify.error('Room was not found');
           return;
         }
 
         navigate(`/room/${trimmedToken}`);
       } catch (joinError) {
-        setError(joinError instanceof Error ? joinError.message : 'Failed to validate room');
+        notify.error(joinError instanceof Error ? joinError.message : 'Failed to validate room');
       } finally {
         setBusy(false);
       }
     },
-    [navigate, trimmedToken],
+    [navigate, notify, trimmedToken],
   );
 
   return (
@@ -120,7 +119,6 @@ export function LandingPage() {
               </div>
             </form>
 
-            {error ? <p className="text-sm text-red-200">{error}</p> : null}
           </div>
 
           <div className="rounded-2xl border border-[color:var(--border)] bg-surface-2 p-4 text-sm text-muted">

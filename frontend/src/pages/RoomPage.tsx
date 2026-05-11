@@ -32,6 +32,7 @@ import {
   type VideoTileData,
   MediaTrack,
 } from '../components/room';
+import { useNotify } from '../components/notificationsContext';
 import { getLiveKitUrl, getUploadUrl, joinRoom, validateRoom } from '../lib/api';
 
 export type UIMessage = ChatItemMessage;
@@ -47,6 +48,7 @@ interface AudioTrackItem {
 
 export function RoomPage() {
   const navigate = useNavigate();
+  const notify = useNotify();
   const params = useParams();
   const token = (params.token ?? '').trim().toLowerCase();
 
@@ -67,7 +69,6 @@ export function RoomPage() {
   const [screenShareEnabled, setScreenShareEnabled] = useState(false);
   const [showChat, setShowChat] = useState(true);
   const [minimizeShare, setMinimizeShare] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
   const [copiedItem, setCopiedItem] = useState<'token' | 'link' | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -93,7 +94,7 @@ export function RoomPage() {
         if (mounted) setStatus(exists ? 'ready' : 'not-found');
       } catch (checkError) {
         if (!mounted) return;
-        setError(checkError instanceof Error ? checkError.message : 'Room validation failed');
+        notify.error(checkError instanceof Error ? checkError.message : 'Room validation failed');
         setStatus('not-found');
       }
     };
@@ -101,7 +102,7 @@ export function RoomPage() {
     return () => {
       mounted = false;
     };
-  }, [token]);
+  }, [notify, token]);
 
   const syncTracks = useCallback((targetRoom: Room) => {
     const nextCameraTiles: VideoTileData[] = [];
@@ -183,7 +184,6 @@ export function RoomPage() {
   const setupPreview = useCallback(async () => {
     if (previewStreamRef.current) return;
     setPreparingMedia(true);
-    setError(null);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -201,22 +201,21 @@ export function RoomPage() {
       previewStreamRef.current = stream;
       setPreviewReady(true);
     } catch (mediaError) {
-      setError(mediaError instanceof Error ? mediaError.message : 'Failed to access camera/microphone');
+      notify.error(mediaError instanceof Error ? mediaError.message : 'Failed to access camera/microphone');
     } finally {
       setPreparingMedia(false);
     }
-  }, []);
+  }, [notify]);
 
   const connectRoom = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmedName = displayName.trim();
     if (!trimmedName) {
-      setError('Display name is required');
+      notify.error('Display name is required');
       return;
     }
 
     setConnecting(true);
-    setError(null);
 
     try {
       const join = await joinRoom(token, trimmedName);
@@ -256,7 +255,7 @@ export function RoomPage() {
       previewStreamRef.current = null;
       setPreviewReady(false);
     } catch (connectError) {
-      setError(connectError instanceof Error ? connectError.message : 'Failed to join room');
+      notify.error(connectError instanceof Error ? connectError.message : 'Failed to join room');
     } finally {
       setConnecting(false);
     }
@@ -300,7 +299,7 @@ export function RoomPage() {
     if (!activeRoom) return;
 
     if (!screenShareEnabled && screenTile && !screenTile.isLocal) {
-      setError('Another participant is sharing screen right now.');
+      notify.error('Another participant is sharing screen right now.');
       return;
     }
 
@@ -311,7 +310,7 @@ export function RoomPage() {
       setMinimizeShare(false);
       syncTracks(activeRoom);
     } catch (shareError) {
-      setError(shareError instanceof Error ? shareError.message : 'Screen share failed');
+      notify.error(shareError instanceof Error ? shareError.message : 'Screen share failed');
     }
   };
 
@@ -337,7 +336,6 @@ export function RoomPage() {
     if (!file) return;
 
     setUploading(true);
-    setError(null);
     try {
       const upload = await getUploadUrl(file.name, file.size);
       const uploadResult = await fetch(upload.uploadUrl, { method: 'PUT', body: file });
@@ -356,7 +354,7 @@ export function RoomPage() {
       setMessages((current) => [...current, payload]);
       await publishData({ type: 'file', payload });
     } catch (uploadError) {
-      setError(uploadError instanceof Error ? uploadError.message : 'File upload failed');
+      notify.error(uploadError instanceof Error ? uploadError.message : 'File upload failed');
     } finally {
       setUploading(false);
       event.target.value = '';
@@ -372,11 +370,12 @@ export function RoomPage() {
     try {
       await navigator.clipboard.writeText(value);
       setCopiedItem(kind);
+      notify.success(kind === 'link' ? 'Link copied' : 'Token copied');
       window.setTimeout(() => setCopiedItem(null), 1400);
     } catch {
-      setError('Copy failed');
+      notify.error('Copy failed');
     }
-  }, []);
+  }, [notify]);
 
   if (status === 'checking') {
     return (
@@ -482,7 +481,6 @@ export function RoomPage() {
                 {connecting ? 'Joining...' : 'Join Room'}
               </button>
             </div>
-            {error ? <p className="text-sm text-red-200">{error}</p> : null}
           </form>
         </section>
       ) : (
@@ -616,8 +614,6 @@ export function RoomPage() {
           </button>
         </footer>
       ) : null}
-
-      {error ? <p className="text-sm text-red-200">{error}</p> : null}
     </main>
   );
 }

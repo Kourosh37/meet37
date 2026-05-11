@@ -84,9 +84,5 @@ export async function getUploadUrl(filename: string, size: number): Promise<Uplo
 }
 
 export function getLiveKitUrl(): string {
-  const configured = import.meta.env.VITE_LK_URL ?? 'ws://localhost:7880';
-  if (configured.includes('/livekit') && configured.includes('localhost')) {
-    return 'ws://localhost:7880';
-  }
-  return configured;
+  return import.meta.env.VITE_LK_URL ?? 'ws://localhost/livekit';
 }

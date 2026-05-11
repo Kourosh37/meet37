@@ -10,7 +10,6 @@ use rand::{distr::Alphanumeric, Rng};
 use redis::AsyncCommands;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use url::Url;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -190,14 +189,10 @@ async fn create_upload_url(
         .await
         .map_err(|err| AppError::External(format!("failed to create download URL: {err}")))?;
 
-    let upload_url = to_public_s3_url(
-        upload_request.uri().to_string(),
-        &state.config.s3_public_base_url,
-    )?;
-    let download_url = to_public_s3_url(
-        download_request.uri().to_string(),
-        &state.config.s3_public_base_url,
-    )?;
+    // Keep presigned URLs untouched. Rewriting host/scheme can invalidate
+    // signatures depending on S3-compatible servers and proxy setup.
+    let upload_url = upload_request.uri().to_string();
+    let download_url = download_request.uri().to_string();
 
     Ok(Json(UploadUrlResponse {
         file_id,
@@ -262,29 +257,6 @@ async fn cache_room_existence(state: &AppState, token: &str) {
 
 fn room_cache_key(token: &str) -> String {
     format!("room:exists:{token}")
-}
-
-fn to_public_s3_url(raw_url: String, public_base_url: &Option<String>) -> Result<String, AppError> {
-    let Some(base_url) = public_base_url.as_deref() else {
-        return Ok(raw_url);
-    };
-
-    let mut source =
-        Url::parse(&raw_url).map_err(|err| AppError::External(format!("invalid presigned URL: {err}")))?;
-    let target =
-        Url::parse(base_url).map_err(|err| AppError::Config(format!("invalid S3_PUBLIC_BASE_URL: {err}")))?;
-
-    source
-        .set_scheme(target.scheme())
-        .map_err(|_| AppError::Config("invalid scheme in S3_PUBLIC_BASE_URL".to_owned()))?;
-    source
-        .set_host(target.host_str())
-        .map_err(|_| AppError::Config("invalid host in S3_PUBLIC_BASE_URL".to_owned()))?;
-    source.set_port(target.port()).map_err(|_| {
-        AppError::Config("invalid port in S3_PUBLIC_BASE_URL".to_owned())
-    })?;
-
-    Ok(source.to_string())
 }
 
 fn sanitize_filename(filename: &str) -> String {

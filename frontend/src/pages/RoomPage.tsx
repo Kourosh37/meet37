@@ -3,13 +3,32 @@ import { Room, RoomEvent, Track, type Participant } from 'livekit-client';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { getLiveKitUrl, getUploadUrl, joinRoom, validateRoom } from '../lib/api';
-import type { ChatMessage, FileMessage, RoomDataMessage } from '../types';
+
+type UIMessage = {
+  id: string;
+  from: string;
+  createdAt: string;
+} & (
+  | { kind: 'text'; text: string }
+  | { kind: 'file'; filename: string; size: number; downloadUrl: string; mimeType: string }
+);
+
+type RoomDataMessage =
+  | { type: 'chat'; payload: UIMessage }
+  | { type: 'file'; payload: UIMessage };
 
 interface VideoTile {
   id: string;
   participantName: string;
   track: Track;
   isLocal: boolean;
+  isScreenShare: boolean;
+}
+
+interface ParticipantCard {
+  id: string;
+  name: string;
+  hasCamera: boolean;
 }
 
 interface AudioTrackItem {
@@ -17,34 +36,34 @@ interface AudioTrackItem {
   track: Track;
 }
 
-function IconMic() {
-  return <span aria-hidden>🎙️</span>;
+function Icon({ path }: { path: string }) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" className="icon-svg">
+      <path d={path} fill="currentColor" />
+    </svg>
+  );
 }
 
-function IconCam() {
-  return <span aria-hidden>📹</span>;
-}
-
-function IconShare() {
-  return <span aria-hidden>🖥️</span>;
-}
-
-function IconLeave() {
-  return <span aria-hidden>⏏️</span>;
-}
-
-function IconCopy() {
-  return <span aria-hidden>📋</span>;
-}
+const icons = {
+  mic: 'M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm-7-3a1 1 0 0 1 2 0 5 5 0 1 0 10 0 1 1 0 1 1 2 0 7 7 0 0 1-6 6.93V21h3a1 1 0 1 1 0 2H8a1 1 0 1 1 0-2h3v-3.07A7 7 0 0 1 5 11Z',
+  micOff: 'M4.22 3.22a1 1 0 0 0-1.44 1.38l4.23 4.23V11a5 5 0 0 0 7.58 4.28l1.57 1.57A6.94 6.94 0 0 1 13 17.93V21h3a1 1 0 1 1 0 2H8a1 1 0 0 1 0-2h3v-3.07A7 7 0 0 1 5 11a1 1 0 0 1 2 0 5 5 0 0 0 7.71 4.21l-1.6-1.6A3 3 0 0 1 9 11v-.94L4.22 3.22ZM12 3a3 3 0 0 1 3 3v3.17l-2-2V6a1 1 0 1 0-2 0v.17l-2-2V6a3 3 0 0 1 3-3Zm9.78 18.78a1 1 0 0 1-1.41 0l-18-18a1 1 0 0 1 1.41-1.41l18 18a1 1 0 0 1 0 1.41Z',
+  cam: 'M4 6a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1.38l2.45-1.4A2 2 0 0 1 22 7.72v8.56a2 2 0 0 1-3.55 1.74L16 16.62V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6Z',
+  camOff: 'M4 6.17 2.29 4.46a1 1 0 0 1 1.42-1.42l18 18a1 1 0 0 1-1.42 1.42L16 18.17V18a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6.17Zm12 7.17 2.45 2.45A2 2 0 0 0 22 16.28V7.72a2 2 0 0 0-3.55-1.74L16 7.38v5.96Z',
+  share: 'M15 8a3 3 0 1 0-6 0v1H6a2 2 0 0 0-2 2v7h16v-7a2 2 0 0 0-2-2h-3V8Zm-2 0v1h-2V8a1 1 0 1 1 2 0Zm-6 5v3h10v-3H7Z',
+  chat: 'M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9.41L5 20.41A1 1 0 0 1 3.29 19.7V16A2 2 0 0 1 2 14V5h2Z',
+  leave: 'M10 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h4v-2H6V5h4V3Zm4.3 4.3-1.4 1.4 1.3 1.3H9v2h5.2l-1.3 1.3 1.4 1.4L18 11l-3.7-3.7Z',
+  send: 'M3.4 20.6 21 12 3.4 3.4 3 10l10 2-10 2 .4 6.6Z',
+  download: 'M12 3a1 1 0 0 1 1 1v8.59l2.3-2.29a1 1 0 1 1 1.4 1.41l-4 4a1 1 0 0 1-1.4 0l-4-4a1 1 0 1 1 1.4-1.41L11 12.59V4a1 1 0 0 1 1-1Zm-7 14a1 1 0 0 1 1 1v1h12v-1a1 1 0 1 1 2 0v2a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-2a1 1 0 0 1 1-1Z',
+  sun: 'M12 4a1 1 0 0 1 1 1v1a1 1 0 1 1-2 0V5a1 1 0 0 1 1-1Zm0 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-4a1 1 0 0 1-1 1h-1a1 1 0 1 1 0-2h1a1 1 0 0 1 1 1ZM7 12a1 1 0 0 1-1 1H5a1 1 0 1 1 0-2h1a1 1 0 0 1 1 1Zm9.66 6.24a1 1 0 0 1 0 1.42l-.71.7a1 1 0 1 1-1.41-1.41l.7-.71a1 1 0 0 1 1.42 0ZM9.46 9.05a1 1 0 0 1-1.41 0l-.7-.71a1 1 0 1 1 1.41-1.41l.7.7a1 1 0 0 1 0 1.42Zm7.2-2.12a1 1 0 0 1-1.42 0l-.7-.7a1 1 0 0 1 1.41-1.42l.71.71a1 1 0 0 1 0 1.41ZM9.46 14.95a1 1 0 0 1 0 1.41l-.7.71a1 1 0 1 1-1.42-1.41l.71-.71a1 1 0 0 1 1.41 0Z',
+  moon: 'M20.74 14.6A8 8 0 0 1 9.4 3.26a1 1 0 0 0-1.08-1.61A10 10 0 1 0 22.35 15.7a1 1 0 0 0-1.61-1.1Z',
+};
 
 function MediaTrack({ track, muted }: { track: Track; muted?: boolean }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {
-      return;
-    }
+    if (!container) return;
 
     const element = track.attach();
     if (element instanceof HTMLMediaElement) {
@@ -55,7 +74,6 @@ function MediaTrack({ track, muted }: { track: Track; muted?: boolean }) {
         element.className = 'video-track';
       }
     }
-
     container.appendChild(element);
 
     return () => {
@@ -67,14 +85,8 @@ function MediaTrack({ track, muted }: { track: Track; muted?: boolean }) {
   return <div ref={containerRef} className="media-track" />;
 }
 
-function HiddenAudioTracks({ tracks }: { tracks: AudioTrackItem[] }) {
-  return (
-    <div className="hidden-audio-container" aria-hidden>
-      {tracks.map((item) => (
-        <MediaTrack key={item.id} track={item.track} />
-      ))}
-    </div>
-  );
+function isImageFile(mimeType: string, filename: string) {
+  return mimeType.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(filename);
 }
 
 export function RoomPage() {
@@ -85,10 +97,11 @@ export function RoomPage() {
   const [status, setStatus] = useState<'checking' | 'not-found' | 'ready'>('checking');
   const [displayName, setDisplayName] = useState('');
   const [room, setRoom] = useState<Room | null>(null);
-  const [videoTiles, setVideoTiles] = useState<VideoTile[]>([]);
+  const [participantCards, setParticipantCards] = useState<ParticipantCard[]>([]);
+  const [cameraTiles, setCameraTiles] = useState<VideoTile[]>([]);
+  const [screenTile, setScreenTile] = useState<VideoTile | null>(null);
   const [audioTracks, setAudioTracks] = useState<AudioTrackItem[]>([]);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [files, setFiles] = useState<FileMessage[]>([]);
+  const [messages, setMessages] = useState<UIMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [connecting, setConnecting] = useState(false);
   const [preparingMedia, setPreparingMedia] = useState(false);
@@ -96,9 +109,10 @@ export function RoomPage() {
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [screenShareEnabled, setScreenShareEnabled] = useState(false);
+  const [showChat, setShowChat] = useState(true);
+  const [minimizeShare, setMinimizeShare] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
 
   const roomRef = useRef<Room | null>(null);
@@ -107,81 +121,79 @@ export function RoomPage() {
 
   useEffect(() => {
     let mounted = true;
-
     const checkRoom = async () => {
       try {
         const exists = await validateRoom(token);
-        if (!mounted) {
-          return;
-        }
-        setStatus(exists ? 'ready' : 'not-found');
+        if (mounted) setStatus(exists ? 'ready' : 'not-found');
       } catch (checkError) {
-        if (!mounted) {
-          return;
-        }
+        if (!mounted) return;
         setError(checkError instanceof Error ? checkError.message : 'Room validation failed');
         setStatus('not-found');
       }
     };
-
     checkRoom();
-
     return () => {
       mounted = false;
     };
   }, [token]);
 
   const syncTracks = useCallback((targetRoom: Room) => {
-    const nextVideoTiles: VideoTile[] = [];
+    const nextCameraTiles: VideoTile[] = [];
     const nextAudioTracks: AudioTrackItem[] = [];
+    const nextCards: ParticipantCard[] = [];
+    let nextScreenTile: VideoTile | null = null;
 
-    const collectParticipantTracks = (participant: Participant, isLocalParticipant: boolean) => {
+    const collect = (participant: Participant, isLocal: boolean) => {
+      let hasCamera = false;
       participant.trackPublications.forEach((publication, sid) => {
         const track = publication.track;
-        if (!track) {
-          return;
-        }
+        if (!track) return;
 
         if (track.kind === Track.Kind.Video) {
-          nextVideoTiles.push({
+          const isScreenShare = publication.source === Track.Source.ScreenShare;
+          const tile: VideoTile = {
             id: `${participant.identity}-${sid}`,
-            participantName:
-              participant.name || participant.identity || (isLocalParticipant ? 'You' : 'Guest'),
+            participantName: participant.name || participant.identity || (isLocal ? 'You' : 'Guest'),
             track,
-            isLocal: isLocalParticipant,
-          });
+            isLocal,
+            isScreenShare,
+          };
+          if (isScreenShare) {
+            nextScreenTile = tile;
+          } else {
+            hasCamera = true;
+            nextCameraTiles.push(tile);
+          }
           return;
         }
 
-        if (track.kind === Track.Kind.Audio && !isLocalParticipant) {
-          nextAudioTracks.push({
-            id: `${participant.identity}-${sid}`,
-            track,
-          });
+        if (track.kind === Track.Kind.Audio && !isLocal) {
+          nextAudioTracks.push({ id: `${participant.identity}-${sid}`, track });
         }
+      });
+
+      nextCards.push({
+        id: participant.identity,
+        name: participant.name || participant.identity || (isLocal ? 'You' : 'Guest'),
+        hasCamera,
       });
     };
 
-    collectParticipantTracks(targetRoom.localParticipant, true);
-    targetRoom.remoteParticipants.forEach((participant) => {
-      collectParticipantTracks(participant, false);
-    });
+    collect(targetRoom.localParticipant, true);
+    targetRoom.remoteParticipants.forEach((participant) => collect(participant, false));
 
-    setVideoTiles(nextVideoTiles);
+    setCameraTiles(nextCameraTiles);
     setAudioTracks(nextAudioTracks);
+    setParticipantCards(nextCards);
+    setScreenTile(nextScreenTile);
+    setScreenShareEnabled(targetRoom.localParticipant.isScreenShareEnabled);
   }, []);
 
   const publishData = useCallback(async (message: RoomDataMessage) => {
     const activeRoom = roomRef.current;
-    if (!activeRoom) {
-      return;
-    }
-
+    if (!activeRoom) return;
     const payload = new TextEncoder().encode(JSON.stringify(message));
-    await activeRoom.localParticipant.publishData(payload, {
-      reliable: true,
-      topic: 'meet37-room-sync',
-    });
+    await activeRoom.localParticipant.publishData(payload, { reliable: true, topic: 'meet37-chat' });
   }, []);
 
   useEffect(() => {
@@ -198,25 +210,29 @@ export function RoomPage() {
   useEffect(() => {
     const video = previewVideoRef.current;
     const stream = previewStreamRef.current;
-    if (!video || !stream) {
-      return;
-    }
+    if (!video || !stream) return;
     video.srcObject = stream;
   }, [previewReady]);
 
   const setupPreview = useCallback(async () => {
-    if (previewStreamRef.current) {
-      return;
-    }
-
+    if (previewStreamRef.current) return;
     setPreparingMedia(true);
     setError(null);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: {
+          width: { ideal: 640 },
+          height: { ideal: 360 },
+          frameRate: { ideal: 15, max: 24 },
+        },
+      });
       previewStreamRef.current = stream;
       setPreviewReady(true);
-      setMicEnabled(true);
-      setCameraEnabled(true);
     } catch (mediaError) {
       setError(mediaError instanceof Error ? mediaError.message : 'Failed to access camera/microphone');
     } finally {
@@ -224,9 +240,8 @@ export function RoomPage() {
     }
   }, []);
 
-  const onConnect = async (event: FormEvent<HTMLFormElement>) => {
+  const connectRoom = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-
     const trimmedName = displayName.trim();
     if (!trimmedName) {
       setError('Display name is required');
@@ -238,7 +253,7 @@ export function RoomPage() {
 
     try {
       const join = await joinRoom(token, trimmedName);
-      const nextRoom = new Room();
+      const nextRoom = new Room({ adaptiveStream: true, dynacast: true });
       const onTrackEvent = () => syncTracks(nextRoom);
 
       nextRoom.on(RoomEvent.TrackSubscribed, onTrackEvent);
@@ -247,23 +262,21 @@ export function RoomPage() {
       nextRoom.on(RoomEvent.ParticipantDisconnected, onTrackEvent);
       nextRoom.on(RoomEvent.LocalTrackPublished, onTrackEvent);
       nextRoom.on(RoomEvent.LocalTrackUnpublished, onTrackEvent);
-      nextRoom.on(RoomEvent.ActiveDeviceChanged, onTrackEvent);
+      nextRoom.on(RoomEvent.TrackMuted, onTrackEvent);
+      nextRoom.on(RoomEvent.TrackUnmuted, onTrackEvent);
 
       nextRoom.on(RoomEvent.DataReceived, (payload: Uint8Array) => {
         try {
           const message = JSON.parse(new TextDecoder().decode(payload)) as RoomDataMessage;
-          if (message.type === 'chat') {
-            setChatMessages((current) => [...current, message.payload]);
-            return;
+          if (message.type === 'chat' || message.type === 'file') {
+            setMessages((current) => [...current, message.payload]);
           }
-          if (message.type === 'file') {
-            setFiles((current) => [...current, message.payload]);
-          }
-        } catch (decodeError) {
-          console.warn('Failed to decode room data packet', decodeError);
+        } catch {
+          // noop
         }
       });
 
+      nextRoom.prepareConnection(getLiveKitUrl(), join.livekitToken);
       await nextRoom.connect(getLiveKitUrl(), join.livekitToken);
       await nextRoom.localParticipant.setMicrophoneEnabled(micEnabled);
       await nextRoom.localParticipant.setCameraEnabled(cameraEnabled);
@@ -276,15 +289,15 @@ export function RoomPage() {
       previewStreamRef.current = null;
       setPreviewReady(false);
     } catch (connectError) {
-      const message = connectError instanceof Error ? connectError.message : 'Failed to join room';
-      setError(message);
+      setError(connectError instanceof Error ? connectError.message : 'Failed to join room');
     } finally {
       setConnecting(false);
     }
   };
 
   const onToggleMic = async () => {
-    if (!roomRef.current && previewStreamRef.current) {
+    const activeRoom = roomRef.current;
+    if (!activeRoom && previewStreamRef.current) {
       const next = !micEnabled;
       previewStreamRef.current.getAudioTracks().forEach((track) => {
         track.enabled = next;
@@ -292,18 +305,15 @@ export function RoomPage() {
       setMicEnabled(next);
       return;
     }
-
-    if (!roomRef.current) {
-      return;
-    }
-
+    if (!activeRoom) return;
     const next = !micEnabled;
-    await roomRef.current.localParticipant.setMicrophoneEnabled(next);
+    await activeRoom.localParticipant.setMicrophoneEnabled(next);
     setMicEnabled(next);
   };
 
   const onToggleCamera = async () => {
-    if (!roomRef.current && previewStreamRef.current) {
+    const activeRoom = roomRef.current;
+    if (!activeRoom && previewStreamRef.current) {
       const next = !cameraEnabled;
       previewStreamRef.current.getVideoTracks().forEach((track) => {
         track.enabled = next;
@@ -311,37 +321,27 @@ export function RoomPage() {
       setCameraEnabled(next);
       return;
     }
-
-    if (!roomRef.current) {
-      return;
-    }
-
+    if (!activeRoom) return;
     const next = !cameraEnabled;
-    await roomRef.current.localParticipant.setCameraEnabled(next);
+    await activeRoom.localParticipant.setCameraEnabled(next);
     setCameraEnabled(next);
+    syncTracks(activeRoom);
   };
 
   const onToggleScreenShare = async () => {
     const activeRoom = roomRef.current;
-    if (!activeRoom) {
+    if (!activeRoom) return;
+
+    if (!screenShareEnabled && screenTile && !screenTile.isLocal) {
+      setError('Another participant is sharing screen right now.');
       return;
     }
 
-    const next = !screenShareEnabled;
     try {
-      await activeRoom.localParticipant.setScreenShareEnabled(
-        next,
-        next
-          ? {
-              resolution: {
-                width: 1920,
-                height: 1080,
-                frameRate: 30,
-              },
-            }
-          : undefined,
-      );
+      const next = !screenShareEnabled;
+      await activeRoom.localParticipant.setScreenShareEnabled(next);
       setScreenShareEnabled(next);
+      setMinimizeShare(false);
       syncTracks(activeRoom);
     } catch (shareError) {
       setError(shareError instanceof Error ? shareError.message : 'Screen share failed');
@@ -351,51 +351,42 @@ export function RoomPage() {
   const onSendChat = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const text = chatInput.trim();
-    if (!text || !roomRef.current) {
-      return;
-    }
+    if (!text || !roomRef.current) return;
 
-    const message: ChatMessage = {
+    const payload: UIMessage = {
       id: crypto.randomUUID(),
       from: displayName.trim(),
-      text,
       createdAt: new Date().toISOString(),
+      kind: 'text',
+      text,
     };
-
     setChatInput('');
-    setChatMessages((current) => [...current, message]);
-    await publishData({ type: 'chat', payload: message });
+    setMessages((current) => [...current, payload]);
+    await publishData({ type: 'chat', payload });
   };
 
   const onUploadFile = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (!file) {
-      return;
-    }
+    if (!file) return;
 
     setUploading(true);
     setError(null);
-
     try {
       const upload = await getUploadUrl(file.name, file.size);
-      const uploadResult = await fetch(upload.uploadUrl, {
-        method: 'PUT',
-        body: file,
-      });
+      const uploadResult = await fetch(upload.uploadUrl, { method: 'PUT', body: file });
+      if (!uploadResult.ok) throw new Error(`Upload failed (${uploadResult.status})`);
 
-      if (!uploadResult.ok) {
-        throw new Error(`Upload failed with status ${uploadResult.status}`);
-      }
-
-      const payload: FileMessage = {
+      const payload: UIMessage = {
         id: upload.fileId,
         from: displayName.trim(),
+        createdAt: new Date().toISOString(),
+        kind: 'file',
         filename: file.name,
         size: file.size,
         downloadUrl: upload.downloadUrl,
+        mimeType: file.type || 'application/octet-stream',
       };
-
-      setFiles((current) => [...current, payload]);
+      setMessages((current) => [...current, payload]);
       await publishData({ type: 'file', payload });
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : 'File upload failed');
@@ -405,167 +396,142 @@ export function RoomPage() {
     }
   };
 
-  const onCopyToken = async () => {
-    try {
-      await navigator.clipboard.writeText(token);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1200);
-    } catch {
-      setError('Failed to copy room token');
-    }
-  };
-
   const roomTokenTitle = useMemo(() => token.toUpperCase(), [token]);
+  const showShareLayout = Boolean(screenTile) && !minimizeShare;
 
-  if (status === 'checking') {
-    return (
-      <main className="shell room-shell">
-        <p className="status-info">Checking room token...</p>
-      </main>
-    );
-  }
-
+  if (status === 'checking') return <main className="room-root"><p>Checking room...</p></main>;
   if (status === 'not-found') {
     return (
-      <main className="shell room-shell">
+      <main className="room-root">
         <h1>Room not found</h1>
-        <p className="status-error">Token `{token}` does not exist or expired.</p>
-        <Link to="/" className="secondary-link">Back to home</Link>
+        <p>Token `{token}` was not found.</p>
+        <Link to="/" className="btn ghost">Back</Link>
       </main>
     );
   }
 
   return (
-    <main className="shell room-shell meet-room-shell">
-      <header className="room-header meet-header">
+    <main className="room-root">
+      <header className="topbar">
         <div className="brand-mark compact">
           <img src="/logo.png" alt="meet37 logo" className="brand-logo" />
           <div>
-            <p className="eyebrow">meet37 room</p>
-            <h1>{roomTokenTitle}</h1>
+            <p className="eyebrow">meet37</p>
+            <strong>{roomTokenTitle}</strong>
           </div>
-          <button type="button" className="token-copy-btn" onClick={onCopyToken} title="Copy room token">
-            <IconCopy /> {copied ? 'Copied' : 'Copy'}
-          </button>
-          <button type="button" className="token-copy-btn" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-            {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
-          </button>
         </div>
+        <button className="btn ghost" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+          <Icon path={theme === 'dark' ? icons.sun : icons.moon} />
+          {theme === 'dark' ? 'Light' : 'Dark'}
+        </button>
       </header>
 
       {!room ? (
-        <section className="join-panel prejoin-panel">
-          <h2>Ready to join?</h2>
-          <div className="prejoin-preview compact-preview card">
-            {previewReady ? (
-              <video ref={previewVideoRef} autoPlay muted playsInline className="prejoin-video" />
-            ) : (
-              <p className="status-info">Enable camera/mic for preview before joining.</p>
-            )}
+        <section className="prejoin">
+          <div className="preview-box">
+            {previewReady ? <video ref={previewVideoRef} autoPlay muted playsInline className="prejoin-video" /> : <p>Enable camera/mic for preview.</p>}
           </div>
-
-          <form onSubmit={onConnect} className="join-room-form">
-            <label htmlFor="displayName">Display name</label>
-            <div className="join-row">
-              <input
-                id="displayName"
-                value={displayName}
-                onChange={(event) => setDisplayName(event.target.value)}
-                placeholder="Alice"
-                maxLength={64}
-                disabled={connecting}
-              />
-              <button type="button" className="secondary-btn" disabled={preparingMedia || previewReady} onClick={setupPreview}>
-                {preparingMedia ? 'Preparing...' : previewReady ? 'Ready' : 'Enable Cam/Mic'}
-              </button>
-              <button type="submit" className="primary-btn" disabled={connecting || !previewReady}>
-                {connecting ? 'Connecting...' : 'Join Room'}
-              </button>
+          <form onSubmit={connectRoom} className="join-form">
+            <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} placeholder="Display name" maxLength={64} disabled={connecting} />
+            <div className="join-actions">
+              <button type="button" className="btn ghost" onClick={setupPreview} disabled={preparingMedia || previewReady}>{preparingMedia ? 'Preparing...' : 'Enable Cam/Mic'}</button>
+              <button type="submit" className="btn primary" disabled={connecting || !previewReady}>{connecting ? 'Joining...' : 'Join Room'}</button>
             </div>
           </form>
-
-          <div className="prejoin-actions">
-            <button type="button" className="control-btn" onClick={onToggleMic} disabled={!previewReady}>
-              <IconMic /> {micEnabled ? 'Mic On' : 'Mic Off'}
-            </button>
-            <button type="button" className="control-btn" onClick={onToggleCamera} disabled={!previewReady}>
-              <IconCam /> {cameraEnabled ? 'Cam On' : 'Cam Off'}
-            </button>
-          </div>
         </section>
       ) : (
-        <section className="meet-layout">
-          <section className="video-stage card meet-stage">
-            <div className="video-grid meet-grid">
-              {videoTiles.map((tile) => (
-                <article key={tile.id} className="video-tile meet-tile">
-                  <MediaTrack track={tile.track} muted={tile.isLocal} />
-                  <p>{tile.participantName}{tile.isLocal ? ' (You)' : ''}</p>
-                </article>
-              ))}
+        <section className="meeting-body">
+          <aside className="participant-rail">
+            {participantCards.map((participant) => (
+              <article key={participant.id} className="participant-card">
+                <strong>{participant.name}</strong>
+                <span>{participant.hasCamera ? 'Camera On' : 'Camera Off'}</span>
+              </article>
+            ))}
+          </aside>
+
+          <section className="stage-area">
+            {showShareLayout && screenTile ? (
+              <article className="screen-share-box">
+                <div className="tile-head">
+                  <strong>{screenTile.participantName}</strong>
+                  <button className="btn ghost" onClick={() => setMinimizeShare(true)}>Minimize</button>
+                </div>
+                <MediaTrack track={screenTile.track} muted={screenTile.isLocal} />
+              </article>
+            ) : (
+              <div className="video-grid">
+                {cameraTiles.map((tile) => (
+                  <article key={tile.id} className="video-box">
+                    <MediaTrack track={tile.track} muted={tile.isLocal} />
+                    <p>{tile.participantName}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+            <div className="hidden-audio-container" aria-hidden>
+              {audioTracks.map((item) => <MediaTrack key={item.id} track={item.track} />)}
             </div>
-            <HiddenAudioTracks tracks={audioTracks} />
           </section>
 
-          <aside className="side-panel meet-side-panel">
-            <div className="panel-block card">
-              <h3>Chat</h3>
-              <div className="chat-log">
-                {chatMessages.map((message) => (
+          {showChat ? (
+            <aside className="chat-panel">
+              <div className="chat-list">
+                {messages.map((message) => (
                   <article key={message.id} className="chat-item">
-                    <strong>{message.from}</strong>
-                    <span>{message.text}</span>
+                    <div className="chat-meta">
+                      <strong>{message.from}</strong>
+                      <span>{new Date(message.createdAt).toLocaleTimeString()}</span>
+                    </div>
+                    {message.kind === 'text' ? (
+                      <p>{message.text}</p>
+                    ) : (
+                      <div className="file-message">
+                        {isImageFile(message.mimeType, message.filename) ? <img src={message.downloadUrl} alt={message.filename} className="chat-image" loading="lazy" /> : null}
+                        <div className="file-info">
+                          <span>{message.filename}</span>
+                          <small>{Math.max(1, Math.ceil(message.size / 1024))} KB</small>
+                        </div>
+                        <a className="btn ghost" href={message.downloadUrl} target="_blank" rel="noreferrer">
+                          <Icon path={icons.download} />
+                          Download
+                        </a>
+                      </div>
+                    )}
                   </article>
                 ))}
               </div>
               <form onSubmit={onSendChat} className="chat-form">
-                <input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Send a message" />
-                <button type="submit" className="secondary-btn">Send</button>
-              </form>
-            </div>
-
-            <div className="panel-block card">
-              <div className="file-header">
-                <h3>Files</h3>
-                <label className="upload-btn" htmlFor="fileInput">{uploading ? 'Uploading...' : 'Upload'}</label>
+                <input value={chatInput} onChange={(event) => setChatInput(event.target.value)} placeholder="Type a message" />
+                <button className="btn primary" type="submit"><Icon path={icons.send} />Send</button>
+                <label className="btn ghost file-upload" htmlFor="fileInput">{uploading ? 'Uploading...' : 'File'}</label>
                 <input id="fileInput" type="file" onChange={onUploadFile} hidden disabled={uploading} />
-              </div>
-              <ul className="file-list">
-                {files.map((file) => (
-                  <li key={file.id}>
-                    <a href={file.downloadUrl} target="_blank" rel="noreferrer">{file.filename}</a>
-                    <span>{Math.ceil(file.size / 1024)} KB - from {file.from}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </aside>
-
-          <div className="meet-controls card">
-            <button type="button" className="control-btn" onClick={onToggleMic}>
-              <IconMic /> {micEnabled ? 'Mute' : 'Unmute'}
-            </button>
-            <button type="button" className="control-btn" onClick={onToggleCamera}>
-              <IconCam /> {cameraEnabled ? 'Camera Off' : 'Camera On'}
-            </button>
-            <button type="button" className="control-btn" onClick={onToggleScreenShare}>
-              <IconShare /> {screenShareEnabled ? 'Stop Share' : 'Share Screen'}
-            </button>
-            <button
-              type="button"
-              className="control-btn danger-btn"
-              onClick={() => {
-                roomRef.current?.disconnect();
-                roomRef.current = null;
-                setRoom(null);
-                navigate('/');
-              }}
-            >
-              <IconLeave /> Leave
-            </button>
-          </div>
+              </form>
+            </aside>
+          ) : null}
         </section>
       )}
+
+      {room ? (
+        <footer className="control-bar">
+          <button className="btn ghost" onClick={onToggleMic}><Icon path={micEnabled ? icons.mic : icons.micOff} />{micEnabled ? 'Mute' : 'Unmute'}</button>
+          <button className="btn ghost" onClick={onToggleCamera}><Icon path={cameraEnabled ? icons.cam : icons.camOff} />{cameraEnabled ? 'Camera Off' : 'Camera On'}</button>
+          <button className="btn ghost" onClick={onToggleScreenShare}><Icon path={icons.share} />{screenShareEnabled ? 'Stop Share' : 'Share Screen'}</button>
+          {screenTile ? <button className="btn ghost" onClick={() => setMinimizeShare((value) => !value)}>{minimizeShare ? 'Show Share' : 'Hide Share'}</button> : null}
+          <button className="btn ghost" onClick={() => setShowChat((value) => !value)}><Icon path={icons.chat} />{showChat ? 'Hide Chat' : 'Show Chat'}</button>
+          <button
+            className="btn danger"
+            onClick={() => {
+              roomRef.current?.disconnect();
+              roomRef.current = null;
+              setRoom(null);
+              navigate('/');
+            }}
+          >
+            <Icon path={icons.leave} />Leave
+          </button>
+        </footer>
+      ) : null}
 
       {error ? <p className="status-error">{error}</p> : null}
     </main>

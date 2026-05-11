@@ -8,7 +8,7 @@ Create `frontend/.env`:
 
 ```bash
 VITE_API_URL=/api
-VITE_LK_URL=ws://localhost:7880
+VITE_LK_URL=ws://localhost/livekit
 ```
 
 ## Scripts

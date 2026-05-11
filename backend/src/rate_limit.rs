@@ -46,7 +46,7 @@ fn limit_for_request(request: &Request) -> Option<RateLimitRule> {
     if method == axum::http::Method::POST && path == "/rooms" {
         return Some(RateLimitRule {
             namespace: "create-room",
-            requests_per_minute: 100,
+            requests_per_minute: 1200,
         });
     }
 
@@ -56,14 +56,14 @@ fn limit_for_request(request: &Request) -> Option<RateLimitRule> {
     {
         return Some(RateLimitRule {
             namespace: "join-room",
-            requests_per_minute: 300,
+            requests_per_minute: 2400,
         });
     }
 
     if method == axum::http::Method::POST && path == "/files/upload-url" {
         return Some(RateLimitRule {
             namespace: "upload-url",
-            requests_per_minute: 120,
+            requests_per_minute: 1800,
         });
     }
 

@@ -4,7 +4,7 @@ Server-optimized real-time meeting platform focused on minimal backend load.
 
 ## Stack (implemented)
 
-- Backend: Rust + Axum + SQLx + Redis
+- Backend: Node.js + Fastify + Prisma + Redis
 - Frontend: React + Vite + LiveKit client + Yjs
 - Infra: PostgreSQL, Redis, LiveKit, MinIO, Nginx gateway
 

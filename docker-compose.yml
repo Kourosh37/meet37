@@ -69,8 +69,8 @@
 
   backend:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: meet37-backend
     depends_on:
       - postgres
@@ -84,7 +84,7 @@
       LIVEKIT_API_URL: http://livekit:7880
       LIVEKIT_API_KEY: devkey
       LIVEKIT_API_SECRET: devsecretdevsecretdevsecretdevsec
-      S3_ENDPOINT: http://localhost:9000
+      S3_ENDPOINT: http://minio:9000
       S3_BUCKET: meet37-files
       S3_REGION: us-east-1
       AWS_ACCESS_KEY_ID: minioadmin

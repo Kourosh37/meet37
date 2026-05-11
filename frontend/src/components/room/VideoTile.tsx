@@ -1,0 +1,32 @@
+import { memo } from 'react';
+import type { Track } from 'livekit-client';
+
+import { MediaTrack } from './MediaTrack';
+
+export type VideoTileData = {
+  id: string;
+  participantName: string;
+  track: Track;
+  isLocal: boolean;
+  isScreenShare: boolean;
+};
+
+function VideoTileBase({ tile }: { tile: VideoTileData }) {
+  return (
+    <article className="group relative h-full min-h-[200px] overflow-hidden rounded-3xl border border-[color:var(--border)] bg-black/60">
+      <MediaTrack track={tile.track} muted={tile.isLocal} fit={tile.isScreenShare ? 'contain' : 'cover'} />
+      <div className="absolute inset-x-4 bottom-4 flex items-center justify-between">
+        <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white">
+          {tile.participantName}
+        </span>
+        {tile.isScreenShare ? (
+          <span className="rounded-full bg-black/60 px-3 py-1 text-xs font-semibold text-white/70">
+            Screen
+          </span>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
+export const VideoTile = memo(VideoTileBase);

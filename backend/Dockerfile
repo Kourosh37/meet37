@@ -1,10 +1,11 @@
-FROM node:20-bookworm-slim AS deps
+FROM node:20-bookworm AS deps
 WORKDIR /app
 
 ENV npm_config_fund=false \
 	npm_config_audit=false \
 	npm_config_update_notifier=false \
 	npm_config_progress=false
+
 
 COPY package.json package-lock.json* ./
 RUN npm install --include=dev --no-audit --no-fund
@@ -16,12 +17,15 @@ COPY src ./src
 RUN npm run prisma:generate
 RUN npm run build
 
-FROM node:20-bookworm-slim
+FROM node:20-bookworm
 WORKDIR /app
 ENV NODE_ENV=production
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
+COPY --from=build /app/prisma ./prisma
+COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
 
 EXPOSE 8080
-CMD ["node", "dist/index.js"]
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]

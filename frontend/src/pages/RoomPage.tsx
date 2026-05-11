@@ -69,19 +69,15 @@ export function RoomPage() {
   const [minimizeShare, setMinimizeShare] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [previewReady, setPreviewReady] = useState(false);
-  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    const stored = window.localStorage.getItem('meet37-theme');
+    return stored === 'light' || stored === 'dark' ? stored : 'dark';
+  });
 
   const roomRef = useRef<Room | null>(null);
   const previewStreamRef = useRef<MediaStream | null>(null);
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const chatEndRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem('meet37-theme');
-    if (stored === 'light' || stored === 'dark') {
-      setTheme(stored);
-    }
-  }, []);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;

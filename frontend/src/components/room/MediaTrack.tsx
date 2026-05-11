@@ -33,7 +33,7 @@ function MediaTrackBase({
       track.detach(element);
       element.remove();
     };
-  }, [muted, track]);
+  }, [fit, muted, track]);
 
   return <div ref={containerRef} className="h-full w-full" />;
 }

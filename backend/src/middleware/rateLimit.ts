@@ -1,6 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import type Redis from 'ioredis';
 
+import { HttpError } from '../utils/httpError';
 import { tooManyRequests } from '../utils/httpError';
 
 type RateLimitRule = {
@@ -26,8 +27,11 @@ export function rateLimitHook(redis: Redis) {
       if (current > rule.requestsPerMinute) {
         throw tooManyRequests(`rate limit exceeded for ${rule.namespace}`);
       }
-    } catch {
-      // Fail open if Redis is unavailable.
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+      // Fail open only if Redis is unavailable.
     }
   };
 }

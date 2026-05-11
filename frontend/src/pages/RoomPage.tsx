@@ -418,8 +418,9 @@ export function RoomPage() {
   }
 
   return (
-    <main className={`flex ${room ? 'h-screen overflow-hidden' : 'min-h-screen'} flex-col gap-3 px-4 py-3 sm:px-6`}>
-      <header className="panel flex items-center justify-between !rounded-2xl !p-3">
+    <main className={`flex ${room ? 'h-screen overflow-hidden' : 'min-h-screen'} flex-col gap-3 px-0 py-0`}>
+      <header className="sticky top-0 z-30 border-b border-[color:var(--border)] bg-[color:var(--bg)]/95 px-4 py-3 backdrop-blur sm:px-6">
+        <div className="panel flex items-center justify-between !rounded-2xl !p-3">
         <div className="flex items-center gap-4">
           <img
             src="/logo.png"
@@ -443,10 +444,12 @@ export function RoomPage() {
           {theme === 'dark' ? <SunIcon className="h-5 w-5" /> : <MoonIcon className="h-5 w-5" />}
           <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
+        </div>
       </header>
 
       {!room ? (
-        <section className="panel grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
+        <section className="px-4 pb-4 sm:px-6 sm:pb-6">
+          <div className="panel grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">
           <div className="mx-auto aspect-square w-full max-w-[22rem] rounded-3xl border border-[color:var(--border)] bg-black/60 p-4">
             {previewReady ? (
               <video
@@ -502,10 +505,11 @@ export function RoomPage() {
               </div>
             </div>
           </form>
+          </div>
         </section>
       ) : (
         <section
-          className={`grid min-h-0 flex-1 gap-4 ${
+          className={`grid min-h-0 flex-1 gap-4 px-4 pb-24 sm:px-6 sm:pb-28 ${
             showChat ? 'xl:grid-cols-[minmax(0,1fr)_320px]' : 'xl:grid-cols-[minmax(0,1fr)]'
           }`}
         >
@@ -595,7 +599,8 @@ export function RoomPage() {
       )}
 
       {room ? (
-        <footer className="panel sticky bottom-3 z-20 mt-auto flex flex-wrap items-center justify-center gap-1.5 !rounded-2xl !p-2 sm:justify-start">
+        <footer className="sticky bottom-0 z-30 border-t border-[color:var(--border)] bg-[color:var(--bg)]/95 px-4 py-3 backdrop-blur sm:px-6">
+          <div className="panel mt-auto flex flex-wrap items-center justify-center gap-1.5 !rounded-2xl !p-2 sm:justify-start">
           <button className="btn btn-ghost" onClick={onToggleMic}>
             {micEnabled ? <MicIcon className="h-4 w-4" /> : <MicOffIcon className="h-4 w-4" />}
             <span className="hidden sm:inline">{micEnabled ? 'Mute' : 'Unmute'}</span>
@@ -630,6 +635,7 @@ export function RoomPage() {
             <LeaveIcon className="h-4 w-4" />
             <span className="hidden sm:inline">Leave</span>
           </button>
+          </div>
         </footer>
       ) : null}
 

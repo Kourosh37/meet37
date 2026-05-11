@@ -56,7 +56,7 @@
       '
 
   livekit:
-    image: livekit/livekit-server:v1.8.3
+    image: livekit/livekit-server:v1.11.0
     container_name: meet37-livekit
     command: --config /etc/livekit.yaml
     volumes:
@@ -124,4 +124,3 @@
 volumes:
   postgres-data:
   minio-data:
-

@@ -1,5 +1,9 @@
 # TODO Roadmap
 
+## 0) Immediate Priorities
+- [ ] Fix file upload and download end-to-end reliability (presigned URL validity, proxy path stability, and browser compatibility checks).
+- [ ] Improve overall UI quality (cleaner spacing, compact controls, consistent mobile layout, and visual polish).
+
 ## 1) Reliability and Stability
 - [ ] Add a room connection state machine (`idle`, `joining`, `connected`, `reconnecting`, `failed`) to remove edge-case UI races.
 - [ ] Add robust retry/backoff policy for API calls and LiveKit reconnect flows.

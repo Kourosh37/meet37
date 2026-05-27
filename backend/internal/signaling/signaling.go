@@ -302,7 +302,6 @@ func (h *Hub) handleKickPeer(host *Peer, msg models.SignalMessage) {
 	}
 	target.sendMsg(models.SignalMessage{Type: "kicked", Payload: map[string]string{"reason": req.Reason}})
 	h.removePeer(target)
-	_ = target.conn.Close()
 }
 
 func (h *Hub) handleMutePeer(host *Peer, msg models.SignalMessage) {
@@ -362,7 +361,10 @@ func (h *Hub) closePendingByHost(host *Peer, msg models.SignalMessage, eventType
 	room.mu.Unlock()
 	if peer != nil {
 		peer.sendMsg(models.SignalMessage{Type: eventType, Payload: map[string]string{"reason": req.Reason}})
-		_ = peer.conn.Close()
+		go func() {
+			time.Sleep(250 * time.Millisecond)
+			_ = peer.conn.Close()
+		}()
 	}
 }
 

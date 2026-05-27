@@ -1,0 +1,8 @@
+backend/.env
+backend/data/*
+!backend/data/.gitkeep
+
+*.db
+*.db-shm
+*.db-wal
+*.exe

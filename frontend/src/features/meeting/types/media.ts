@@ -32,8 +32,49 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-// WebRTC type definitions placeholder.
-//
-// Planned responsibilities:
-// - Define peer connection maps, media track metadata, connection mode, stats payload, and SFU session state.
-// - Keep browser-native WebRTC objects wrapped in small app-specific types.
+import type { PeerMode, TurnServerConfig } from "@/features/meeting/types/signaling";
+
+export type LocalMediaPermissionState = "idle" | "prompting" | "granted" | "denied" | "error";
+
+export interface LocalMediaPreferences {
+  audioEnabled: boolean;
+  videoEnabled: boolean;
+  selectedAudioDeviceId?: string;
+  selectedVideoDeviceId?: string;
+}
+
+export interface LocalMediaState extends LocalMediaPreferences {
+  permissionState: LocalMediaPermissionState;
+  stream?: MediaStream;
+  error?: string;
+}
+
+export interface RemoteTrackState {
+  peerId: string;
+  streamId: string;
+  trackId: string;
+  kind: MediaStreamTrack["kind"];
+  stream?: MediaStream;
+}
+
+export interface PeerConnectionRecord {
+  peerId: string;
+  mode: PeerMode;
+  connection: RTCPeerConnection;
+  dataChannel?: RTCDataChannel;
+}
+
+export interface SfuSessionState {
+  active: boolean;
+  sessionId?: string;
+  turnServers: TurnServerConfig[];
+  connection?: RTCPeerConnection;
+}
+
+export interface QualityStatsSnapshot {
+  bitrateKbps: number;
+  packetLossPct: number;
+  rttMs: number;
+  jitterMs?: number;
+  timestamp: number;
+}

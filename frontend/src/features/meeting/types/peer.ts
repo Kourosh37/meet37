@@ -32,7 +32,37 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-// Peer type placeholder.
-//
-// Planned responsibilities:
-// - Define participant identity, host status, mute state, and connection quality records.
+import type { PeerMode } from "@/features/meeting/types/signaling";
+
+export type ConnectionQuality = "unknown" | "good" | "warning" | "poor";
+
+export interface PeerIdentity {
+  id: string;
+  userId?: string;
+  displayName: string;
+  isHost: boolean;
+}
+
+export interface PeerMediaState {
+  audioEnabled: boolean;
+  videoEnabled: boolean;
+  screenSharing: boolean;
+}
+
+export interface PeerConnectionState {
+  mode: PeerMode;
+  quality: ConnectionQuality;
+  iceState?: RTCIceConnectionState;
+  connectionState?: RTCPeerConnectionState;
+}
+
+export interface MeetingPeer extends PeerIdentity {
+  media: PeerMediaState;
+  connection: PeerConnectionState;
+}
+
+export interface PendingPeer {
+  id: string;
+  displayName: string;
+  requestedAt: number;
+}

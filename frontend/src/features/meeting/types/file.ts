@@ -32,8 +32,45 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-// File transfer type definitions placeholder.
-//
-// Planned responsibilities:
-// - Define file offer, answer, progress, cancellation, chunk metadata, and transfer history item types.
-// - Distinguish backend metadata from in-memory binary transfer state.
+export type FileTransferDirection = "incoming" | "outgoing";
+export type FileTransferRuntimeStatus =
+  | "offered"
+  | "accepted"
+  | "rejected"
+  | "transferring"
+  | "completed"
+  | "failed"
+  | "cancelled";
+
+export interface FileOffer {
+  fileId: string;
+  senderPeerId: string;
+  targetPeerId: string;
+  name: string;
+  size: number;
+  mime: string;
+}
+
+export interface FileChunk {
+  fileId: string;
+  index: number;
+  totalChunks: number;
+  bytes: ArrayBuffer;
+}
+
+export interface FileTransferProgress {
+  fileId: string;
+  bytesTransferred: number;
+  totalBytes: number;
+  percentage: number;
+}
+
+export interface FileTransferRecord extends FileOffer {
+  direction: FileTransferDirection;
+  status: FileTransferRuntimeStatus;
+  progress: FileTransferProgress;
+  reason?: string;
+  objectUrl?: string;
+  createdAt: number;
+  completedAt?: number;
+}

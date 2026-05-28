@@ -32,8 +32,151 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Device setup hook placeholder.
-//
-// Planned responsibilities:
-// - Own prejoin getUserMedia and device enumeration.
-// - Return local preview stream and selected device metadata.
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import type { LocalMediaPermissionState } from "@/features/meeting/types/media";
+
+export interface DeviceSetupState {
+  audioEnabled: boolean;
+  audioInputs: MediaDeviceInfo[];
+  error: string | null;
+  permissionState: LocalMediaPermissionState;
+  previewStream: MediaStream | null;
+  selectedAudioDeviceId: string;
+  selectedVideoDeviceId: string;
+  videoEnabled: boolean;
+  videoInputs: MediaDeviceInfo[];
+}
+
+const initialState: DeviceSetupState = {
+  audioEnabled: true,
+  audioInputs: [],
+  error: null,
+  permissionState: "idle",
+  previewStream: null,
+  selectedAudioDeviceId: "",
+  selectedVideoDeviceId: "",
+  videoEnabled: true,
+  videoInputs: []
+};
+
+function stopStream(stream: MediaStream | null) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
+export function useDeviceSetup() {
+  const [state, setState] = useState<DeviceSetupState>(initialState);
+
+  const enumerateDevices = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      return;
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const audioInputs = devices.filter((device) => device.kind === "audioinput");
+    const videoInputs = devices.filter((device) => device.kind === "videoinput");
+
+    setState((current) => ({
+      ...current,
+      audioInputs,
+      selectedAudioDeviceId: current.selectedAudioDeviceId || audioInputs[0]?.deviceId || "",
+      selectedVideoDeviceId: current.selectedVideoDeviceId || videoInputs[0]?.deviceId || "",
+      videoInputs
+    }));
+  }, []);
+
+  const startPreview = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setState((current) => ({
+        ...current,
+        error: "Media devices are not available in this browser.",
+        permissionState: "error"
+      }));
+      return;
+    }
+
+    setState((current) => ({ ...current, error: null, permissionState: "prompting" }));
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: state.audioEnabled
+          ? {
+              deviceId: state.selectedAudioDeviceId
+                ? { exact: state.selectedAudioDeviceId }
+                : undefined
+            }
+          : false,
+        video: state.videoEnabled
+          ? {
+              deviceId: state.selectedVideoDeviceId
+                ? { exact: state.selectedVideoDeviceId }
+                : undefined
+            }
+          : false
+      });
+
+      setState((current) => {
+        stopStream(current.previewStream);
+        return {
+          ...current,
+          error: null,
+          permissionState: "granted",
+          previewStream: stream
+        };
+      });
+      await enumerateDevices();
+    } catch (error) {
+      setState((current) => ({
+        ...current,
+        error: error instanceof Error ? error.message : "Could not start camera or microphone.",
+        permissionState: "denied"
+      }));
+    }
+  }, [
+    enumerateDevices,
+    state.audioEnabled,
+    state.selectedAudioDeviceId,
+    state.selectedVideoDeviceId,
+    state.videoEnabled
+  ]);
+
+  const stopPreview = useCallback(() => {
+    setState((current) => {
+      stopStream(current.previewStream);
+      return { ...current, previewStream: null, permissionState: "idle" };
+    });
+  }, []);
+
+  const setAudioEnabled = useCallback((audioEnabled: boolean) => {
+    setState((current) => ({ ...current, audioEnabled }));
+  }, []);
+
+  const setVideoEnabled = useCallback((videoEnabled: boolean) => {
+    setState((current) => ({ ...current, videoEnabled }));
+  }, []);
+
+  const setSelectedAudioDeviceId = useCallback((selectedAudioDeviceId: string) => {
+    setState((current) => ({ ...current, selectedAudioDeviceId }));
+  }, []);
+
+  const setSelectedVideoDeviceId = useCallback((selectedVideoDeviceId: string) => {
+    setState((current) => ({ ...current, selectedVideoDeviceId }));
+  }, []);
+
+  useEffect(() => {
+    void enumerateDevices();
+  }, [enumerateDevices]);
+
+  useEffect(() => () => stopStream(state.previewStream), [state.previewStream]);
+
+  return {
+    ...state,
+    setAudioEnabled,
+    setSelectedAudioDeviceId,
+    setSelectedVideoDeviceId,
+    setVideoEnabled,
+    startPreview,
+    stopPreview
+  };
+}

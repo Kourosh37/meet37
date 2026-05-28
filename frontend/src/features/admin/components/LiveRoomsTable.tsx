@@ -1,39 +1,56 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\admin\components\LiveRoomsTable.tsx
-Layer: Admin Panel
+import type { LiveRoomStats, Room } from "@/types/api";
 
-Responsibility:
-- Frontend file for the Admin Panel layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface LiveRoomsTableProps {
+  rows: Array<{
+    room: Room;
+    stats?: LiveRoomStats;
+  }>;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function LiveRoomsTable({ rows }: LiveRoomsTableProps) {
+  if (rows.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-surface p-5 text-sm text-muted-foreground shadow-sm">
+        No rooms found.
+      </div>
+    );
+  }
 
-Backend contract: /api/admin/settings for public/private mode, /api/admin/users for CRUD, /api/admin/rooms/{id}/stats for live room stats, and /api/admin/sfu/stats for relay stats. Every request requires an admin bearer token.
-
-State model to plan: loading, unauthorized, forbidden, empty, optimistic mutation, mutation error, stale stats refresh, and confirmed delete/update.
-
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: admin guard behavior, public/private toggle, user CRUD validation, room stats rendering, SFU stats rendering, and token failure handling.
-
-*/
-
-// Live rooms table placeholder.
-//
-// Planned responsibilities:
-// - Show room stats rows for admin monitoring.
-// - Refresh live peer/pending/SFU counts on an interval.
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
+      <table className="w-full border-collapse text-left text-sm">
+        <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3">Room</th>
+            <th className="px-4 py-3">Peers</th>
+            <th className="px-4 py-3">Pending</th>
+            <th className="px-4 py-3">Mode</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ room, stats }) => (
+            <tr className="border-t border-border" key={room.id}>
+              <td className="px-4 py-3">
+                <p className="font-medium text-surface-foreground">
+                  {room.name}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{room.id}</p>
+              </td>
+              <td className="px-4 py-3 text-surface-foreground">
+                {stats?.peer_count ?? 0}
+              </td>
+              <td className="px-4 py-3 text-surface-foreground">
+                {stats?.pending_count ?? 0}
+              </td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {stats?.has_sfu_session ? "SFU" : "P2P"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

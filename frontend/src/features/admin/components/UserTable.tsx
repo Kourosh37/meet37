@@ -1,41 +1,96 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\admin\components\UserTable.tsx
-Layer: Admin Panel
+import type { AdminUser, UpdateAdminUserRequest } from "@/types/api";
+import { formatUnixSeconds } from "@/lib/utils/formatters";
 
-Responsibility:
-- Frontend file for the Admin Panel layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface UserTableProps {
+  disabled?: boolean;
+  onDelete: (userId: string) => void;
+  onUpdate: (userId: string, request: UpdateAdminUserRequest) => void;
+  users: AdminUser[];
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function UserTable({
+  disabled = false,
+  onDelete,
+  onUpdate,
+  users
+}: UserTableProps) {
+  if (users.length === 0) {
+    return (
+      <div className="rounded-lg border border-border bg-surface p-5 text-sm text-muted-foreground shadow-sm">
+        No private-mode users exist yet.
+      </div>
+    );
+  }
 
-Backend contract: /api/admin/settings for public/private mode, /api/admin/users for CRUD, /api/admin/rooms/{id}/stats for live room stats, and /api/admin/sfu/stats for relay stats. Every request requires an admin bearer token.
+  function handleRename(user: AdminUser) {
+    const username = window.prompt("New username", user.username)?.trim();
 
-State model to plan: loading, unauthorized, forbidden, empty, optimistic mutation, mutation error, stale stats refresh, and confirmed delete/update.
+    if (username && username !== user.username) {
+      onUpdate(user.id, { username });
+    }
+  }
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+  function handlePassword(user: AdminUser) {
+    const password = window.prompt("New password")?.trim();
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+    if (password) {
+      onUpdate(user.id, { password });
+    }
+  }
 
-Future tests: admin guard behavior, public/private toggle, user CRUD validation, room stats rendering, SFU stats rendering, and token failure handling.
-
-*/
-
-// Admin user table placeholder.
-//
-// Planned responsibilities:
-// - Render users from GET /api/admin/users.
-// - Provide create/edit/delete actions with confirmation for destructive operations.
-// - Use table layout on desktop and card layout on mobile.
-// - Surface backend validation errors clearly.
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
+      <table className="w-full border-collapse text-left text-sm">
+        <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="px-4 py-3">Username</th>
+            <th className="px-4 py-3">Created</th>
+            <th className="px-4 py-3 text-right">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((user) => (
+            <tr className="border-t border-border" key={user.id}>
+              <td className="px-4 py-3 font-medium text-surface-foreground">
+                {user.username}
+              </td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {formatUnixSeconds(user.created_at)}
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex justify-end gap-2">
+                  <button
+                    className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold"
+                    disabled={disabled}
+                    onClick={() => handleRename(user)}
+                    type="button"
+                  >
+                    Rename
+                  </button>
+                  <button
+                    className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold"
+                    disabled={disabled}
+                    onClick={() => handlePassword(user)}
+                    type="button"
+                  >
+                    Password
+                  </button>
+                  <button
+                    className="rounded-md border border-danger/30 px-2.5 py-1 text-xs font-semibold text-danger"
+                    disabled={disabled}
+                    onClick={() => onDelete(user.id)}
+                    type="button"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}

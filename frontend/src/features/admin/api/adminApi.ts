@@ -1,39 +1,91 @@
-/*
-Frontend architecture note
+import { apiRequest } from "@/lib/api/client";
+import { endpoints } from "@/lib/api/endpoints";
+import type {
+  AdminSettingsResponse,
+  AdminSfuStatsResponse,
+  AdminUser,
+  CreateAdminUserRequest,
+  LiveRoomStats,
+  Room,
+  UpdateAdminSettingsRequest,
+  UpdateAdminUserRequest
+} from "@/types/api";
 
-File: src\features\admin\api\adminApi.ts
-Layer: Admin Panel
+export function getAdminSettings() {
+  return apiRequest<AdminSettingsResponse>(endpoints.admin.settings, {
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
 
-Responsibility:
-- Typed wrapper around admin-only backend endpoints: settings, app mode, admin users CRUD, live room stats, and SFU stats.
+export function updateAdminSettings(request: UpdateAdminSettingsRequest) {
+  return apiRequest<AdminSettingsResponse, UpdateAdminSettingsRequest>(
+    endpoints.admin.settings,
+    {
+      body: request,
+      method: "PUT",
+      protected: true,
+      retryOnUnauthorized: true
+    }
+  );
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function listAdminUsers() {
+  return apiRequest<AdminUser[]>(endpoints.admin.users, {
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
 
-Backend contract: /api/admin/settings for public/private mode, /api/admin/users for CRUD, /api/admin/rooms/{id}/stats for live room stats, and /api/admin/sfu/stats for relay stats. Every request requires an admin bearer token.
+export function createAdminUser(request: CreateAdminUserRequest) {
+  return apiRequest<AdminUser, CreateAdminUserRequest>(endpoints.admin.users, {
+    body: request,
+    method: "POST",
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
 
-State model to plan: loading, unauthorized, forbidden, empty, optimistic mutation, mutation error, stale stats refresh, and confirmed delete/update.
+export function updateAdminUser(
+  userId: string,
+  request: UpdateAdminUserRequest
+) {
+  return apiRequest<AdminUser, UpdateAdminUserRequest>(
+    endpoints.admin.user(userId),
+    {
+      body: request,
+      method: "PUT",
+      protected: true,
+      retryOnUnauthorized: true
+    }
+  );
+}
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+export function deleteAdminUser(userId: string) {
+  return apiRequest<void>(endpoints.admin.user(userId), {
+    method: "DELETE",
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+export function listAdminRooms() {
+  return apiRequest<Room[]>(endpoints.rooms.base, {
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
 
-Future tests: admin guard behavior, public/private toggle, user CRUD validation, room stats rendering, SFU stats rendering, and token failure handling.
+export function getAdminRoomStats(roomId: string) {
+  return apiRequest<LiveRoomStats>(endpoints.admin.roomStats(roomId), {
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
 
-*/
-
-// Admin API placeholder.
-//
-// Planned responsibilities:
-// - Wrap settings, users, room stats, and SFU stats endpoints.
-// - Keep admin-only errors visible to admin pages.
+export function getAdminSfuStats() {
+  return apiRequest<AdminSfuStatsResponse>(endpoints.admin.sfuStats, {
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}

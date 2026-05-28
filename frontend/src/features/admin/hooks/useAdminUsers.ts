@@ -1,39 +1,65 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\admin\hooks\useAdminUsers.ts
-Layer: Admin Panel
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import {
+  createAdminUser,
+  deleteAdminUser,
+  listAdminUsers,
+  updateAdminUser
+} from "@/features/admin/api/adminApi";
+import type {
+  CreateAdminUserRequest,
+  UpdateAdminUserRequest
+} from "@/types/api";
 
-Responsibility:
-- Frontend file for the Admin Panel layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+const adminUsersKey = ["admin", "users"] as const;
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function useAdminUsers() {
+  const queryClient = useQueryClient();
+  const users = useQuery({
+    queryFn: listAdminUsers,
+    queryKey: adminUsersKey
+  });
+  const invalidate = () =>
+    queryClient.invalidateQueries({ queryKey: adminUsersKey });
+  const createUser = useMutation({
+    mutationFn: (request: CreateAdminUserRequest) => createAdminUser(request),
+    onSuccess: () => {
+      toast.success("User created");
+      void invalidate();
+    }
+  });
+  const updateUser = useMutation({
+    mutationFn: ({
+      request,
+      userId
+    }: {
+      request: UpdateAdminUserRequest;
+      userId: string;
+    }) => updateAdminUser(userId, request),
+    onSuccess: () => {
+      toast.success("User updated");
+      void invalidate();
+    }
+  });
+  const deleteUser = useMutation({
+    mutationFn: deleteAdminUser,
+    onSuccess: () => {
+      toast.success("User deleted");
+      void invalidate();
+    }
+  });
 
-Backend contract: /api/admin/settings for public/private mode, /api/admin/users for CRUD, /api/admin/rooms/{id}/stats for live room stats, and /api/admin/sfu/stats for relay stats. Every request requires an admin bearer token.
-
-State model to plan: loading, unauthorized, forbidden, empty, optimistic mutation, mutation error, stale stats refresh, and confirmed delete/update.
-
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: admin guard behavior, public/private toggle, user CRUD validation, room stats rendering, SFU stats rendering, and token failure handling.
-
-*/
-
-// Admin users hook placeholder.
-//
-// Planned responsibilities:
-// - Query, create, update, and delete users.
-// - Invalidate admin user query keys after mutation.
+  return {
+    createUser: createUser.mutate,
+    deleteUser: deleteUser.mutate,
+    error:
+      users.error ?? createUser.error ?? updateUser.error ?? deleteUser.error,
+    isLoading: users.isLoading,
+    isMutating:
+      createUser.isPending || updateUser.isPending || deleteUser.isPending,
+    updateUser: updateUser.mutate,
+    users: users.data ?? []
+  };
+}

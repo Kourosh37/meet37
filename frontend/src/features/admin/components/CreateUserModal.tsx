@@ -1,39 +1,89 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\admin\components\CreateUserModal.tsx
-Layer: Admin Panel
+import { FormEvent, useState } from "react";
+import { adminUserCreateSchema } from "@/lib/utils/validators";
+import type { CreateAdminUserRequest } from "@/types/api";
 
-Responsibility:
-- Frontend file for the Admin Panel layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface CreateUserModalProps {
+  disabled?: boolean;
+  onCreate: (request: CreateAdminUserRequest) => void;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function CreateUserModal({
+  disabled = false,
+  onCreate
+}: CreateUserModalProps) {
+  const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
 
-Backend contract: /api/admin/settings for public/private mode, /api/admin/users for CRUD, /api/admin/rooms/{id}/stats for live room stats, and /api/admin/sfu/stats for relay stats. Every request requires an admin bearer token.
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const result = adminUserCreateSchema.safeParse({ password, username });
 
-State model to plan: loading, unauthorized, forbidden, empty, optimistic mutation, mutation error, stale stats refresh, and confirmed delete/update.
+    if (!result.success) {
+      setError(result.error.issues[0]?.message ?? "Invalid user details");
+      return;
+    }
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+    setError(null);
+    onCreate(result.data);
+    setOpen(false);
+    setPassword("");
+    setUsername("");
+  }
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+  if (!open) {
+    return (
+      <button
+        className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
+        disabled={disabled}
+        onClick={() => setOpen(true)}
+        type="button"
+      >
+        Create user
+      </button>
+    );
+  }
 
-Future tests: admin guard behavior, public/private toggle, user CRUD validation, room stats rendering, SFU stats rendering, and token failure handling.
-
-*/
-
-// Create user modal placeholder.
-//
-// Planned responsibilities:
-// - Collect username and password for admin-created private-mode users.
-// - Validate backend constraints before submit.
+  return (
+    <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+      <h2 className="text-sm font-semibold text-surface-foreground">
+        Create user
+      </h2>
+      <form className="mt-4 grid gap-3" onSubmit={handleSubmit}>
+        <input
+          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+          onChange={(event) => setUsername(event.target.value)}
+          placeholder="Username"
+          value={username}
+        />
+        <input
+          className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+          onChange={(event) => setPassword(event.target.value)}
+          placeholder="Password"
+          type="password"
+          value={password}
+        />
+        {error ? <p className="text-sm text-danger">{error}</p> : null}
+        <div className="flex gap-2">
+          <button
+            className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
+            disabled={disabled}
+            type="submit"
+          >
+            Save
+          </button>
+          <button
+            className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground"
+            onClick={() => setOpen(false)}
+            type="button"
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

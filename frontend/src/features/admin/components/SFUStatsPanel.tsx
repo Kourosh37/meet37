@@ -1,41 +1,77 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\admin\components\SFUStatsPanel.tsx
-Layer: Admin Panel
+import type { AdminSfuStatsResponse } from "@/types/api";
+import { formatBytes } from "@/lib/utils/formatters";
 
-Responsibility:
-- Frontend file for the Admin Panel layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface SFUStatsPanelProps {
+  stats?: AdminSfuStatsResponse;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function SFUStatsPanel({ stats }: SFUStatsPanelProps) {
+  const sessions = Object.entries(stats?.sessions ?? {});
+  const totals = sessions.reduce(
+    (acc, [, session]) => ({
+      bytes: acc.bytes + session.bytes_relayed,
+      peers: acc.peers + session.peer_count,
+      tracks: acc.tracks + session.track_count
+    }),
+    { bytes: 0, peers: 0, tracks: 0 }
+  );
 
-Backend contract: /api/admin/settings for public/private mode, /api/admin/users for CRUD, /api/admin/rooms/{id}/stats for live room stats, and /api/admin/sfu/stats for relay stats. Every request requires an admin bearer token.
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-3">
+        {[
+          ["Sessions", stats?.session_count ?? 0],
+          ["Peers", totals.peers],
+          ["Relayed bytes", formatBytes(totals.bytes)]
+        ].map(([label, value]) => (
+          <div
+            className="rounded-lg border border-border bg-surface p-5 shadow-sm"
+            key={label}
+          >
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="mt-2 text-2xl font-semibold text-surface-foreground">
+              {value}
+            </p>
+          </div>
+        ))}
+      </div>
 
-State model to plan: loading, unauthorized, forbidden, empty, optimistic mutation, mutation error, stale stats refresh, and confirmed delete/update.
-
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: admin guard behavior, public/private toggle, user CRUD validation, room stats rendering, SFU stats rendering, and token failure handling.
-
-*/
-
-// SFU stats card placeholder.
-//
-// Planned responsibilities:
-// - Display values from GET /api/admin/sfu/stats.
-// - Format packet, byte, peer, track, and recording counters.
-// - Refresh periodically without jarring layout shifts.
-// - Highlight empty and degraded states.
+      <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-sm">
+        <table className="w-full border-collapse text-left text-sm">
+          <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
+            <tr>
+              <th className="px-4 py-3">Session</th>
+              <th className="px-4 py-3">Peers</th>
+              <th className="px-4 py-3">Tracks</th>
+              <th className="px-4 py-3">Bytes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sessions.length === 0 ? (
+              <tr>
+                <td className="px-4 py-4 text-muted-foreground" colSpan={4}>
+                  No active SFU sessions.
+                </td>
+              </tr>
+            ) : (
+              sessions.map(([sessionId, session]) => (
+                <tr className="border-t border-border" key={sessionId}>
+                  <td className="px-4 py-3 font-medium text-surface-foreground">
+                    {sessionId}
+                  </td>
+                  <td className="px-4 py-3">{session.peer_count}</td>
+                  <td className="px-4 py-3">{session.track_count}</td>
+                  <td className="px-4 py-3">
+                    {formatBytes(session.bytes_relayed)}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}

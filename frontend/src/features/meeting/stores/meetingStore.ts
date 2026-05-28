@@ -65,6 +65,7 @@ export interface MeetingState {
   waitingApproval: (peerId: string) => void;
   addJoinRequest: (payload: JoinRequestPayload) => void;
   addPeer: (payload: PeerJoinedPayload) => void;
+  removePendingPeer: (peerId: string) => void;
   removePeer: (payload: PeerIdPayload) => void;
   setError: (message: string | null) => void;
   setPhase: (phase: MeetingPhase) => void;
@@ -105,11 +106,14 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       error: null,
       isHost: payload.is_host,
       localPeerId: payload.your_id,
-      peers: Object.fromEntries(payload.peers.map((peer) => [peer.id, peerFromJoined(peer)])),
+      peers: Object.fromEntries(
+        payload.peers.map((peer) => [peer.id, peerFromJoined(peer)])
+      ),
       phase: "in-call"
     }),
 
-  waitingApproval: (peerId) => set({ localPeerId: peerId, phase: "waiting-approval" }),
+  waitingApproval: (peerId) =>
+    set({ localPeerId: peerId, phase: "waiting-approval" }),
 
   addJoinRequest: (payload) =>
     set((state) => ({
@@ -125,6 +129,9 @@ export const useMeetingStore = create<MeetingState>((set) => ({
 
   addPeer: (payload) =>
     set((state) => ({
+      pendingPeers: state.pendingPeers.filter(
+        (peer) => peer.id !== payload.peer_id
+      ),
       peers: {
         ...state.peers,
         [payload.peer_id]: {
@@ -144,11 +151,18 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       }
     })),
 
+  removePendingPeer: (peerId) =>
+    set((state) => ({
+      pendingPeers: state.pendingPeers.filter((peer) => peer.id !== peerId)
+    })),
+
   removePeer: (payload) =>
     set((state) => {
       const { [payload.peer_id]: _removed, ...peers } = state.peers;
       return {
-        pendingPeers: state.pendingPeers.filter((peer) => peer.id !== payload.peer_id),
+        pendingPeers: state.pendingPeers.filter(
+          (peer) => peer.id !== payload.peer_id
+        ),
         peers
       };
     }),

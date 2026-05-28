@@ -37,6 +37,7 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
+import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
 import { useSignalingMessages } from "@/features/meeting/hooks/useSignalingMessages";
 import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
@@ -104,25 +105,13 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
 
   if (meeting.phase === "waiting-approval") {
     return (
-      <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
-          Waiting for approval
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Your request has been sent. The host will let you in when they are
-          ready.
-        </p>
-        <button
-          className="mt-6 rounded-md border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
-          onClick={() => {
-            websocket.close();
-            meeting.reset();
-          }}
-          type="button"
-        >
-          Cancel
-        </button>
-      </section>
+      <WaitingRoom
+        onCancel={() => {
+          websocket.close();
+          meeting.reset();
+        }}
+        roomName={data?.room.name}
+      />
     );
   }
 
@@ -134,6 +123,32 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
         }
         roomName={data?.room.name}
       />
+    );
+  }
+
+  if (["kicked", "rejected", "room-closed"].includes(meeting.phase)) {
+    return (
+      <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
+        <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
+          {meeting.phase === "room-closed" ? "Meeting ended" : "Unable to join"}
+        </h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          {meeting.error ??
+            (meeting.phase === "room-closed"
+              ? "This room has been closed by the host."
+              : "Your meeting session is no longer active.")}
+        </p>
+        <button
+          className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+          onClick={() => {
+            websocket.close();
+            meeting.reset();
+          }}
+          type="button"
+        >
+          Back to prejoin
+        </button>
+      </section>
     );
   }
 

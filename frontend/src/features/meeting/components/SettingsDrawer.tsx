@@ -1,41 +1,61 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\SettingsDrawer.tsx
-Layer: Meeting Runtime
+import { X } from "lucide-react";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface SettingsDrawerProps {
+  audioEnabled: boolean;
+  isOpen: boolean;
+  onClose: () => void;
+  onToggleAudio: () => void;
+  onToggleVideo: () => void;
+  videoEnabled: boolean;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function SettingsDrawer({
+  audioEnabled,
+  isOpen,
+  onClose,
+  onToggleAudio,
+  onToggleVideo,
+  videoEnabled
+}: SettingsDrawerProps) {
+  if (!isOpen) {
+    return null;
+  }
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
-
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
-
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// Meeting settings drawer placeholder.
-//
-// Planned responsibilities:
-// - Allow camera, microphone, and speaker device selection.
-// - Provide theme switch and meeting preferences.
-// - Use a mobile sheet and desktop drawer/panel.
-// - Keep device changes synchronized with active media tracks.
+  return (
+    <aside className="fixed inset-y-0 right-0 z-40 w-[min(360px,100vw)] border-l border-border bg-surface p-4 shadow-xl">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-surface-foreground">
+          Meeting settings
+        </h2>
+        <button
+          aria-label="Close settings"
+          className="grid size-9 place-items-center rounded-md border border-border text-foreground transition hover:bg-muted"
+          onClick={onClose}
+          type="button"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
+      <div className="mt-6 grid gap-3">
+        <button
+          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground"
+          onClick={onToggleAudio}
+          type="button"
+        >
+          Microphone
+          <span>{audioEnabled ? "On" : "Off"}</span>
+        </button>
+        <button
+          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground"
+          onClick={onToggleVideo}
+          type="button"
+        >
+          Camera
+          <span>{videoEnabled ? "On" : "Off"}</span>
+        </button>
+      </div>
+    </aside>
+  );
+}

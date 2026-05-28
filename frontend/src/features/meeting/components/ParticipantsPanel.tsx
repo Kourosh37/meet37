@@ -1,39 +1,85 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\ParticipantsPanel.tsx
-Layer: Meeting Runtime
+import { ParticipantItem } from "@/features/meeting/components/ParticipantItem";
+import type { MeetingPeer, PendingPeer } from "@/features/meeting/types/peer";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface ParticipantsPanelProps {
+  canModerate: boolean;
+  localPeer: MeetingPeer;
+  onApprove: (peerId: string) => void;
+  onKick: (peerId: string) => void;
+  onMute: (peerId: string) => void;
+  onReject: (peerId: string) => void;
+  peers: Record<string, MeetingPeer>;
+  pendingPeers: PendingPeer[];
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function ParticipantsPanel({
+  canModerate,
+  localPeer,
+  onApprove,
+  onKick,
+  onMute,
+  onReject,
+  peers,
+  pendingPeers
+}: ParticipantsPanelProps) {
+  return (
+    <aside className="flex h-full min-h-0 flex-col rounded-lg border border-border bg-surface p-4 shadow-sm">
+      <div>
+        <h2 className="text-sm font-semibold text-surface-foreground">
+          Participants
+        </h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {Object.keys(peers).length + 1} in call
+        </p>
+      </div>
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+      {canModerate && pendingPeers.length > 0 ? (
+        <section className="mt-4 rounded-md border border-primary/30 bg-primary/10 p-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-primary">
+            Waiting
+          </h3>
+          <div className="mt-3 grid gap-2">
+            {pendingPeers.map((peer) => (
+              <div key={peer.id} className="rounded-md bg-surface p-2">
+                <p className="truncate text-sm font-medium text-surface-foreground">
+                  {peer.displayName}
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <button
+                    className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
+                    onClick={() => onApprove(peer.id)}
+                    type="button"
+                  >
+                    Admit
+                  </button>
+                  <button
+                    className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground"
+                    onClick={() => onReject(peer.id)}
+                    type="button"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
-
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// Participants panel placeholder.
-//
-// Planned responsibilities:
-// - Render in-call participants and waiting approval requests.
-// - Expose host-only moderation menus.
+      <ul className="mt-4 grid min-h-0 gap-2 overflow-y-auto">
+        <ParticipantItem canModerate={canModerate} isLocal peer={localPeer} />
+        {Object.values(peers).map((peer) => (
+          <ParticipantItem
+            canModerate={canModerate}
+            key={peer.id}
+            onKick={onKick}
+            onMute={onMute}
+            peer={peer}
+          />
+        ))}
+      </ul>
+    </aside>
+  );
+}

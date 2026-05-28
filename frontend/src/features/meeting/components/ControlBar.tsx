@@ -1,41 +1,117 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\ControlBar.tsx
-Layer: Meeting Runtime
+import {
+  Camera,
+  CameraOff,
+  Copy,
+  LogOut,
+  MessageSquare,
+  Mic,
+  MicOff,
+  Settings,
+  Users
+} from "lucide-react";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface ControlBarProps {
+  audioEnabled: boolean;
+  onCopyInvite: () => void;
+  onLeave: () => void;
+  onOpenSettings: () => void;
+  onToggleAudio: () => void;
+  onToggleChat: () => void;
+  onToggleParticipants: () => void;
+  onToggleVideo: () => void;
+  participantsOpen: boolean;
+  videoEnabled: boolean;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
-
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
-
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
-
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// Meeting control bar placeholder.
-//
-// Planned responsibilities:
-// - Provide mic, camera, screen share, chat, participants, file share, settings, and leave controls.
-// - Use icon-first buttons with accessible labels and tooltips.
-// - Keep mobile tap targets at least 44px.
-// - Dispatch actions to media and room hooks without embedding WebRTC logic.
+export function ControlBar({
+  audioEnabled,
+  onCopyInvite,
+  onLeave,
+  onOpenSettings,
+  onToggleAudio,
+  onToggleChat,
+  onToggleParticipants,
+  onToggleVideo,
+  participantsOpen,
+  videoEnabled
+}: ControlBarProps) {
+  return (
+    <footer className="sticky bottom-4 z-10 mx-auto flex w-fit max-w-full items-center gap-2 rounded-lg border border-border bg-surface/95 p-2 shadow-lg backdrop-blur">
+      <button
+        aria-label={audioEnabled ? "Mute microphone" : "Unmute microphone"}
+        className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+        onClick={onToggleAudio}
+        title={audioEnabled ? "Mute microphone" : "Unmute microphone"}
+        type="button"
+      >
+        {audioEnabled ? (
+          <Mic className="size-5" />
+        ) : (
+          <MicOff className="size-5" />
+        )}
+      </button>
+      <button
+        aria-label={videoEnabled ? "Turn camera off" : "Turn camera on"}
+        className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+        onClick={onToggleVideo}
+        title={videoEnabled ? "Turn camera off" : "Turn camera on"}
+        type="button"
+      >
+        {videoEnabled ? (
+          <Camera className="size-5" />
+        ) : (
+          <CameraOff className="size-5" />
+        )}
+      </button>
+      <button
+        aria-label="Copy invite link"
+        className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+        onClick={onCopyInvite}
+        title="Copy invite link"
+        type="button"
+      >
+        <Copy className="size-5" />
+      </button>
+      <button
+        aria-label={
+          participantsOpen ? "Hide participants" : "Show participants"
+        }
+        className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+        onClick={onToggleParticipants}
+        title={participantsOpen ? "Hide participants" : "Show participants"}
+        type="button"
+      >
+        <Users className="size-5" />
+      </button>
+      <button
+        aria-label="Open chat"
+        className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+        onClick={onToggleChat}
+        title="Open chat"
+        type="button"
+      >
+        <MessageSquare className="size-5" />
+      </button>
+      <button
+        aria-label="Open settings"
+        className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+        onClick={onOpenSettings}
+        title="Open settings"
+        type="button"
+      >
+        <Settings className="size-5" />
+      </button>
+      <button
+        aria-label="Leave meeting"
+        className="grid size-11 place-items-center rounded-md bg-danger text-danger-foreground transition hover:bg-danger/90"
+        onClick={onLeave}
+        title="Leave meeting"
+        type="button"
+      >
+        <LogOut className="size-5" />
+      </button>
+    </footer>
+  );
+}

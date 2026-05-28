@@ -1,13 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
-import { Camera, CameraOff, LogOut, Mic, MicOff } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { AdmissionModal } from "@/features/meeting/components/AdmissionModal";
+import { ControlBar } from "@/features/meeting/components/ControlBar";
+import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPanel";
+import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
+import { SFUBanner } from "@/features/meeting/components/SFUBanner";
 import { VideoGrid } from "@/features/meeting/components/VideoGrid";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
+import { useModeration } from "@/features/meeting/hooks/useModeration";
 import { usePeerConnections } from "@/features/meeting/hooks/usePeerConnections";
-import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
+import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import type { MeetingPeer } from "@/features/meeting/types/peer";
+import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 interface MeetingRoomProps {
   displayName: string;
@@ -19,9 +27,42 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const meeting = useMeetingStore();
   const websocket = useWebSocket();
   const localMedia = useLocalMedia();
+  const moderation = useModeration();
   const startLocalMedia = localMedia.start;
   const stopLocalMedia = localMedia.stop;
+  const audioEnabled = localMedia.audioEnabled;
+  const toggleAudio = localMedia.toggleAudio;
   const { remoteStreams } = usePeerConnections(localMedia.stream);
+  const [participantsOpen, setParticipantsOpen] = useState(true);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const sfuActive = Object.values(meeting.peers).some(
+    (peer) => peer.connection.mode === "sfu"
+  );
+  const localPeer = useMemo(
+    () =>
+      ({
+        connection: {
+          mode: "p2p",
+          quality: "unknown"
+        },
+        displayName,
+        id: meeting.localPeerId ?? "local",
+        isHost: meeting.isHost,
+        media: {
+          audioEnabled: localMedia.audioEnabled,
+          screenSharing: localMedia.screenSharing,
+          videoEnabled: localMedia.videoEnabled
+        }
+      }) satisfies MeetingPeer,
+    [
+      displayName,
+      localMedia.audioEnabled,
+      localMedia.screenSharing,
+      localMedia.videoEnabled,
+      meeting.isHost,
+      meeting.localPeerId
+    ]
+  );
 
   useEffect(() => {
     void startLocalMedia();
@@ -31,11 +72,29 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     };
   }, [startLocalMedia, stopLocalMedia]);
 
+  useEffect(() => {
+    return webSocketManager.subscribe("mute-request", (message) => {
+      if (message.payload.kind === "audio" && audioEnabled) {
+        toggleAudio();
+        toast.info("The host requested that your microphone be muted.");
+      }
+    });
+  }, [audioEnabled, toggleAudio]);
+
   function handleLeave() {
     stopLocalMedia();
     websocket.close();
     meeting.reset();
     router.push("/");
+  }
+
+  async function handleCopyInvite() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success("Invite link copied");
+    } catch {
+      toast.error("Could not copy invite link");
+    }
   }
 
   return (
@@ -60,62 +119,63 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         </div>
       ) : null}
 
-      <VideoGrid
-        local={{
-          audioEnabled: localMedia.audioEnabled,
-          displayName,
-          isHost: meeting.isHost,
-          screenSharing: localMedia.screenSharing,
-          stream: localMedia.stream,
-          videoEnabled: localMedia.videoEnabled
-        }}
-        peers={meeting.peers}
-        remoteStreams={remoteStreams}
-      />
+      <SFUBanner active={sfuActive} />
 
-      <footer className="sticky bottom-4 z-10 mx-auto flex w-fit max-w-full items-center gap-2 rounded-lg border border-border bg-surface/95 p-2 shadow-lg backdrop-blur">
-        <button
-          aria-label={
-            localMedia.audioEnabled ? "Mute microphone" : "Unmute microphone"
-          }
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
-          onClick={localMedia.toggleAudio}
-          title={
-            localMedia.audioEnabled ? "Mute microphone" : "Unmute microphone"
-          }
-          type="button"
-        >
-          {localMedia.audioEnabled ? (
-            <Mic className="size-5" />
-          ) : (
-            <MicOff className="size-5" />
-          )}
-        </button>
-        <button
-          aria-label={
-            localMedia.videoEnabled ? "Turn camera off" : "Turn camera on"
-          }
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
-          onClick={localMedia.toggleVideo}
-          title={localMedia.videoEnabled ? "Turn camera off" : "Turn camera on"}
-          type="button"
-        >
-          {localMedia.videoEnabled ? (
-            <Camera className="size-5" />
-          ) : (
-            <CameraOff className="size-5" />
-          )}
-        </button>
-        <button
-          aria-label="Leave meeting"
-          className="grid size-11 place-items-center rounded-md bg-danger text-danger-foreground transition hover:bg-danger/90"
-          onClick={handleLeave}
-          title="Leave meeting"
-          type="button"
-        >
-          <LogOut className="size-5" />
-        </button>
-      </footer>
+      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <VideoGrid
+          local={{
+            audioEnabled: localMedia.audioEnabled,
+            displayName,
+            isHost: meeting.isHost,
+            screenSharing: localMedia.screenSharing,
+            stream: localMedia.stream,
+            videoEnabled: localMedia.videoEnabled
+          }}
+          peers={meeting.peers}
+          remoteStreams={remoteStreams}
+        />
+
+        {participantsOpen ? (
+          <ParticipantsPanel
+            canModerate={moderation.canModerate}
+            localPeer={localPeer}
+            onApprove={moderation.approvePeer}
+            onKick={moderation.kickPeer}
+            onMute={moderation.mutePeer}
+            onReject={moderation.rejectPeer}
+            peers={meeting.peers}
+            pendingPeers={moderation.pendingPeers}
+          />
+        ) : null}
+      </div>
+
+      <AdmissionModal
+        onApprove={moderation.approvePeer}
+        onReject={moderation.rejectPeer}
+        pendingPeers={moderation.pendingPeers}
+      />
+      <SettingsDrawer
+        audioEnabled={localMedia.audioEnabled}
+        isOpen={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onToggleAudio={localMedia.toggleAudio}
+        onToggleVideo={localMedia.toggleVideo}
+        videoEnabled={localMedia.videoEnabled}
+      />
+      <ControlBar
+        audioEnabled={localMedia.audioEnabled}
+        onCopyInvite={() => void handleCopyInvite()}
+        onLeave={handleLeave}
+        onOpenSettings={() => setSettingsOpen(true)}
+        onToggleAudio={localMedia.toggleAudio}
+        onToggleChat={() =>
+          toast.info("Chat opens in the next implementation phase.")
+        }
+        onToggleParticipants={() => setParticipantsOpen((open) => !open)}
+        onToggleVideo={localMedia.toggleVideo}
+        participantsOpen={participantsOpen}
+        videoEnabled={localMedia.videoEnabled}
+      />
     </main>
   );
 }

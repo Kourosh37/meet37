@@ -231,18 +231,18 @@ Acceptance:
 Goal: expose backend administration workflows.
 
 Tasks:
-- Implement `adminApi.ts`.
-- Implement admin settings hook and `AppModeToggle.tsx`.
-- Implement admin users hook, `UserTable.tsx`, and `CreateUserModal.tsx`.
-- Implement room stats hook and `LiveRoomsTable.tsx`.
-- Implement `SFUStatsPanel.tsx`.
-- Complete admin routes and sidebar navigation.
+- [x] Implement `adminApi.ts`.
+- [x] Implement admin settings hook and `AppModeToggle.tsx`.
+- [x] Implement admin users hook, `UserTable.tsx`, and `CreateUserModal.tsx`.
+- [x] Implement room stats hook and `LiveRoomsTable.tsx`.
+- [x] Implement `SFUStatsPanel.tsx`.
+- [x] Complete admin routes and sidebar navigation.
 
 Acceptance:
-- Admin can switch public/private mode.
-- Admin can create, update, and delete private-mode users.
-- Admin can view live room stats and SFU stats.
-- Non-admin users cannot access admin routes.
+- [x] Admin can switch public/private mode.
+- [x] Admin can create, update, and delete private-mode users.
+- [x] Admin can view live room stats and SFU stats.
+- [x] Non-admin users cannot access admin routes.
 
 ## Phase 14 - Testing and Verification
 

@@ -32,8 +32,7 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-import { Video } from "lucide-react";
-import Link from "next/link";
+import { PreJoinSetup } from "@/features/meeting/components/PreJoinSetup";
 
 type PrejoinPageProps = {
   params: Promise<{
@@ -46,45 +45,7 @@ export default async function PrejoinPage({ params }: PrejoinPageProps) {
 
   return (
     <main className="min-h-screen bg-background px-4 py-8 text-foreground">
-      <section className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1fr_380px] lg:items-start">
-        <div className="aspect-video rounded-lg border border-border bg-slate-950 p-6 text-white shadow-sm">
-          <div className="flex h-full items-center justify-center rounded-md border border-white/10 bg-white/5">
-            <div className="text-center">
-              <Video className="mx-auto size-10 text-primary" />
-              <p className="mt-3 text-sm text-slate-300">Camera preview will appear here.</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            Room {roomId}
-          </p>
-          <h1 className="mt-2 text-2xl font-semibold tracking-normal text-surface-foreground">
-            Join the meeting
-          </h1>
-          <p className="mt-3 text-sm leading-6 text-muted-foreground">
-            Phase 6 will load room metadata, collect your display name, and check optional room
-            password requirements before joining.
-          </p>
-          <div className="mt-6 grid gap-4">
-            <div className="h-11 rounded-md border border-border bg-background" aria-hidden="true" />
-            <button
-              className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground opacity-60"
-              disabled
-              type="button"
-            >
-              Join now
-            </button>
-          </div>
-          <Link
-            className="mt-4 inline-flex text-sm font-medium text-muted-foreground hover:text-foreground"
-            href="/"
-          >
-            Back home
-          </Link>
-        </div>
-      </section>
+      <PreJoinSetup roomId={roomId} />
     </main>
   );
 }

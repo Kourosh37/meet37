@@ -40,17 +40,22 @@ export default function CreateRoomPage() {
     <section className="mx-auto max-w-2xl space-y-6">
       <div>
         <p className="text-sm font-medium text-primary">Room setup</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">Create a room</h1>
+        <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">
+          Create a room
+        </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          The production form will create rooms through the backend and preserve the returned
-          host token for moderation.
+          Create a shareable meeting link and keep host authority in this
+          browser session.
         </p>
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <RoomCreationForm />
         <div className="mt-6">
-          <Link className="text-sm font-medium text-muted-foreground hover:text-foreground" href="/">
+          <Link
+            className="text-sm font-medium text-muted-foreground hover:text-foreground"
+            href="/"
+          >
             Back home
           </Link>
         </div>

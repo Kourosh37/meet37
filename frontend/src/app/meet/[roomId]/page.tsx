@@ -44,7 +44,10 @@ export default async function PrejoinPage({ params }: PrejoinPageProps) {
   const { roomId } = await params;
 
   return (
-    <main className="min-h-screen bg-background px-4 py-8 text-foreground">
+    <main
+      className="min-h-screen bg-background px-4 py-8 text-foreground"
+      id="main-content"
+    >
       <PreJoinSetup roomId={roomId} />
     </main>
   );

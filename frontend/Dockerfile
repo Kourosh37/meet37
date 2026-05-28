@@ -1,6 +1,4 @@
-# Multi-stage Dockerfile for the future Next.js frontend runtime.
-# The application files are comment-only in this phase, so this image is
-# intended as a ready scaffold for the implementation phase.
+# Multi-stage Dockerfile for the production Next.js frontend runtime.
 
 FROM node:22-alpine AS deps
 WORKDIR /app

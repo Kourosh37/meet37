@@ -50,7 +50,10 @@ export function Sidebar() {
           Meet Admin
         </Link>
       </div>
-      <nav aria-label="Admin navigation" className="flex gap-2 overflow-x-auto p-3 md:flex-col">
+      <nav
+        aria-label="Admin navigation"
+        className="flex gap-2 overflow-x-auto p-3 md:flex-col"
+      >
         {adminLinks.map((item) => {
           const Icon = item.icon;
 
@@ -60,7 +63,7 @@ export function Sidebar() {
               href={item.href}
               key={item.href}
             >
-              <Icon className="size-4" />
+              <Icon className="size-4 shrink-0" />
               {item.label}
             </Link>
           );

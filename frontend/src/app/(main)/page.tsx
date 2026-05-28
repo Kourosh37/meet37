@@ -49,8 +49,8 @@ export default function HomePage() {
             Start or join a secure browser meeting.
           </h1>
           <p className="max-w-2xl text-base leading-7 text-muted-foreground">
-            Create shareable rooms, collect a display name before entry, and keep host moderation
-            ready for approval-based meetings.
+            Create shareable rooms, collect a display name before entry, and
+            keep host moderation ready for approval-based meetings.
           </p>
         </div>
         <div className="flex flex-wrap gap-3">
@@ -73,8 +73,12 @@ export default function HomePage() {
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
           <div>
-            <h2 className="text-lg font-semibold text-surface-foreground">Active rooms</h2>
-            <p className="text-sm text-muted-foreground">Room list integration starts in Phase 5.</p>
+            <h2 className="text-lg font-semibold text-surface-foreground">
+              Active rooms
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Open rooms from the current backend.
+            </p>
           </div>
         </div>
         <RoomList />

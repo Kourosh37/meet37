@@ -44,7 +44,8 @@ export const metadata: Metadata = {
     default: "Meet",
     template: "%s | Meet"
   },
-  description: "Browser-based video meetings with room sharing, moderation, and P2P-first media.",
+  description:
+    "Browser-based video meetings with room sharing, moderation, and P2P-first media.",
   applicationName: "Meet"
 };
 
@@ -62,6 +63,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body>
+        <a
+          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground"
+          href="#main-content"
+        >
+          Skip to content
+        </a>
         <ThemeProvider>
           <QueryProvider>{children}</QueryProvider>
           <ToastProvider />

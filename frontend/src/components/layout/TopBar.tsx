@@ -40,26 +40,32 @@ export function TopBar() {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
-        <Link className="text-lg font-semibold tracking-normal text-foreground" href="/">
+        <Link
+          className="text-lg font-semibold tracking-normal text-foreground"
+          href="/"
+        >
           Meet
         </Link>
-        <nav aria-label="Primary navigation" className="flex items-center gap-2">
+        <nav
+          aria-label="Primary navigation"
+          className="flex items-center gap-2"
+        >
           <Link
-            className="hidden items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:inline-flex"
+            className="hidden min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:inline-flex"
             href="/admin"
           >
             <Shield className="size-4" />
             Admin
           </Link>
           <Link
-            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
             href="/login"
           >
             <LogIn className="size-4" />
             Login
           </Link>
           <Link
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+            className="inline-flex min-h-10 items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             href="/rooms/new"
           >
             <Plus className="size-4" />

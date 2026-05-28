@@ -40,7 +40,10 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground md:flex">
       <Sidebar />
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+      <main
+        className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8"
+        id="main-content"
+      >
         <AuthGuard adminOnly>{children}</AuthGuard>
       </main>
     </div>

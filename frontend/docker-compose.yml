@@ -1,8 +1,5 @@
 services:
   frontend:
-    # Local development service for the future Next.js app.
-    # Once implementation starts, this service should run `pnpm dev`
-    # with the source tree mounted for hot reload.
     image: meet-frontend:dev
     build:
       context: .

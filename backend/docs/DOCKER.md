@@ -13,6 +13,21 @@ cd backend
 docker build -t meet-backend .
 ```
 
+## Run Image Directly
+
+```bash
+docker run --rm -p 8080:8080 \
+  -v meet-data:/data \
+  --env-file .env \
+  meet-backend
+```
+
+The image includes a Docker `HEALTHCHECK` that calls:
+
+```text
+GET http://localhost:${PORT:-8080}/health
+```
+
 ## Run With Docker Compose
 
 ```bash
@@ -85,6 +100,8 @@ healthcheck:
   test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
 ```
 
+Standalone containers also expose the same health check through Docker image metadata, so `docker inspect` reports `healthy` after startup.
+
 ## Data Backup
 
 SQLite files live in the Docker volume. For backups, stop writes or snapshot the volume consistently.
@@ -99,12 +116,4 @@ Because WAL mode is enabled, copy all three files when backing up a live databas
 
 ## Scaling Notes
 
-The current backend is single-instance for live meetings because active WebSocket state is in memory.
-
-Before running multiple replicas, add one of:
-
-- Sticky sessions by room ID and instance.
-- Shared signaling state through Redis/NATS.
-- A dedicated SFU/signaling layer.
-
-This backend includes optional Redis signaling fanout through `REDIS_URL`, but SFU media sessions are still process-local. Sticky routing by room remains recommended.
+The backend can share signaling and waiting-room commands through Redis by setting `REDIS_URL`. SFU media sessions are still process-local, so sticky routing by room remains recommended unless a dedicated SFU layer is introduced.

@@ -13,4 +13,5 @@ RUN apk add --no-cache ca-certificates tzdata wget && mkdir -p /data
 COPY --from=builder /meet-server /meet-server
 
 EXPOSE 8080 3478/udp 3478/tcp
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD wget -qO- http://localhost:${PORT:-8080}/health || exit 1
 ENTRYPOINT ["/meet-server"]

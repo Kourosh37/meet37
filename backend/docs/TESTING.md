@@ -10,6 +10,26 @@ go test ./...
 go vet ./...
 ```
 
+## Docker Checks
+
+Build the production image:
+
+```bash
+docker build -t meet-backend:docker-test .
+```
+
+Run a container with a temporary `/data` volume and verify:
+
+- `GET /health`
+- admin login
+- app mode switching
+- public/private room creation policy
+- room metadata lookup
+- chat/file history endpoints
+- admin SFU stats endpoint
+- refresh-token rotation and logout
+- Docker image health status
+
 The repository includes package-level tests for:
 
 - SQLite migration and default settings.
@@ -70,6 +90,8 @@ The latest runtime verification covered:
 - Admin SFU stats.
 - Chat history endpoint.
 - File-transfer metadata history endpoint.
+- Docker image build.
+- Docker container startup and health endpoint.
 - Refresh-token rotation.
 - Logout refresh-token revocation.
 - SFU offer/answer generation through Pion.

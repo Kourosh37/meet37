@@ -265,18 +265,18 @@ Acceptance:
 Goal: make the product feel complete and reliable.
 
 Tasks:
-- Refine responsive layouts for mobile, tablet, and desktop.
-- Add focus states, aria labels, keyboard shortcuts, and reduced-motion behavior.
-- Add empty/error/loading states across all pages.
-- Review color contrast and dark/light theme consistency.
-- Add production Docker verification.
-- Document frontend env vars, run commands, and known browser limitations.
+- [x] Refine responsive layouts for mobile, tablet, and desktop.
+- [x] Add focus states, aria labels, keyboard shortcuts, and reduced-motion behavior.
+- [x] Add empty/error/loading states across all pages.
+- [x] Review color contrast and dark/light theme consistency.
+- [x] Add production Docker verification.
+- [x] Document frontend env vars, run commands, and known browser limitations.
 
 Acceptance:
-- Core flows are usable by keyboard.
-- Text does not overflow fixed controls on mobile.
-- Docker build and runtime container work with backend URL env vars.
-- README reflects the actual implementation state.
+- [x] Core flows are usable by keyboard.
+- [x] Text does not overflow fixed controls on mobile.
+- [x] Docker build and runtime container work with backend URL env vars.
+- [x] README reflects the actual implementation state.
 
 ## Recommended Commit Sequence
 

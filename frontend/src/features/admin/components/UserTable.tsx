@@ -5,7 +5,7 @@ File: src\features\admin\components\UserTable.tsx
 Layer: Admin Panel
 
 Responsibility:
-- Frontend file for the Admin Panel layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with frontend-architecture.md.
+- Frontend file for the Admin Panel layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
 
 Implementation contract:
 - Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.

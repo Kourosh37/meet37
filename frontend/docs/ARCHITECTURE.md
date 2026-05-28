@@ -66,6 +66,8 @@ The frontend has its own Dockerfile and compose file. The runtime target is a pr
 
 ## Implementation Order
 
+The detailed working plan lives in `../implementing_plan.md`. Keep this summary aligned with that file when phase boundaries change.
+
 1. Turn placeholder routes into minimal valid pages and providers.
 2. Implement environment parsing and typed API client.
 3. Implement auth store and refresh flow.

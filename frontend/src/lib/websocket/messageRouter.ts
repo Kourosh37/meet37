@@ -32,8 +32,48 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// WebSocket message router placeholder.
-//
-// Planned responsibilities:
-// - Dispatch parsed WebSocket messages to typed subscribers.
-// - Keep unknown-message handling and logging centralized.
+import type { IncomingSignalMessage } from "@/features/meeting/types/signaling";
+
+export type SignalMessageHandler<TMessage extends IncomingSignalMessage = IncomingSignalMessage> = (
+  message: TMessage
+) => void;
+
+export class MessageRouter {
+  private readonly handlers = new Map<string, Set<SignalMessageHandler>>();
+  private readonly wildcardHandlers = new Set<SignalMessageHandler>();
+
+  subscribe<TType extends IncomingSignalMessage["type"]>(
+    type: TType,
+    handler: SignalMessageHandler<Extract<IncomingSignalMessage, { type: TType }>>
+  ) {
+    const handlers = this.handlers.get(type) ?? new Set<SignalMessageHandler>();
+    handlers.add(handler as SignalMessageHandler);
+    this.handlers.set(type, handlers);
+
+    return () => {
+      handlers.delete(handler as SignalMessageHandler);
+    };
+  }
+
+  subscribeAll(handler: SignalMessageHandler) {
+    this.wildcardHandlers.add(handler);
+    return () => {
+      this.wildcardHandlers.delete(handler);
+    };
+  }
+
+  dispatch(message: IncomingSignalMessage) {
+    this.handlers.get(message.type)?.forEach((handler) => handler(message));
+    this.wildcardHandlers.forEach((handler) => handler(message));
+  }
+}
+
+export function parseSignalMessage(raw: string) {
+  const parsed = JSON.parse(raw) as IncomingSignalMessage;
+
+  if (!parsed || typeof parsed !== "object" || typeof parsed.type !== "string") {
+    throw new Error("Invalid WebSocket message");
+  }
+
+  return parsed;
+}

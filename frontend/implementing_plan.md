@@ -182,17 +182,17 @@ Acceptance:
 Goal: support in-call text and file-transfer signaling.
 
 Tasks:
-- Implement `chatStore.ts`, `useChat.ts`, `ChatPanel.tsx`, and `ChatMessage.tsx`.
-- Load persisted chat history from REST and append live WebSocket messages.
-- Implement file metadata store and `useFileTransfer.ts`.
-- Implement `FileTransferPanel.tsx` and `FileTransferItem.tsx`.
-- Use backend file-offer/file-answer signaling for metadata.
+- [x] Implement `chatStore.ts`, `useChat.ts`, `ChatPanel.tsx`, and `ChatMessage.tsx`.
+- [x] Load persisted chat history from REST and append live WebSocket messages.
+- [x] Implement file metadata store and `useFileTransfer.ts`.
+- [x] Implement `FileTransferPanel.tsx` and `FileTransferItem.tsx`.
+- [x] Use backend file-offer/file-answer signaling for metadata.
 
 Acceptance:
-- Chat history loads oldest-first and live messages append correctly.
-- Unread counts clear when the chat panel opens.
-- File offers can be accepted/rejected at the signaling level.
-- Metadata history is visible after refresh.
+- [x] Chat history loads oldest-first and live messages append correctly.
+- [x] Unread counts clear when the chat panel opens.
+- [x] File offers can be accepted/rejected at the signaling level.
+- [x] Metadata history is visible after refresh.
 
 ## Phase 11 - DataChannel File Bytes
 

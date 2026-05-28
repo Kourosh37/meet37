@@ -1,0 +1,7 @@
+# Dependency and build outputs are ignored by Prettier.
+node_modules
+.next
+out
+coverage
+playwright-report
+test-results

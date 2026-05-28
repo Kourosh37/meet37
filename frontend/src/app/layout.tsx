@@ -32,21 +32,41 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Root application layout placeholder.
-//
-// Planned responsibilities:
-// - Define the global HTML shell for the Next.js App Router.
-// - Mount ThemeProvider for dark/light mode.
-// - Mount React Query provider for backend REST cache.
-// - Include global metadata, fonts, and base accessibility attributes.
-// - Import globals.css after Tailwind is initialized.
-
+import { QueryProvider } from "@/providers/QueryProvider";
+import { ThemeProvider } from "@/providers/ThemeProvider";
+import { ToastProvider } from "@/providers/ToastProvider";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import "./globals.css";
+
+export const metadata: Metadata = {
+  title: {
+    default: "Meet",
+    template: "%s | Meet"
+  },
+  description: "Browser-based video meetings with room sharing, moderation, and P2P-first media.",
+  applicationName: "Meet"
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  colorScheme: "light dark",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0f172a" }
+  ]
+};
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body>{children}</body>
+      <body>
+        <ThemeProvider>
+          <QueryProvider>{children}</QueryProvider>
+          <ToastProvider />
+        </ThemeProvider>
+      </body>
     </html>
   );
 }

@@ -32,8 +32,20 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Theme provider placeholder.
-//
-// Planned responsibilities:
-// - Wrap next-themes and prevent hydration flicker.
-// - Provide system, light, and dark mode support.
+"use client";
+
+import { ThemeProvider as NextThemesProvider } from "next-themes";
+import { type ReactNode } from "react";
+
+export function ThemeProvider({ children }: { children: ReactNode }) {
+  return (
+    <NextThemesProvider
+      attribute="class"
+      defaultTheme="system"
+      disableTransitionOnChange
+      enableSystem
+    >
+      {children}
+    </NextThemesProvider>
+  );
+}

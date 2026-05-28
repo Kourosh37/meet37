@@ -32,8 +32,10 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Toast provider placeholder.
-//
-// Planned responsibilities:
-// - Mount sonner toast viewport.
-// - Standardize notification placement for meeting and admin flows.
+"use client";
+
+import { Toaster } from "sonner";
+
+export function ToastProvider() {
+  return <Toaster closeButton position="top-right" richColors />;
+}

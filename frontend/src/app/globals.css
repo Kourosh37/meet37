@@ -32,11 +32,89 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-/* Global stylesheet placeholder.
- *
- * Planned responsibilities:
- * - Import Tailwind base, components, and utilities.
- * - Define CSS variables for light and dark themes.
- * - Provide global focus-ring, scrollbar, and body background styles.
- * - Keep meeting pages full-height without layout shift.
- */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+  --background: 248 250 252;
+  --foreground: 15 23 42;
+  --muted: 241 245 249;
+  --muted-foreground: 71 85 105;
+  --border: 203 213 225;
+  --surface: 255 255 255;
+  --surface-foreground: 15 23 42;
+  --primary: 20 184 166;
+  --primary-foreground: 240 253 250;
+  --danger: 220 38 38;
+  --danger-foreground: 254 242 242;
+  --ring: 20 184 166;
+}
+
+.dark {
+  color-scheme: dark;
+  --background: 15 23 42;
+  --foreground: 248 250 252;
+  --muted: 30 41 59;
+  --muted-foreground: 148 163 184;
+  --border: 51 65 85;
+  --surface: 17 24 39;
+  --surface-foreground: 248 250 252;
+  --primary: 45 212 191;
+  --primary-foreground: 4 47 46;
+  --danger: 248 113 113;
+  --danger-foreground: 69 10 10;
+  --ring: 45 212 191;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-rendering: optimizeLegibility;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--ring));
+  outline-offset: 2px;
+}
+
+::selection {
+  background: rgb(var(--primary) / 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

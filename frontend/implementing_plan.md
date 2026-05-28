@@ -69,25 +69,25 @@ Tasks:
 Acceptance:
 - [x] API modules can call backend endpoints without hard-coded strings.
 - [x] 400/401/403/404 responses map to predictable frontend errors.
-- [ ] Refresh failure clears auth state and returns the user to login where appropriate.
+- [x] Refresh failure clears auth state and returns the user to login where appropriate.
 
 ## Phase 4 - Authentication
 
 Goal: support admin login and private-mode user login.
 
 Tasks:
-- Implement `tokenStorage.ts` for access token, refresh token, expiry timestamps, and room host tokens.
-- Implement `authApi.ts` for login, refresh, and logout.
-- Implement `authStore.ts` and `useAuth.ts`.
-- Implement `LoginForm.tsx` with validation, loading state, and error handling.
-- Implement `AuthGuard.tsx` for admin pages.
-- Implement route behavior for `/login` and admin redirects.
+- [x] Implement `tokenStorage.ts` for access token, refresh token, expiry timestamps, and room host tokens.
+- [x] Implement `authApi.ts` for login, refresh, and logout.
+- [x] Implement `authStore.ts` and `useAuth.ts`.
+- [x] Implement `LoginForm.tsx` with validation, loading state, and error handling.
+- [x] Implement `AuthGuard.tsx` for admin pages.
+- [x] Implement route behavior for `/login` and admin redirects.
 
 Acceptance:
-- Admin can log in with backend credentials from `.env`.
-- User tokens survive page refresh according to the chosen storage policy.
-- Logout revokes refresh token and clears local auth state.
-- Admin-only pages handle anonymous, user, and admin roles correctly.
+- [x] Admin can log in with backend credentials from `.env`.
+- [x] User tokens survive page refresh according to the chosen storage policy.
+- [x] Logout revokes refresh token and clears local auth state.
+- [x] Admin-only pages handle anonymous, user, and admin roles correctly.
 
 ## Phase 5 - Rooms and Public/Private Creation Rules
 

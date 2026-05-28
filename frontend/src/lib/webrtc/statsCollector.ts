@@ -1,40 +1,87 @@
-/*
-Frontend architecture note
+import type { StatsPayload } from "@/features/meeting/types/signaling";
 
-File: src\lib\webrtc\statsCollector.ts
-Layer: WebRTC Infrastructure
+interface PreviousByteSample {
+  bytes: number;
+  timestamp: number;
+}
 
-Responsibility:
-- WebRTC getStats normalization layer for bitrate, packet loss, jitter, RTT, codec, resolution, and connection-quality scoring.
+export class WebRTCStatsCollector {
+  private readonly previousOutboundBytes = new Map<
+    string,
+    PreviousByteSample
+  >();
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+  async collect(connections: Iterable<RTCPeerConnection>) {
+    let bitrateKbps = 0;
+    let packetsLost = 0;
+    let packetsTotal = 0;
+    let rttTotalMs = 0;
+    let rttSamples = 0;
 
-Backend contract: backend relays signaling only in P2P mode and announces SFU fallback through WebSocket. Browser media/data logic stays client-side.
+    for (const connection of connections) {
+      const report = await connection.getStats();
 
-State model to plan: loading, ready, empty, recoverable error, fatal error, and cleanup/unmount behavior where applicable.
+      report.forEach((stat) => {
+        const sample = stat as RTCStats & {
+          bytesSent?: number;
+          currentRoundTripTime?: number;
+          packetsLost?: number;
+          packetsReceived?: number;
+          packetsSent?: number;
+          state?: string;
+        };
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+        if (
+          sample.type === "outbound-rtp" &&
+          typeof sample.bytesSent === "number"
+        ) {
+          const previous = this.previousOutboundBytes.get(sample.id);
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+          if (previous && sample.timestamp > previous.timestamp) {
+            const deltaBytes = Math.max(0, sample.bytesSent - previous.bytes);
+            const deltaSeconds = (sample.timestamp - previous.timestamp) / 1000;
+            bitrateKbps +=
+              deltaSeconds > 0 ? (deltaBytes * 8) / deltaSeconds / 1000 : 0;
+          }
 
-Future tests: success path, loading path, error path, accessibility expectations, and cleanup/side-effect boundaries.
+          this.previousOutboundBytes.set(sample.id, {
+            bytes: sample.bytesSent,
+            timestamp: sample.timestamp
+          });
+        }
 
-*/
+        if (
+          (sample.type === "inbound-rtp" || sample.type === "outbound-rtp") &&
+          typeof sample.packetsLost === "number"
+        ) {
+          const delivered =
+            typeof sample.packetsReceived === "number"
+              ? sample.packetsReceived
+              : (sample.packetsSent ?? 0);
+          packetsLost += Math.max(0, sample.packetsLost);
+          packetsTotal += Math.max(0, delivered + sample.packetsLost);
+        }
 
-// WebRTC stats parser placeholder.
-//
-// Planned responsibilities:
-// - Convert RTCStatsReport samples into backend StatsReport payloads.
-// - Compute bitrate deltas, packet loss percentage, and RTT milliseconds.
-// - Ignore incomplete samples and smooth short-term spikes.
+        if (
+          sample.type === "candidate-pair" &&
+          sample.state === "succeeded" &&
+          typeof sample.currentRoundTripTime === "number"
+        ) {
+          rttTotalMs += sample.currentRoundTripTime * 1000;
+          rttSamples += 1;
+        }
+      });
+    }
+
+    if (bitrateKbps === 0 && packetsTotal === 0 && rttSamples === 0) {
+      return null;
+    }
+
+    return {
+      bitrate_kbps: Math.round(bitrateKbps),
+      packet_loss_pct:
+        packetsTotal > 0 ? (packetsLost / packetsTotal) * 100 : 0,
+      rtt_ms: rttSamples > 0 ? Math.round(rttTotalMs / rttSamples) : 0
+    } satisfies StatsPayload;
+  }
+}

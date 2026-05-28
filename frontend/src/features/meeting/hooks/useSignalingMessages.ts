@@ -43,23 +43,42 @@ export function useSignalingMessages() {
 
   useEffect(() => {
     const unsubscribers = [
-      webSocketManager.subscribe("joined", (message) => store.joined(message.payload)),
+      webSocketManager.subscribe("joined", (message) =>
+        store.joined(message.payload)
+      ),
       webSocketManager.subscribe("waiting-approval", (message) =>
         store.waitingApproval(message.payload.your_id)
       ),
-      webSocketManager.subscribe("join-request", (message) => store.addJoinRequest(message.payload)),
+      webSocketManager.subscribe("join-request", (message) =>
+        store.addJoinRequest(message.payload)
+      ),
       webSocketManager.subscribe("join-rejected", (message) => {
-        store.setError(message.payload?.reason ?? "Your request to join was declined.");
+        store.setError(
+          message.payload?.reason ?? "Your request to join was declined."
+        );
         store.setPhase("rejected");
       }),
-      webSocketManager.subscribe("peer-joined", (message) => store.addPeer(message.payload)),
-      webSocketManager.subscribe("peer-left", (message) => store.removePeer(message.payload)),
-      webSocketManager.subscribe("room-closed", () => store.setPhase("room-closed")),
+      webSocketManager.subscribe("peer-joined", (message) =>
+        store.addPeer(message.payload)
+      ),
+      webSocketManager.subscribe("peer-left", (message) =>
+        store.removePeer(message.payload)
+      ),
+      webSocketManager.subscribe("peer-mode-changed", (message) =>
+        store.setPeerMode(message.payload.peer_id, message.payload.mode)
+      ),
+      webSocketManager.subscribe("room-closed", () =>
+        store.setPhase("room-closed")
+      ),
       webSocketManager.subscribe("kicked", (message) => {
-        store.setError(message.payload?.reason ?? "You were removed from the meeting.");
+        store.setError(
+          message.payload?.reason ?? "You were removed from the meeting."
+        );
         store.setPhase("kicked");
       }),
-      webSocketManager.subscribe("error", (message) => store.setError(message.payload.message))
+      webSocketManager.subscribe("error", (message) =>
+        store.setError(message.payload.message)
+      )
     ];
 
     return () => {

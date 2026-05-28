@@ -1,41 +1,62 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\hooks\useSFUConnection.ts
-Layer: Meeting Runtime
+import { useEffect, useRef, useState } from "react";
+import { SFUClient } from "@/lib/webrtc/SFUClient";
+import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+export function useSFUConnection(localStream: MediaStream | null) {
+  const clientRef = useRef<SFUClient | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+  useEffect(() => {
+    const getClient = () => {
+      if (!clientRef.current) {
+        clientRef.current = new SFUClient({
+          onIceCandidate: (payload) => {
+            webSocketManager.send({ payload, type: "sfu-ice-candidate" });
+          }
+        });
+      }
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+      return clientRef.current;
+    };
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
+    const unsubscribers = [
+      webSocketManager.subscribe("sfu-switch", async (message) => {
+        setSessionId(message.payload.session_id);
+        const offer = await getClient().start(
+          localStream,
+          message.payload.turn_servers
+        );
+        webSocketManager.send({ payload: offer, type: "sfu-offer" });
+      }),
+      webSocketManager.subscribe("sfu-answer", async (message) => {
+        setSessionId(message.payload.session_id);
+        await getClient().applyAnswer({ sdp: message.payload.sdp });
+      }),
+      webSocketManager.subscribe("sfu-ice-candidate", async (message) => {
+        await getClient().addIceCandidate(message.payload);
+      }),
+      webSocketManager.subscribe("sfu-renegotiate-needed", async () => {
+        const offer = await getClient().createOffer();
+        webSocketManager.send({ payload: offer, type: "sfu-offer" });
+      })
+    ];
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [localStream]);
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+  useEffect(
+    () => () => {
+      clientRef.current?.close();
+    },
+    []
+  );
 
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// SFU fallback hook placeholder.
-//
-// Planned responsibilities:
-// - React to sfu-switch and peer-mode-changed messages.
-// - Create a dedicated SFU RTCPeerConnection.
-// - Send sfu-offer, apply sfu-answer, and exchange sfu-ice-candidate.
-// - Renegotiate when sfu-renegotiate-needed arrives.
+  return {
+    active: Boolean(sessionId),
+    sessionId
+  };
+}

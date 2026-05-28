@@ -13,6 +13,8 @@ import { VideoGrid } from "@/features/meeting/components/VideoGrid";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
 import { useModeration } from "@/features/meeting/hooks/useModeration";
 import { usePeerConnections } from "@/features/meeting/hooks/usePeerConnections";
+import { useQualityStats } from "@/features/meeting/hooks/useQualityStats";
+import { useSFUConnection } from "@/features/meeting/hooks/useSFUConnection";
 import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 import type { MeetingPeer } from "@/features/meeting/types/peer";
@@ -33,13 +35,16 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const stopLocalMedia = localMedia.stop;
   const audioEnabled = localMedia.audioEnabled;
   const toggleAudio = localMedia.toggleAudio;
-  const { remoteStreams } = usePeerConnections(localMedia.stream);
+  const peerConnections = usePeerConnections(localMedia.stream);
+  const { remoteStreams } = peerConnections;
+  const sfu = useSFUConnection(localMedia.stream);
+  useQualityStats(peerConnections.connections);
   const [chatOpen, setChatOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const sfuActive = Object.values(meeting.peers).some(
-    (peer) => peer.connection.mode === "sfu"
-  );
+  const sfuActive =
+    sfu.active ||
+    Object.values(meeting.peers).some((peer) => peer.connection.mode === "sfu");
   const localPeer = useMemo(
     () =>
       ({

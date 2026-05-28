@@ -49,6 +49,7 @@ type AuthStatus = "anonymous" | "authenticated" | "authenticating" | "refreshing
 
 export interface AuthState {
   error: string | null;
+  hydrated: boolean;
   session: StoredAuthSession | null;
   status: AuthStatus;
   isAdmin: boolean;
@@ -63,6 +64,7 @@ function setStoredSession(session: StoredAuthSession) {
   saveAuthSession(session);
   return {
     error: null,
+    hydrated: true,
     isAdmin: session.isAdmin,
     isAuthenticated: true,
     session,
@@ -74,6 +76,7 @@ function anonymousState(error: string | null = null) {
   clearAuthSession();
   return {
     error,
+    hydrated: true,
     isAdmin: false,
     isAuthenticated: false,
     session: null,
@@ -83,6 +86,7 @@ function anonymousState(error: string | null = null) {
 
 export const useAuthStore = create<AuthState>((set) => ({
   error: null,
+  hydrated: false,
   isAdmin: false,
   isAuthenticated: false,
   session: null,
@@ -100,7 +104,7 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   loginWithCredentials: async (username, password) => {
-    set({ error: null, status: "authenticating" });
+    set({ error: null, hydrated: true, status: "authenticating" });
 
     try {
       const response = await login({ password, username });
@@ -123,7 +127,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       return false;
     }
 
-    set({ error: null, status: "refreshing" });
+    set({ error: null, hydrated: true, status: "refreshing" });
 
     try {
       const response = await refresh({ refresh_token: refreshToken });

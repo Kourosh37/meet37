@@ -33,13 +33,16 @@ Future tests: admin guard behavior, public/private toggle, user CRUD validation,
 */
 
 import { Sidebar } from "@/components/layout/Sidebar";
+import { AuthGuard } from "@/features/auth/components/AuthGuard";
 import type { ReactNode } from "react";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground md:flex">
       <Sidebar />
-      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <AuthGuard adminOnly>{children}</AuthGuard>
+      </main>
     </div>
   );
 }

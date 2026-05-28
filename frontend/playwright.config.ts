@@ -11,8 +11,14 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,
   retries: process.env.CI ? 2 : 0,
+  webServer: {
+    command: "pnpm dev --hostname 127.0.0.1",
+    reuseExistingServer: true,
+    timeout: 120_000,
+    url: process.env.FRONTEND_BASE_URL || "http://127.0.0.1:3000"
+  },
   use: {
-    baseURL: process.env.FRONTEND_BASE_URL || "http://localhost:3000",
+    baseURL: process.env.FRONTEND_BASE_URL || "http://127.0.0.1:3000",
     trace: "on-first-retry"
   },
   projects: [

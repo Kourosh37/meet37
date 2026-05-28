@@ -47,6 +47,27 @@ export function assertFilePolicy(file: Blob) {
   }
 }
 
+async function readBlobSlice(blob: Blob) {
+  if ("arrayBuffer" in blob && typeof blob.arrayBuffer === "function") {
+    return blob.arrayBuffer();
+  }
+
+  return new Promise<ArrayBuffer>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file chunk"));
+    reader.onload = () => {
+      if (reader.result instanceof ArrayBuffer) {
+        resolve(reader.result);
+        return;
+      }
+
+      reject(new Error("File chunk reader returned an unexpected result"));
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
 export async function* chunkBlob(
   fileId: string,
   blob: Blob,
@@ -59,7 +80,7 @@ export async function* chunkBlob(
   for (let index = 0; index < totalChunks; index += 1) {
     const start = index * chunkSize;
     const end = Math.min(start + chunkSize, blob.size);
-    const bytes = await blob.slice(start, end).arrayBuffer();
+    const bytes = await readBlobSlice(blob.slice(start, end));
 
     yield {
       bytes,
@@ -73,7 +94,7 @@ export async function* chunkBlob(
 export function reassembleChunks(chunks: FileChunk[], mime = "application/octet-stream") {
   const sorted = [...chunks].sort((left, right) => left.index - right.index);
   return new Blob(
-    sorted.map((chunk) => chunk.bytes),
+    sorted.map((chunk) => new Uint8Array(chunk.bytes)),
     { type: mime }
   );
 }

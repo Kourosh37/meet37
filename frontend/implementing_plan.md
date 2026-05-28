@@ -214,17 +214,17 @@ Acceptance:
 Goal: respond to backend fallback decisions and report quality.
 
 Tasks:
-- Implement `statsCollector.ts`, `statsWorker.ts`, and `useQualityStats.ts`.
-- Send periodic stats reports over WebSocket.
-- Implement `SFUClient.ts` and `useSFUConnection.ts`.
-- Handle `sfu-switch`, `sfu-offer`, `sfu-answer`, `sfu-ice-candidate`, and renegotiation messages.
-- Implement `SFUBanner.tsx`.
+- [x] Implement `statsCollector.ts`, `statsWorker.ts`, and `useQualityStats.ts`.
+- [x] Send periodic stats reports over WebSocket.
+- [x] Implement `SFUClient.ts` and `useSFUConnection.ts`.
+- [x] Handle `sfu-switch`, `sfu-offer`, `sfu-answer`, `sfu-ice-candidate`, and renegotiation messages.
+- [x] Implement `SFUBanner.tsx`.
 
 Acceptance:
-- Client reports quality stats without blocking UI.
-- SFU mode can be entered from a backend signal.
-- UI clearly indicates relay mode without disrupting the call.
-- SFU cleanup works when leaving the room.
+- [x] Client reports quality stats without blocking UI.
+- [x] SFU mode can be entered from a backend signal.
+- [x] UI clearly indicates relay mode without disrupting the call.
+- [x] SFU cleanup works when leaving the room.
 
 ## Phase 13 - Admin Panel
 

@@ -129,18 +129,18 @@ Acceptance:
 Goal: connect to rooms and process backend realtime messages.
 
 Tasks:
-- Implement `WebSocketManager.ts` with connect, send, subscribe, reconnect, heartbeat, and close.
-- Implement `messageRouter.ts` for typed dispatch.
-- Implement `useWebSocket.ts` and `useSignalingMessages.ts`.
-- Implement `meetingStore.ts` for current room, local peer, remote peers, pending guests, and phase.
-- Send join payload with `display_name`, optional password, and optional `host_token`.
-- Handle joined, waiting, rejected, kicked, room closed, peer joined, and peer left messages.
+- [x] Implement `WebSocketManager.ts` with connect, send, subscribe, reconnect, heartbeat, and close.
+- [x] Implement `messageRouter.ts` for typed dispatch.
+- [x] Implement `useWebSocket.ts` and `useSignalingMessages.ts`.
+- [x] Implement `meetingStore.ts` for current room, local peer, remote peers, pending guests, and phase.
+- [x] Send join payload with `display_name`, optional password, and optional `host_token`.
+- [x] Handle joined, waiting, rejected, kicked, room closed, peer joined, and peer left messages.
 
 Acceptance:
-- Open rooms join immediately.
-- Approval rooms put non-host guests into waiting state.
-- Hosts receive join requests and guests receive approve/reject outcomes.
-- Reconnect does not duplicate peers or leak listeners.
+- [x] Open rooms join immediately.
+- [x] Approval rooms put non-host guests into waiting state.
+- [x] Hosts receive join requests and guests receive approve/reject outcomes.
+- [x] Reconnect does not duplicate peers or leak listeners.
 
 ## Phase 8 - P2P WebRTC Media
 

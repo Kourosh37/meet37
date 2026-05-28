@@ -32,10 +32,86 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// WebRTC service placeholder.
-//
-// Planned responsibilities:
-// - Provide pure helpers for creating peer connections.
-// - Add/reuse media tracks safely.
-// - Normalize ICE candidate and SDP payloads.
-// - Keep browser-specific quirks out of React components.
+import type {
+  IceCandidatePayload,
+  SessionDescriptionPayload
+} from "@/features/meeting/types/signaling";
+
+const defaultIceServers: RTCIceServer[] = [{ urls: ["stun:stun.l.google.com:19302"] }];
+
+export interface PeerConnectionFactoryOptions {
+  iceServers?: RTCIceServer[];
+  onIceCandidate?: (candidate: IceCandidatePayload) => void;
+  onTrack?: (event: RTCTrackEvent) => void;
+}
+
+export function createPeerConnection(options: PeerConnectionFactoryOptions = {}) {
+  const connection = new RTCPeerConnection({
+    iceServers: options.iceServers ?? defaultIceServers
+  });
+
+  connection.onicecandidate = (event) => {
+    if (!event.candidate) {
+      return;
+    }
+
+    options.onIceCandidate?.(iceCandidateToPayload(event.candidate));
+  };
+
+  if (options.onTrack) {
+    connection.ontrack = options.onTrack;
+  }
+
+  return connection;
+}
+
+export function addLocalTracks(connection: RTCPeerConnection, stream: MediaStream) {
+  const existingTrackIds = new Set(
+    connection.getSenders().map((sender) => sender.track?.id).filter(Boolean)
+  );
+
+  stream.getTracks().forEach((track) => {
+    if (!existingTrackIds.has(track.id)) {
+      connection.addTrack(track, stream);
+    }
+  });
+}
+
+export function stopMediaStream(stream: MediaStream | null | undefined) {
+  stream?.getTracks().forEach((track) => track.stop());
+}
+
+export function closePeerConnection(connection: RTCPeerConnection | null | undefined) {
+  connection?.getSenders().forEach((sender) => {
+    sender.track?.stop();
+  });
+  connection?.close();
+}
+
+export function sessionDescriptionToPayload(description: RTCSessionDescriptionInit) {
+  return {
+    sdp: description.sdp ?? ""
+  } satisfies SessionDescriptionPayload;
+}
+
+export function payloadToSessionDescription(
+  type: RTCSdpType,
+  payload: SessionDescriptionPayload
+) {
+  return {
+    sdp: payload.sdp,
+    type
+  } satisfies RTCSessionDescriptionInit;
+}
+
+export function iceCandidateToPayload(candidate: RTCIceCandidate) {
+  return {
+    candidate: candidate.candidate,
+    sdpMid: candidate.sdpMid,
+    sdpMLineIndex: candidate.sdpMLineIndex
+  } satisfies IceCandidatePayload;
+}
+
+export function payloadToIceCandidate(payload: IceCandidatePayload) {
+  return new RTCIceCandidate(payload);
+}

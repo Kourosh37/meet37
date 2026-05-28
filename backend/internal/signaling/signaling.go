@@ -557,6 +557,10 @@ func (h *Hub) removePeer(p *Peer) {
 }
 
 func (h *Hub) CloseRoom(roomID string) {
+	h.closeRoom(roomID, true)
+}
+
+func (h *Hub) closeRoom(roomID string, publish bool) {
 	h.mu.Lock()
 	room := h.rooms[roomID]
 	delete(h.rooms, roomID)
@@ -577,6 +581,10 @@ func (h *Hub) CloseRoom(roomID string) {
 	room.pending = map[string]*Peer{}
 	room.mu.Unlock()
 	h.sfuMgr.DeleteSession(roomID)
+	h.removeClusterRoom(roomID)
+	if publish {
+		h.publishCluster(cluster.Message{Kind: "room-closed", RoomID: roomID, Signal: models.SignalMessage{Type: "room-closed"}})
+	}
 }
 
 func (h *Hub) GetRoomStats(roomID string) map[string]interface{} {
@@ -720,6 +728,8 @@ func (h *Hub) handleClusterMessage(event cluster.Message) {
 		h.deliverClusterRelay(event)
 	case "broadcast":
 		h.deliverClusterBroadcast(event)
+	case "room-closed":
+		h.closeRoom(event.RoomID, false)
 	}
 }
 
@@ -752,6 +762,15 @@ func (h *Hub) deliverClusterBroadcast(event cluster.Message) {
 			peer.sendMsg(event.Signal)
 		}
 	}
+}
+
+func (h *Hub) removeClusterRoom(roomID string) {
+	if h.bus == nil || !h.bus.Enabled() || roomID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = h.bus.RemoveRoom(ctx, roomID)
 }
 
 func decodePayload(payload interface{}, out interface{}) bool {

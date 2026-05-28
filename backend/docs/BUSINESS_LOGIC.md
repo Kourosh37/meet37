@@ -156,7 +156,8 @@ Current fallback behavior:
 
 - Backend creates/returns a fallback session ID.
 - Backend returns TURN-style credentials.
-- Frontend should transition the peer away from pure P2P based on product design.
+- Frontend can negotiate a Pion SFU PeerConnection with `sfu-offer`.
+- Backend returns `sfu-answer`, exchanges `sfu-ice-candidate`, receives RTP tracks, and forwards those tracks to other SFU peers.
+- Existing SFU peers may receive `sfu-renegotiate-needed` when a new forwarded track is available.
 
-The backend does not yet forward RTP media. A real SFU relay must be added before full server-side media forwarding is available.
-
+The SFU relay is intentionally minimal: it forwards RTP tracks but does not yet implement recording, simulcast/SVC layer policy, server-side muting, or a distributed media plane.

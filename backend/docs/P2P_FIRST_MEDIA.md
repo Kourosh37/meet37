@@ -194,6 +194,7 @@ Implemented SFU behavior:
 - RTP forwarding from publisher tracks to subscriber tracks.
 - `sfu-renegotiate-needed` when a new forwarded track is available.
 - Per-room SFU sessions cleaned up when rooms close.
+- Peer SFU state cleaned up when peers leave.
 
 Current production limitations:
 

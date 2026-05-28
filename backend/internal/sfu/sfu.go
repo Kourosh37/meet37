@@ -105,10 +105,10 @@ func (m *Manager) HandleOffer(roomID, peerID, offerSDP string, onCandidate func(
 		return "", err
 	}
 
+	session.addExistingTracksToPeer(peer)
+
 	peer.mu.Lock()
 	defer peer.mu.Unlock()
-
-	session.addExistingTracksToPeer(peer)
 
 	offer := webrtc.SessionDescription{Type: webrtc.SDPTypeOffer, SDP: offerSDP}
 	if err := peer.pc.SetRemoteDescription(offer); err != nil {

@@ -66,8 +66,12 @@ Implemented:
 - Room `open` and `approval` join policies.
 - Per-room `host_token` for creator moderation controls.
 - WebSocket signaling relay for WebRTC offer/answer/ICE.
+- Pion-based SFU media relay with RTP forwarding for fallback mode.
 - Chat signaling.
 - File-transfer signaling metadata relay.
+- Rotating refresh-token sessions and logout revocation.
+- Per-IP rate limiting and request body limits.
+- Optional Redis shared signaling for multi-instance deployments.
 - Host approval/rejection, mute request, and kick.
 - Quality stats ingestion and `sfu-switch` fallback instruction.
 - SQLite persistence with WAL and runtime data under `/data`.
@@ -76,7 +80,7 @@ Implemented:
 Not implemented yet:
 
 - Production-grade SFU layer selection, recording, simulcast policy, and observability.
-- Distributed waiting-room host approval commands across instances.
+- Fully distributed waiting-room host approval commands across non-sticky instances.
 - Persistent chat/file history.
 
 ## Verification

@@ -44,6 +44,7 @@ Shared:
 - Peer display name/mode/host metadata.
 - Relay messages to remote peers.
 - Broadcast messages to remote instances.
+- Room-closed notifications and Redis room presence cleanup.
 
 Still local:
 
@@ -57,7 +58,7 @@ Redis support makes normal approved-peer signaling work across instances, but co
 
 - Sticky routing by room is still recommended.
 - Approval-mode pending peers should ideally be routed to the same instance as a host, or a distributed pending-command flow should be added.
-- SFU media sessions are process-local. An SFU room should stay on one instance unless a dedicated SFU layer is introduced.
+- SFU media sessions are process-local. An SFU room should stay on one instance unless a dedicated SFU media layer is introduced.
 - SQLite must be replaced or carefully deployed if multiple containers need durable writes from different hosts.
 
 ## Recommended Production Topology
@@ -82,4 +83,3 @@ For larger scale:
 - Move SFU media to dedicated SFU nodes.
 - Use Redis/NATS for signaling commands and presence.
 - Use room affinity so all peers in a room prefer the same signaling/SFU node.
-

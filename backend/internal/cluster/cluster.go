@@ -38,6 +38,7 @@ type Bus interface {
 	Publish(ctx context.Context, msg Message) error
 	UpsertPeer(ctx context.Context, roomID string, peer PeerRecord) error
 	RemovePeer(ctx context.Context, roomID, peerID string) error
+	RemoveRoom(ctx context.Context, roomID string) error
 	ListPeers(ctx context.Context, roomID string) ([]PeerRecord, error)
 }
 
@@ -59,6 +60,7 @@ func (NoopBus) Start(context.Context, func(Message))                    {}
 func (NoopBus) Publish(context.Context, Message) error                  { return nil }
 func (NoopBus) UpsertPeer(context.Context, string, PeerRecord) error    { return nil }
 func (NoopBus) RemovePeer(context.Context, string, string) error        { return nil }
+func (NoopBus) RemoveRoom(context.Context, string) error                { return nil }
 func (NoopBus) ListPeers(context.Context, string) ([]PeerRecord, error) { return nil, nil }
 
 type RedisBus struct {
@@ -116,6 +118,10 @@ func (b *RedisBus) UpsertPeer(ctx context.Context, roomID string, peer PeerRecor
 
 func (b *RedisBus) RemovePeer(ctx context.Context, roomID, peerID string) error {
 	return b.client.HDel(ctx, roomPeersKey(roomID), peerID).Err()
+}
+
+func (b *RedisBus) RemoveRoom(ctx context.Context, roomID string) error {
+	return b.client.Del(ctx, roomPeersKey(roomID)).Err()
 }
 
 func (b *RedisBus) ListPeers(ctx context.Context, roomID string) ([]PeerRecord, error) {

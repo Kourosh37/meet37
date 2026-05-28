@@ -32,10 +32,24 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-// WebSocket hook placeholder.
-//
-// Planned responsibilities:
-// - Connect to NEXT_PUBLIC_WS_URL with optional access token.
-// - Subscribe to typed signaling events.
-// - Reconnect with backoff and rejoin room after disconnect.
-// - Expose send, connected state, and last error to components/hooks.
+"use client";
+
+import { useEffect, useState } from "react";
+import type { OutgoingSignalMessage } from "@/features/meeting/types/signaling";
+import { webSocketManager } from "@/lib/websocket/WebSocketManager";
+
+export function useWebSocket() {
+  const [status, setStatus] = useState<"closed" | "connecting" | "open" | "reconnecting">(
+    "closed"
+  );
+
+  useEffect(() => webSocketManager.subscribeStatus(setStatus), []);
+
+  return {
+    close: () => webSocketManager.close(),
+    connect: () => webSocketManager.connect(),
+    isConnected: status === "open",
+    send: (message: OutgoingSignalMessage) => webSocketManager.send(message),
+    status
+  };
+}

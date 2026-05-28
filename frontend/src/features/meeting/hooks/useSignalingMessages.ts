@@ -32,8 +32,38 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-// Signaling message router hook placeholder.
-//
-// Planned responsibilities:
-// - Route WebSocket messages to room, WebRTC, chat, file, moderation, and SFU handlers.
-// - Keep message parsing centralized and typed.
+"use client";
+
+import { useEffect } from "react";
+import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import { webSocketManager } from "@/lib/websocket/WebSocketManager";
+
+export function useSignalingMessages() {
+  const store = useMeetingStore();
+
+  useEffect(() => {
+    const unsubscribers = [
+      webSocketManager.subscribe("joined", (message) => store.joined(message.payload)),
+      webSocketManager.subscribe("waiting-approval", (message) =>
+        store.waitingApproval(message.payload.your_id)
+      ),
+      webSocketManager.subscribe("join-request", (message) => store.addJoinRequest(message.payload)),
+      webSocketManager.subscribe("join-rejected", (message) => {
+        store.setError(message.payload?.reason ?? "Your request to join was declined.");
+        store.setPhase("rejected");
+      }),
+      webSocketManager.subscribe("peer-joined", (message) => store.addPeer(message.payload)),
+      webSocketManager.subscribe("peer-left", (message) => store.removePeer(message.payload)),
+      webSocketManager.subscribe("room-closed", () => store.setPhase("room-closed")),
+      webSocketManager.subscribe("kicked", (message) => {
+        store.setError(message.payload?.reason ?? "You were removed from the meeting.");
+        store.setPhase("kicked");
+      }),
+      webSocketManager.subscribe("error", (message) => store.setError(message.payload.message))
+    ];
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [store]);
+}

@@ -35,12 +35,11 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 export type PeerMode = "p2p" | "sfu";
 export type MediaKind = "audio" | "video" | string;
 
-export interface SignalEnvelope<TType extends string = string, TPayload = unknown> {
+export type SignalEnvelope<TType extends string = string, TPayload = unknown> = {
   type: TType;
   from?: string;
   to?: string;
-  payload?: TPayload;
-}
+} & (TPayload extends undefined ? { payload?: undefined } : { payload: TPayload });
 
 export interface SignalPeer {
   id: string;

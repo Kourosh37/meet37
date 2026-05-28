@@ -32,9 +32,138 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-// Room runtime store placeholder.
-//
-// Planned responsibilities:
-// - Store current room id, local peer id, peer map, pending approval list, host flag, and join status.
-// - Track P2P/SFU mode per peer.
-// - Reset completely on room leave or WebSocket reconnect.
+import type {
+  JoinedPayload,
+  JoinRequestPayload,
+  PeerIdPayload,
+  PeerJoinedPayload
+} from "@/features/meeting/types/signaling";
+import type { MeetingPeer, PendingPeer } from "@/features/meeting/types/peer";
+import { create } from "zustand";
+
+export type MeetingPhase =
+  | "idle"
+  | "joining"
+  | "waiting-approval"
+  | "in-call"
+  | "reconnecting"
+  | "rejected"
+  | "kicked"
+  | "room-closed"
+  | "left";
+
+export interface MeetingState {
+  error: string | null;
+  isHost: boolean;
+  localPeerId: string | null;
+  pendingPeers: PendingPeer[];
+  peers: Record<string, MeetingPeer>;
+  phase: MeetingPhase;
+  roomId: string | null;
+  beginJoin: (roomId: string) => void;
+  joined: (payload: JoinedPayload) => void;
+  waitingApproval: (peerId: string) => void;
+  addJoinRequest: (payload: JoinRequestPayload) => void;
+  addPeer: (payload: PeerJoinedPayload) => void;
+  removePeer: (payload: PeerIdPayload) => void;
+  setError: (message: string | null) => void;
+  setPhase: (phase: MeetingPhase) => void;
+  reset: () => void;
+}
+
+function peerFromJoined(payload: JoinedPayload["peers"][number]): MeetingPeer {
+  return {
+    connection: {
+      mode: payload.mode,
+      quality: "unknown"
+    },
+    displayName: payload.display_name,
+    id: payload.id,
+    isHost: payload.is_host,
+    media: {
+      audioEnabled: true,
+      screenSharing: false,
+      videoEnabled: true
+    },
+    userId: payload.user_id
+  };
+}
+
+export const useMeetingStore = create<MeetingState>((set) => ({
+  error: null,
+  isHost: false,
+  localPeerId: null,
+  pendingPeers: [],
+  peers: {},
+  phase: "idle",
+  roomId: null,
+
+  beginJoin: (roomId) => set({ error: null, phase: "joining", roomId }),
+
+  joined: (payload) =>
+    set({
+      error: null,
+      isHost: payload.is_host,
+      localPeerId: payload.your_id,
+      peers: Object.fromEntries(payload.peers.map((peer) => [peer.id, peerFromJoined(peer)])),
+      phase: "in-call"
+    }),
+
+  waitingApproval: (peerId) => set({ localPeerId: peerId, phase: "waiting-approval" }),
+
+  addJoinRequest: (payload) =>
+    set((state) => ({
+      pendingPeers: [
+        ...state.pendingPeers.filter((peer) => peer.id !== payload.peer_id),
+        {
+          displayName: payload.display_name,
+          id: payload.peer_id,
+          requestedAt: Date.now()
+        }
+      ]
+    })),
+
+  addPeer: (payload) =>
+    set((state) => ({
+      peers: {
+        ...state.peers,
+        [payload.peer_id]: {
+          connection: {
+            mode: "p2p",
+            quality: "unknown"
+          },
+          displayName: payload.display_name,
+          id: payload.peer_id,
+          isHost: payload.is_host,
+          media: {
+            audioEnabled: true,
+            screenSharing: false,
+            videoEnabled: true
+          }
+        }
+      }
+    })),
+
+  removePeer: (payload) =>
+    set((state) => {
+      const { [payload.peer_id]: _removed, ...peers } = state.peers;
+      return {
+        pendingPeers: state.pendingPeers.filter((peer) => peer.id !== payload.peer_id),
+        peers
+      };
+    }),
+
+  reset: () =>
+    set({
+      error: null,
+      isHost: false,
+      localPeerId: null,
+      pendingPeers: [],
+      peers: {},
+      phase: "idle",
+      roomId: null
+    }),
+
+  setError: (message) => set({ error: message }),
+  setPhase: (phase) => set({ phase })
+}));

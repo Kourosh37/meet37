@@ -1,41 +1,139 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\hooks\useFileTransfer.ts
-Layer: Meeting Runtime
+import { useCallback, useEffect, useMemo } from "react";
+import { getRoomFiles } from "@/features/rooms/api/roomsApi";
+import { useFileTransferStore } from "@/features/meeting/stores/fileTransferStore";
+import type { FileTransferRecord } from "@/features/meeting/types/file";
+import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+export function useFileTransfer(roomId: string | null) {
+  const transfersById = useFileTransferStore((state) => state.transfers);
+  const addOrUpdateTransfer = useFileTransferStore(
+    (state) => state.addOrUpdateTransfer
+  );
+  const loadHistory = useFileTransferStore((state) => state.loadHistory);
+  const updateStatus = useFileTransferStore((state) => state.updateStatus);
+  const localPeerId = useMeetingStore((state) => state.localPeerId);
+  const transfers = useMemo(
+    () => Object.values(transfersById),
+    [transfersById]
+  );
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+  useEffect(() => {
+    if (!roomId) {
+      return;
+    }
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+    let cancelled = false;
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
+    getRoomFiles(roomId).then((history) => {
+      if (!cancelled) {
+        loadHistory(history);
+      }
+    });
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+    return () => {
+      cancelled = true;
+    };
+  }, [loadHistory, roomId]);
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+  useEffect(() => {
+    const unsubscribers = [
+      webSocketManager.subscribe("file-offer", (message) => {
+        addOrUpdateTransfer({
+          createdAt: Date.now(),
+          direction: "incoming",
+          fileId: message.payload.file_id,
+          mime: message.payload.mime,
+          name: message.payload.name,
+          progress: {
+            bytesTransferred: 0,
+            fileId: message.payload.file_id,
+            percentage: 0,
+            totalBytes: message.payload.size
+          },
+          senderPeerId: message.from ?? "unknown",
+          size: message.payload.size,
+          status: "offered",
+          targetPeerId: localPeerId ?? ""
+        });
+      }),
+      webSocketManager.subscribe("file-answer", (message) => {
+        updateStatus(
+          message.payload.file_id,
+          message.payload.accepted ? "accepted" : "rejected",
+          message.payload.reason
+        );
+      })
+    ];
 
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [addOrUpdateTransfer, localPeerId, updateStatus]);
 
-*/
+  const sendOffer = useCallback(
+    (file: File) => {
+      const fileId = crypto.randomUUID();
+      const transfer: FileTransferRecord = {
+        createdAt: Date.now(),
+        direction: "outgoing",
+        fileId,
+        mime: file.type || "application/octet-stream",
+        name: file.name,
+        progress: {
+          bytesTransferred: 0,
+          fileId,
+          percentage: 0,
+          totalBytes: file.size
+        },
+        senderPeerId: localPeerId ?? "",
+        size: file.size,
+        status: "offered",
+        targetPeerId: ""
+      };
 
-// File transfer hook placeholder.
-//
-// Planned responsibilities:
-// - Create/reuse RTCDataChannel instances for file transfer.
-// - Send file-offer and file-answer metadata over WebSocket.
-// - Chunk file bytes, apply backpressure, and reassemble received files.
-// - Track progress, cancellation, and error states.
+      addOrUpdateTransfer(transfer);
+      webSocketManager.send({
+        payload: {
+          file_id: fileId,
+          mime: transfer.mime,
+          name: file.name,
+          size: file.size
+        },
+        type: "file-offer"
+      });
+    },
+    [addOrUpdateTransfer, localPeerId]
+  );
+
+  const acceptOffer = useCallback(
+    (fileId: string) => {
+      updateStatus(fileId, "accepted");
+      webSocketManager.send({
+        payload: { accepted: true, file_id: fileId },
+        type: "file-answer"
+      });
+    },
+    [updateStatus]
+  );
+
+  const rejectOffer = useCallback(
+    (fileId: string, reason = "Declined") => {
+      updateStatus(fileId, "rejected", reason);
+      webSocketManager.send({
+        payload: { accepted: false, file_id: fileId, reason },
+        type: "file-answer"
+      });
+    },
+    [updateStatus]
+  );
+
+  return {
+    acceptOffer,
+    rejectOffer,
+    sendOffer,
+    transfers
+  };
+}

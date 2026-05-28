@@ -1,41 +1,59 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\FileTransferPanel.tsx
-Layer: Meeting Runtime
+import { ChangeEvent } from "react";
+import { Paperclip } from "lucide-react";
+import { FileTransferItem } from "@/features/meeting/components/FileTransferItem";
+import type { FileTransferRecord } from "@/features/meeting/types/file";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface FileTransferPanelProps {
+  onAccept: (fileId: string) => void;
+  onReject: (fileId: string) => void;
+  onSendOffer: (file: File) => void;
+  transfers: FileTransferRecord[];
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function FileTransferPanel({
+  onAccept,
+  onReject,
+  onSendOffer,
+  transfers
+}: FileTransferPanelProps) {
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+    if (file) {
+      onSendOffer(file);
+      event.target.value = "";
+    }
+  }
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
+  return (
+    <section className="border-t border-border p-4">
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-surface-foreground">Files</h3>
+        <label className="inline-flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-muted">
+          <Paperclip className="size-3.5" />
+          Offer file
+          <input className="sr-only" onChange={handleFileChange} type="file" />
+        </label>
+      </div>
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// Browser-to-browser file sharing UI placeholder.
-//
-// Planned responsibilities:
-// - Show file offer prompts, accept/reject actions, transfer progress, and history.
-// - Use WebSocket only for metadata signaling.
-// - Use WebRTC DataChannel for file bytes.
-// - Avoid storing file payloads in frontend global state.
+      <div className="mt-3 grid max-h-44 gap-2 overflow-y-auto">
+        {transfers.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+            No file offers yet.
+          </p>
+        ) : (
+          transfers.map((transfer) => (
+            <FileTransferItem
+              key={transfer.fileId}
+              onAccept={onAccept}
+              onReject={onReject}
+              transfer={transfer}
+            />
+          ))
+        )}
+      </div>
+    </section>
+  );
+}

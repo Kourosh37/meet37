@@ -1,39 +1,53 @@
-/*
-Frontend architecture note
+import type { ChatHistoryItem } from "@/types/api";
+import { create } from "zustand";
 
-File: src\features\meeting\stores\chatStore.ts
-Layer: Meeting Runtime
+export interface ChatMessageRecord {
+  displayName: string;
+  id: string;
+  peerId?: string;
+  text: string;
+  timestamp: number;
+}
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface ChatState {
+  messages: ChatMessageRecord[];
+  unreadCount: number;
+  appendMessage: (message: ChatMessageRecord, countUnread?: boolean) => void;
+  clearUnread: () => void;
+  loadHistory: (messages: ChatHistoryItem[]) => void;
+  reset: () => void;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+function fromHistory(item: ChatHistoryItem): ChatMessageRecord {
+  return {
+    displayName: item.display_name,
+    id: `history-${item.id}`,
+    peerId: item.peer_id,
+    text: item.text,
+    timestamp: item.ts * 1000
+  };
+}
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+export const useChatStore = create<ChatState>((set) => ({
+  messages: [],
+  unreadCount: 0,
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
+  appendMessage: (message, countUnread = true) =>
+    set((state) => ({
+      messages: [...state.messages, message],
+      unreadCount: countUnread ? state.unreadCount + 1 : state.unreadCount
+    })),
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+  clearUnread: () => set({ unreadCount: 0 }),
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+  loadHistory: (messages) =>
+    set({
+      messages: messages
+        .slice()
+        .sort((a, b) => a.ts - b.ts)
+        .map((message) => fromHistory(message)),
+      unreadCount: 0
+    }),
 
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// Chat store placeholder.
-//
-// Planned responsibilities:
-// - Store live and historical chat messages for the current room.
-// - Track unread count while the chat panel is closed.
+  reset: () => set({ messages: [], unreadCount: 0 })
+}));

@@ -1,40 +1,86 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\hooks\useChat.ts
-Layer: Meeting Runtime
+import { useCallback, useEffect, useState } from "react";
+import { getRoomChat } from "@/features/rooms/api/roomsApi";
+import { useChatStore } from "@/features/meeting/stores/chatStore";
+import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+export function useChat(roomId: string | null, isOpen: boolean) {
+  const messages = useChatStore((state) => state.messages);
+  const unreadCount = useChatStore((state) => state.unreadCount);
+  const appendMessage = useChatStore((state) => state.appendMessage);
+  const clearUnread = useChatStore((state) => state.clearUnread);
+  const loadHistory = useChatStore((state) => state.loadHistory);
+  const peers = useMeetingStore((state) => state.peers);
+  const localPeerId = useMeetingStore((state) => state.localPeerId);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+  useEffect(() => {
+    if (!roomId) {
+      return;
+    }
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+    let cancelled = false;
+    setIsLoadingHistory(true);
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
+    getRoomChat(roomId)
+      .then((history) => {
+        if (!cancelled) {
+          loadHistory(history);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingHistory(false);
+        }
+      });
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+    return () => {
+      cancelled = true;
+    };
+  }, [loadHistory, roomId]);
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+  useEffect(() => {
+    if (isOpen) {
+      clearUnread();
+    }
+  }, [clearUnread, isOpen]);
 
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
+  useEffect(() => {
+    return webSocketManager.subscribe("chat", (message) => {
+      const peer = message.from ? peers[message.from] : undefined;
+      appendMessage(
+        {
+          displayName:
+            message.from === localPeerId
+              ? "You"
+              : (peer?.displayName ?? "Participant"),
+          id: `live-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+          peerId: message.from,
+          text: message.payload.text,
+          timestamp: Date.now()
+        },
+        !isOpen
+      );
+    });
+  }, [appendMessage, isOpen, localPeerId, peers]);
 
-*/
+  const sendMessage = useCallback((text: string) => {
+    const trimmed = text.trim();
 
-// Chat hook placeholder.
-//
-// Planned responsibilities:
-// - Load room chat history through REST.
-// - Append live WebSocket chat messages.
-// - Send outgoing chat messages over signaling.
+    if (!trimmed) {
+      return;
+    }
+
+    webSocketManager.send({ payload: { text: trimmed }, type: "chat" });
+  }, []);
+
+  return {
+    clearUnread,
+    isLoadingHistory,
+    messages,
+    sendMessage,
+    unreadCount
+  };
+}

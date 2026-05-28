@@ -1,41 +1,95 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\ChatPanel.tsx
-Layer: Meeting Runtime
+import { FormEvent, useState } from "react";
+import { X } from "lucide-react";
+import { ChatMessage } from "@/features/meeting/components/ChatMessage";
+import { FileTransferPanel } from "@/features/meeting/components/FileTransferPanel";
+import { useChat } from "@/features/meeting/hooks/useChat";
+import { useFileTransfer } from "@/features/meeting/hooks/useFileTransfer";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface ChatPanelProps {
+  isOpen: boolean;
+  onClose: () => void;
+  roomId: string | null;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
+  const [draft, setDraft] = useState("");
+  const chat = useChat(roomId, isOpen);
+  const files = useFileTransfer(roomId);
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+  if (!isOpen) {
+    return null;
+  }
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    chat.sendMessage(draft);
+    setDraft("");
+  }
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
+  return (
+    <aside className="fixed inset-y-0 right-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl">
+      <div className="flex items-center justify-between border-b border-border p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-surface-foreground">
+            Chat
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {chat.isLoadingHistory
+              ? "Loading history..."
+              : `${chat.messages.length} messages`}
+          </p>
+        </div>
+        <button
+          aria-label="Close chat"
+          className="grid size-9 place-items-center rounded-md border border-border text-foreground transition hover:bg-muted"
+          onClick={onClose}
+          type="button"
+        >
+          <X className="size-4" />
+        </button>
+      </div>
 
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+        {chat.messages.length === 0 ? (
+          <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+            No messages yet.
+          </p>
+        ) : (
+          chat.messages.map((message) => (
+            <ChatMessage key={message.id} message={message} />
+          ))
+        )}
+      </div>
 
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
+      <FileTransferPanel
+        onAccept={files.acceptOffer}
+        onReject={files.rejectOffer}
+        onSendOffer={files.sendOffer}
+        transfers={files.transfers}
+      />
 
-*/
-
-// Meeting chat panel placeholder.
-//
-// Planned responsibilities:
-// - Load chat history through GET /api/rooms/{id}/chat.
-// - Send real-time chat messages through WebSocket.
-// - Render mobile sheet and desktop side panel variants.
-// - Sanitize/escape user text through normal React rendering.
+      <form className="border-t border-border p-4" onSubmit={handleSubmit}>
+        <label className="sr-only" htmlFor="meeting-chat-message">
+          Message
+        </label>
+        <div className="flex gap-2">
+          <input
+            className="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm text-foreground"
+            id="meeting-chat-message"
+            onChange={(event) => setDraft(event.target.value)}
+            placeholder="Type a message"
+            value={draft}
+          />
+          <button
+            className="rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+            type="submit"
+          >
+            Send
+          </button>
+        </div>
+      </form>
+    </aside>
+  );
+}

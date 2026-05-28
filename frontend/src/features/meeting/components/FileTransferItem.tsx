@@ -1,39 +1,55 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\FileTransferItem.tsx
-Layer: Meeting Runtime
+import { FileText } from "lucide-react";
+import type { FileTransferRecord } from "@/features/meeting/types/file";
+import { formatBytes } from "@/lib/utils/formatters";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface FileTransferItemProps {
+  onAccept: (fileId: string) => void;
+  onReject: (fileId: string) => void;
+  transfer: FileTransferRecord;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function FileTransferItem({
+  onAccept,
+  onReject,
+  transfer
+}: FileTransferItemProps) {
+  return (
+    <article className="rounded-md border border-border bg-background p-3">
+      <div className="flex gap-3">
+        <FileText className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold text-foreground">
+            {transfer.name}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {formatBytes(transfer.size)} · {transfer.status}
+          </p>
+          {transfer.reason ? (
+            <p className="mt-1 text-xs text-danger">{transfer.reason}</p>
+          ) : null}
+        </div>
+      </div>
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
-
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
-
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// File transfer item placeholder.
-//
-// Planned responsibilities:
-// - Render offer, progress, completion, rejection, and cancellation states.
-// - Keep browser object URLs short-lived and explicitly revokable.
+      {transfer.direction === "incoming" && transfer.status === "offered" ? (
+        <div className="mt-3 flex gap-2">
+          <button
+            className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+            onClick={() => onAccept(transfer.fileId)}
+            type="button"
+          >
+            Accept
+          </button>
+          <button
+            className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground"
+            onClick={() => onReject(transfer.fileId)}
+            type="button"
+          >
+            Reject
+          </button>
+        </div>
+      ) : null}
+    </article>
+  );
+}

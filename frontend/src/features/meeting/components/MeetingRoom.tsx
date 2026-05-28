@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AdmissionModal } from "@/features/meeting/components/AdmissionModal";
+import { ChatPanel } from "@/features/meeting/components/ChatPanel";
 import { ControlBar } from "@/features/meeting/components/ControlBar";
 import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPanel";
 import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
@@ -33,6 +34,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const audioEnabled = localMedia.audioEnabled;
   const toggleAudio = localMedia.toggleAudio;
   const { remoteStreams } = usePeerConnections(localMedia.stream);
+  const [chatOpen, setChatOpen] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const sfuActive = Object.values(meeting.peers).some(
@@ -162,15 +164,18 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         onToggleVideo={localMedia.toggleVideo}
         videoEnabled={localMedia.videoEnabled}
       />
+      <ChatPanel
+        isOpen={chatOpen}
+        onClose={() => setChatOpen(false)}
+        roomId={meeting.roomId}
+      />
       <ControlBar
         audioEnabled={localMedia.audioEnabled}
         onCopyInvite={() => void handleCopyInvite()}
         onLeave={handleLeave}
         onOpenSettings={() => setSettingsOpen(true)}
         onToggleAudio={localMedia.toggleAudio}
-        onToggleChat={() =>
-          toast.info("Chat opens in the next implementation phase.")
-        }
+        onToggleChat={() => setChatOpen((open) => !open)}
         onToggleParticipants={() => setParticipantsOpen((open) => !open)}
         onToggleVideo={localMedia.toggleVideo}
         participantsOpen={participantsOpen}

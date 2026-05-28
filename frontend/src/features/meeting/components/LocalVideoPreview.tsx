@@ -1,39 +1,53 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\LocalVideoPreview.tsx
-Layer: Meeting Runtime
+import { useEffect, useRef } from "react";
+import { VideoOff } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface LocalVideoPreviewProps {
+  className?: string;
+  muted?: boolean;
+  stream: MediaStream | null;
+  videoEnabled?: boolean;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function LocalVideoPreview({
+  className,
+  muted = true,
+  stream,
+  videoEnabled = true
+}: LocalVideoPreviewProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
+  const hasVideo = Boolean(stream?.getVideoTracks().length && videoEnabled);
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// Local video preview placeholder.
-//
-// Planned responsibilities:
-// - Show mirrored camera preview before joining.
-// - Display device-permission help when camera or microphone access fails.
+  return (
+    <div
+      className={cn(
+        "relative grid aspect-video min-h-0 place-items-center overflow-hidden rounded-lg border border-border bg-muted",
+        className
+      )}
+    >
+      {hasVideo ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          className="h-full w-full scale-x-[-1] object-cover"
+          muted={muted}
+          playsInline
+        />
+      ) : (
+        <div className="grid place-items-center gap-3 text-muted-foreground">
+          <VideoOff className="h-8 w-8" aria-hidden="true" />
+          <span className="text-sm font-medium">Camera off</span>
+        </div>
+      )}
+    </div>
+  );
+}

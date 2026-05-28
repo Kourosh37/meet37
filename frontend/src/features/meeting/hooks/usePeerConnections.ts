@@ -32,11 +32,178 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-// P2P WebRTC orchestration hook placeholder.
-//
-// Planned responsibilities:
-// - Manage RTCPeerConnection instances for each remote peer.
-// - Add local mic/camera/screen tracks.
-// - Send and receive offer, answer, and ice-candidate messages.
-// - Apply a collision-safe negotiation strategy.
-// - Clean up peer connections on leave/reconnect/kick.
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import type {
+  IceCandidatePayload,
+  SessionDescriptionPayload
+} from "@/features/meeting/types/signaling";
+import {
+  addLocalTracks,
+  closePeerConnection,
+  createPeerConnection,
+  payloadToIceCandidate,
+  payloadToSessionDescription,
+  sessionDescriptionToPayload
+} from "@/lib/webrtc/PeerConnectionFactory";
+import { webSocketManager } from "@/lib/websocket/WebSocketManager";
+
+export function usePeerConnections(localStream: MediaStream | null) {
+  const peers = useMeetingStore((state) => state.peers);
+  const connections = useRef(new Map<string, RTCPeerConnection>());
+  const offeredPeerIds = useRef(new Set<string>());
+  const [remoteStreams, setRemoteStreams] = useState<
+    Record<string, MediaStream>
+  >({});
+
+  const sendDescription = useCallback(
+    (
+      type: "answer" | "offer",
+      peerId: string,
+      payload: SessionDescriptionPayload
+    ) => {
+      webSocketManager.send({ payload, to: peerId, type });
+    },
+    []
+  );
+
+  const sendIceCandidate = useCallback(
+    (peerId: string, payload: IceCandidatePayload) => {
+      webSocketManager.send({ payload, to: peerId, type: "ice-candidate" });
+    },
+    []
+  );
+
+  const ensureConnection = useCallback(
+    (peerId: string) => {
+      const existing = connections.current.get(peerId);
+
+      if (existing) {
+        return existing;
+      }
+
+      const connection = createPeerConnection({
+        onIceCandidate: (candidate) => sendIceCandidate(peerId, candidate),
+        onTrack: (event) => {
+          const stream = event.streams[0];
+
+          if (stream) {
+            setRemoteStreams((current) => ({ ...current, [peerId]: stream }));
+          }
+        }
+      });
+
+      if (localStream) {
+        addLocalTracks(connection, localStream);
+      }
+
+      connections.current.set(peerId, connection);
+      return connection;
+    },
+    [localStream, sendIceCandidate]
+  );
+
+  const createOffer = useCallback(
+    async (peerId: string) => {
+      const connection = ensureConnection(peerId);
+      const offer = await connection.createOffer();
+      await connection.setLocalDescription(offer);
+      sendDescription("offer", peerId, sessionDescriptionToPayload(offer));
+    },
+    [ensureConnection, sendDescription]
+  );
+
+  useEffect(() => {
+    Object.keys(peers).forEach((peerId) => {
+      if (offeredPeerIds.current.has(peerId)) {
+        return;
+      }
+
+      offeredPeerIds.current.add(peerId);
+      void createOffer(peerId);
+    });
+  }, [createOffer, peers]);
+
+  useEffect(() => {
+    if (!localStream) {
+      return;
+    }
+
+    connections.current.forEach((connection) => {
+      addLocalTracks(connection, localStream);
+    });
+  }, [localStream]);
+
+  useEffect(() => {
+    const peerIds = new Set(Object.keys(peers));
+
+    connections.current.forEach((connection, peerId) => {
+      if (peerIds.has(peerId)) {
+        return;
+      }
+
+      closePeerConnection(connection);
+      connections.current.delete(peerId);
+      offeredPeerIds.current.delete(peerId);
+      setRemoteStreams((current) => {
+        const { [peerId]: _removed, ...next } = current;
+        return next;
+      });
+    });
+  }, [peers]);
+
+  useEffect(() => {
+    const unsubscribers = [
+      webSocketManager.subscribe("offer", async (message) => {
+        if (!message.from) {
+          return;
+        }
+
+        const connection = ensureConnection(message.from);
+        await connection.setRemoteDescription(
+          payloadToSessionDescription("offer", message.payload)
+        );
+        const answer = await connection.createAnswer();
+        await connection.setLocalDescription(answer);
+        sendDescription(
+          "answer",
+          message.from,
+          sessionDescriptionToPayload(answer)
+        );
+      }),
+      webSocketManager.subscribe("answer", async (message) => {
+        if (message.from) {
+          await ensureConnection(message.from).setRemoteDescription(
+            payloadToSessionDescription("answer", message.payload)
+          );
+        }
+      }),
+      webSocketManager.subscribe("ice-candidate", async (message) => {
+        if (message.from) {
+          await ensureConnection(message.from).addIceCandidate(
+            payloadToIceCandidate(message.payload)
+          );
+        }
+      })
+    ];
+
+    return () => {
+      unsubscribers.forEach((unsubscribe) => unsubscribe());
+    };
+  }, [ensureConnection, sendDescription]);
+
+  useEffect(
+    () => () => {
+      connections.current.forEach(closePeerConnection);
+      connections.current.clear();
+    },
+    []
+  );
+
+  return {
+    connections: connections.current,
+    remoteStreams
+  };
+}

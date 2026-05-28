@@ -36,6 +36,7 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { useSignalingMessages } from "@/features/meeting/hooks/useSignalingMessages";
 import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
@@ -66,7 +67,10 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     }
   }, []);
 
-  const displayNameResult = useMemo(() => displayNameSchema.safeParse(displayName), [displayName]);
+  const displayNameResult = useMemo(
+    () => displayNameSchema.safeParse(displayName),
+    [displayName]
+  );
   const displayNameError =
     submitted && !displayNameResult.success
       ? displayNameResult.error.issues[0]?.message
@@ -105,7 +109,8 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
           Waiting for approval
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Your request has been sent. The host will let you in when they are ready.
+          Your request has been sent. The host will let you in when they are
+          ready.
         </p>
         <button
           className="mt-6 rounded-md border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
@@ -123,14 +128,12 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
 
   if (meeting.phase === "in-call") {
     return (
-      <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
-        <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
-          Connected
-        </h1>
-        <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          Signaling is connected. WebRTC media starts in Phase 8.
-        </p>
-      </section>
+      <MeetingRoom
+        displayName={
+          displayNameResult.success ? displayNameResult.data : displayName
+        }
+        roomName={data?.room.name}
+      />
     );
   }
 
@@ -168,13 +171,16 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
 
       <aside className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {data.room.join_policy === "approval" ? "Host approval required" : "Open meeting"}
+          {data.room.join_policy === "approval"
+            ? "Host approval required"
+            : "Open meeting"}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-normal text-surface-foreground">
           {data.room.name}
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          {data.live.peer_count} participant{data.live.peer_count === 1 ? "" : "s"} in call.
+          {data.live.peer_count} participant
+          {data.live.peer_count === 1 ? "" : "s"} in call.
           {data.room.join_policy === "approval"
             ? " The host will need to let you in."
             : " You can join as soon as signaling is connected."}
@@ -191,7 +197,9 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
           ) : null}
           <button
             className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={meeting.phase === "joining" || websocket.status === "connecting"}
+            disabled={
+              meeting.phase === "joining" || websocket.status === "connecting"
+            }
             onClick={handleJoin}
             type="button"
           >
@@ -199,7 +207,9 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
               ? "Joining..."
               : "Continue"}
           </button>
-          {meeting.error ? <p className="text-sm text-danger">{meeting.error}</p> : null}
+          {meeting.error ? (
+            <p className="text-sm text-danger">{meeting.error}</p>
+          ) : null}
         </div>
       </aside>
     </section>

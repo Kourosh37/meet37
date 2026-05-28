@@ -1,41 +1,64 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\VideoGrid.tsx
-Layer: Meeting Runtime
+import { VideoTile } from "@/features/meeting/components/VideoTile";
+import type { MeetingPeer } from "@/features/meeting/types/peer";
+import { cn } from "@/lib/utils/cn";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface VideoGridProps {
+  className?: string;
+  local: {
+    audioEnabled: boolean;
+    displayName: string;
+    isHost: boolean;
+    screenSharing: boolean;
+    stream: MediaStream | null;
+    videoEnabled: boolean;
+  };
+  peers: Record<string, MeetingPeer>;
+  remoteStreams: Record<string, MediaStream>;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function VideoGrid({
+  className,
+  local,
+  peers,
+  remoteStreams
+}: VideoGridProps) {
+  const remotePeers = Object.values(peers);
+  const participantCount = remotePeers.length + 1;
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
-
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
-
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// Responsive meeting video grid placeholder.
-//
-// Planned responsibilities:
-// - Render local and remote participant tiles.
-// - Adapt from single-column mobile layout to multi-column desktop layout.
-// - Preserve stable tile aspect ratios to avoid layout jumps.
-// - Support future virtualization for large rooms.
+  return (
+    <section
+      className={cn(
+        "grid min-h-0 flex-1 gap-3",
+        participantCount <= 1 && "grid-cols-1",
+        participantCount === 2 && "grid-cols-1 lg:grid-cols-2",
+        participantCount > 2 && "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
+        className
+      )}
+    >
+      <VideoTile
+        audioEnabled={local.audioEnabled}
+        displayName={local.displayName}
+        isHost={local.isHost}
+        isLocal
+        mode="p2p"
+        screenSharing={local.screenSharing}
+        stream={local.stream}
+        videoEnabled={local.videoEnabled}
+      />
+      {remotePeers.map((peer) => (
+        <VideoTile
+          audioEnabled={peer.media.audioEnabled}
+          displayName={peer.displayName}
+          isHost={peer.isHost}
+          key={peer.id}
+          mode={peer.connection.mode}
+          screenSharing={peer.media.screenSharing}
+          stream={remoteStreams[peer.id] ?? null}
+          videoEnabled={peer.media.videoEnabled}
+        />
+      ))}
+    </section>
+  );
+}

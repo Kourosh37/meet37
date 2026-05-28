@@ -37,7 +37,9 @@ import type {
   SessionDescriptionPayload
 } from "@/features/meeting/types/signaling";
 
-const defaultIceServers: RTCIceServer[] = [{ urls: ["stun:stun.l.google.com:19302"] }];
+const defaultIceServers: RTCIceServer[] = [
+  { urls: ["stun:stun.l.google.com:19302"] }
+];
 
 export interface PeerConnectionFactoryOptions {
   iceServers?: RTCIceServer[];
@@ -45,7 +47,9 @@ export interface PeerConnectionFactoryOptions {
   onTrack?: (event: RTCTrackEvent) => void;
 }
 
-export function createPeerConnection(options: PeerConnectionFactoryOptions = {}) {
+export function createPeerConnection(
+  options: PeerConnectionFactoryOptions = {}
+) {
   const connection = new RTCPeerConnection({
     iceServers: options.iceServers ?? defaultIceServers
   });
@@ -65,9 +69,15 @@ export function createPeerConnection(options: PeerConnectionFactoryOptions = {})
   return connection;
 }
 
-export function addLocalTracks(connection: RTCPeerConnection, stream: MediaStream) {
+export function addLocalTracks(
+  connection: RTCPeerConnection,
+  stream: MediaStream
+) {
   const existingTrackIds = new Set(
-    connection.getSenders().map((sender) => sender.track?.id).filter(Boolean)
+    connection
+      .getSenders()
+      .map((sender) => sender.track?.id)
+      .filter(Boolean)
   );
 
   stream.getTracks().forEach((track) => {
@@ -81,14 +91,15 @@ export function stopMediaStream(stream: MediaStream | null | undefined) {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
-export function closePeerConnection(connection: RTCPeerConnection | null | undefined) {
-  connection?.getSenders().forEach((sender) => {
-    sender.track?.stop();
-  });
+export function closePeerConnection(
+  connection: RTCPeerConnection | null | undefined
+) {
   connection?.close();
 }
 
-export function sessionDescriptionToPayload(description: RTCSessionDescriptionInit) {
+export function sessionDescriptionToPayload(
+  description: RTCSessionDescriptionInit
+) {
   return {
     sdp: description.sdp ?? ""
   } satisfies SessionDescriptionPayload;

@@ -1,41 +1,106 @@
-/*
-Frontend architecture note
+"use client";
 
-File: src\features\meeting\components\VideoTile.tsx
-Layer: Meeting Runtime
+import { useEffect, useMemo, useRef } from "react";
+import { Mic, MicOff, MonitorUp, VideoOff } from "lucide-react";
+import type { PeerMode } from "@/features/meeting/types/signaling";
+import { cn } from "@/lib/utils/cn";
 
-Responsibility:
-- Frontend file for the Meeting Runtime layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+interface VideoTileProps {
+  audioEnabled?: boolean;
+  className?: string;
+  displayName: string;
+  isHost?: boolean;
+  isLocal?: boolean;
+  mode?: PeerMode;
+  screenSharing?: boolean;
+  stream: MediaStream | null;
+  videoEnabled?: boolean;
+}
 
-Implementation contract:
-- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
-- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
-- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+export function VideoTile({
+  audioEnabled = true,
+  className,
+  displayName,
+  isHost = false,
+  isLocal = false,
+  mode = "p2p",
+  screenSharing = false,
+  stream,
+  videoEnabled = true
+}: VideoTileProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const hasVideo = Boolean(stream?.getVideoTracks().length && videoEnabled);
+  const initials = useMemo(
+    () =>
+      displayName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0]?.toUpperCase())
+        .join("") || "?",
+    [displayName]
+  );
 
-Backend contract: WebSocket signaling endpoint described in backend/docs/WEBSOCKET.md plus room metadata from GET /api/rooms/{id}. The join payload must include display_name and may include password and host_token.
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+    }
+  }, [stream]);
 
-State model to plan: idle, prejoining, waiting-approval, joining, in-call, reconnecting, sfu-active, kicked, rejected, room-closed, media-error, and left.
+  return (
+    <article
+      className={cn(
+        "relative grid aspect-video min-h-[180px] overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
+        className
+      )}
+    >
+      {hasVideo ? (
+        <video
+          ref={videoRef}
+          autoPlay
+          className={cn(
+            "h-full w-full object-cover",
+            isLocal && "scale-x-[-1]"
+          )}
+          muted={isLocal}
+          playsInline
+        />
+      ) : (
+        <div className="grid place-items-center bg-muted text-muted-foreground">
+          <div className="grid h-20 w-20 place-items-center rounded-full bg-surface text-2xl font-semibold text-surface-foreground shadow-sm">
+            {initials}
+          </div>
+          <VideoOff
+            className="absolute right-4 top-4 h-5 w-5"
+            aria-hidden="true"
+          />
+        </div>
+      )}
 
-UX and edge cases to plan:
-- Display clear loading and empty states instead of rendering nothing once implementation starts.
-- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
-- Keep room links shareable; never require global login just to open an existing meeting link.
-- In private app mode, require login only for room creation, not for joining a shared room link.
-- Every meeting participant must provide a non-empty display name before joining.
-
-Security and privacy notes:
-- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
-- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
-- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
-
-Future tests: WebSocket join flow, approval room flow, host approve/reject, kick/mute messages, P2P signaling, SFU switch handling, chat/file events, and cleanup on leave.
-
-*/
-
-// Participant tile placeholder.
-//
-// Planned responsibilities:
-// - Attach MediaStream objects to video/audio elements.
-// - Show display name, mute/video state, connection mode, and host badge.
-// - Handle camera-off fallback visuals.
-// - Avoid overlapping labels and controls on small screens.
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-14 items-end justify-between gap-3 bg-gradient-to-t from-black/75 via-black/35 to-transparent p-3 text-white">
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold">
+            {displayName}
+            {isLocal ? " (You)" : ""}
+          </p>
+          <p className="text-xs text-white/75">
+            {isHost ? "Host" : "Guest"} · {mode.toUpperCase()}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {screenSharing ? (
+            <MonitorUp className="h-4 w-4" aria-label="Screen sharing" />
+          ) : null}
+          {audioEnabled ? (
+            <Mic className="h-4 w-4" aria-label="Microphone on" />
+          ) : (
+            <MicOff
+              className="h-4 w-4 text-danger"
+              aria-label="Microphone off"
+            />
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}

@@ -32,10 +32,122 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-// Media device hook placeholder.
-//
-// Planned responsibilities:
-// - Request camera and microphone access after user interaction.
-// - Enumerate input/output devices.
-// - Toggle track enabled state for mute/unmute.
-// - Replace tracks when device selection changes.
+"use client";
+
+import { useCallback, useEffect, useState } from "react";
+import { useMediaStore } from "@/features/meeting/stores/mediaStore";
+import { stopMediaStream } from "@/lib/webrtc/PeerConnectionFactory";
+
+export function useLocalMedia() {
+  const audioEnabled = useMediaStore((state) => state.audioEnabled);
+  const videoEnabled = useMediaStore((state) => state.videoEnabled);
+  const screenSharing = useMediaStore((state) => state.screenSharing);
+  const selectedAudioDeviceId = useMediaStore(
+    (state) => state.selectedAudioDeviceId
+  );
+  const selectedVideoDeviceId = useMediaStore(
+    (state) => state.selectedVideoDeviceId
+  );
+  const error = useMediaStore((state) => state.error);
+  const setAudioEnabled = useMediaStore((state) => state.setAudioEnabled);
+  const setVideoEnabled = useMediaStore((state) => state.setVideoEnabled);
+  const setScreenSharing = useMediaStore((state) => state.setScreenSharing);
+  const setError = useMediaStore((state) => state.setError);
+  const [stream, setStream] = useState<MediaStream | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
+
+  const start = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setError("Media devices are not available in this browser.");
+      return null;
+    }
+
+    try {
+      setIsStarting(true);
+      const nextStream = await navigator.mediaDevices.getUserMedia({
+        audio: audioEnabled
+          ? {
+              deviceId: selectedAudioDeviceId
+                ? { exact: selectedAudioDeviceId }
+                : undefined
+            }
+          : false,
+        video: videoEnabled
+          ? {
+              deviceId: selectedVideoDeviceId
+                ? { exact: selectedVideoDeviceId }
+                : undefined
+            }
+          : false
+      });
+
+      setStream((current) => {
+        stopMediaStream(current);
+        return nextStream;
+      });
+      nextStream.getAudioTracks().forEach((track) => {
+        track.enabled = audioEnabled;
+      });
+      nextStream.getVideoTracks().forEach((track) => {
+        track.enabled = videoEnabled;
+      });
+
+      setError(null);
+      return nextStream;
+    } catch (error) {
+      setError(
+        error instanceof Error ? error.message : "Could not start local media."
+      );
+      return null;
+    } finally {
+      setIsStarting(false);
+    }
+  }, [
+    audioEnabled,
+    selectedAudioDeviceId,
+    selectedVideoDeviceId,
+    setError,
+    videoEnabled
+  ]);
+
+  const stop = useCallback(() => {
+    setStream((current) => {
+      stopMediaStream(current);
+      return null;
+    });
+  }, []);
+
+  const toggleAudio = useCallback(() => {
+    const enabled = !audioEnabled;
+    setAudioEnabled(enabled);
+    stream?.getAudioTracks().forEach((track) => {
+      track.enabled = enabled;
+    });
+  }, [audioEnabled, setAudioEnabled, stream]);
+
+  const toggleVideo = useCallback(() => {
+    const enabled = !videoEnabled;
+    setVideoEnabled(enabled);
+    stream?.getVideoTracks().forEach((track) => {
+      track.enabled = enabled;
+    });
+  }, [setVideoEnabled, stream, videoEnabled]);
+
+  useEffect(() => () => stopMediaStream(stream), [stream]);
+
+  return {
+    audioEnabled,
+    error,
+    isStarting,
+    screenSharing,
+    selectedAudioDeviceId,
+    selectedVideoDeviceId,
+    setScreenSharing,
+    start,
+    stop,
+    stream,
+    toggleAudio,
+    toggleVideo,
+    videoEnabled
+  };
+}

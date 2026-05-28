@@ -32,9 +32,42 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Application navbar placeholder.
-//
-// Planned responsibilities:
-// - Provide primary navigation for home, create room, login/logout, and admin entry.
-// - Include theme switch on public pages.
-// - Keep mobile layout compact and accessible.
+import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
+import { LogIn, Plus, Shield } from "lucide-react";
+import Link from "next/link";
+
+export function TopBar() {
+  return (
+    <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
+      <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+        <Link className="text-lg font-semibold tracking-normal text-foreground" href="/">
+          Meet
+        </Link>
+        <nav aria-label="Primary navigation" className="flex items-center gap-2">
+          <Link
+            className="hidden items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground sm:inline-flex"
+            href="/admin"
+          >
+            <Shield className="size-4" />
+            Admin
+          </Link>
+          <Link
+            className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            href="/login"
+          >
+            <LogIn className="size-4" />
+            Login
+          </Link>
+          <Link
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+            href="/rooms/new"
+          >
+            <Plus className="size-4" />
+            New room
+          </Link>
+          <ThemeSwitch />
+        </nav>
+      </div>
+    </header>
+  );
+}

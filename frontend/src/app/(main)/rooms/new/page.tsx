@@ -32,14 +32,42 @@ Future tests: public room creation without token, private mode creation with tok
 
 */
 
-// Room creation page placeholder.
-//
-// Planned responsibilities:
-// - Render form fields for name, optional password, join policy, max peers, and expiry.
-// - Respect backend public/private mode rules.
-// - Store returned host_token locally and never place it in share URLs.
-// - Navigate creator to prejoin or room route after creation.
+import Link from "next/link";
 
 export default function CreateRoomPage() {
-  return null;
+  return (
+    <section className="mx-auto max-w-2xl space-y-6">
+      <div>
+        <p className="text-sm font-medium text-primary">Room setup</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">Create a room</h1>
+        <p className="mt-3 text-sm leading-6 text-muted-foreground">
+          The production form will create rooms through the backend and preserve the returned
+          host token for moderation.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <div className="grid gap-4">
+          {["Room name", "Join policy", "Maximum peers", "Optional password"].map((label) => (
+            <div className="space-y-2" key={label}>
+              <div className="h-4 w-32 rounded bg-muted" aria-hidden="true" />
+              <div className="h-11 rounded-md border border-border bg-background" aria-hidden="true" />
+            </div>
+          ))}
+        </div>
+        <div className="mt-6 flex items-center justify-between gap-3">
+          <Link className="text-sm font-medium text-muted-foreground hover:text-foreground" href="/">
+            Back home
+          </Link>
+          <button
+            className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground opacity-60"
+            disabled
+            type="button"
+          >
+            Create room
+          </button>
+        </div>
+      </div>
+    </section>
+  );
 }

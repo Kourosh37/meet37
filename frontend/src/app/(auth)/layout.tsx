@@ -32,15 +32,12 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Auth route group layout placeholder.
-//
-// Planned responsibilities:
-// - Wrap login and admin routes with auth-aware shell behavior.
-// - Redirect already-authenticated users away from login when appropriate.
-// - Keep admin-only checks delegated to middleware or route-level guards.
-
 import type { ReactNode } from "react";
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return children;
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground">
+      {children}
+    </main>
+  );
 }

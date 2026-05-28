@@ -32,14 +32,57 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Home page placeholder.
-//
-// Planned responsibilities:
-// - Show active room list from GET /api/rooms.
-// - Provide create-room entry point.
-// - Provide login entry point for admin/users.
-// - Handle empty/error/loading states.
+import { ArrowRight, Video } from "lucide-react";
+import Link from "next/link";
 
 export default function HomePage() {
-  return null;
+  return (
+    <section className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-start">
+      <div className="space-y-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1 text-sm text-muted-foreground">
+          <Video className="size-4 text-primary" />
+          P2P-first meetings
+        </div>
+        <div className="space-y-4">
+          <h1 className="max-w-3xl text-4xl font-semibold tracking-normal text-foreground sm:text-5xl">
+            Start or join a secure browser meeting.
+          </h1>
+          <p className="max-w-2xl text-base leading-7 text-muted-foreground">
+            Create shareable rooms, collect a display name before entry, and keep host moderation
+            ready for approval-based meetings.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+            href="/rooms/new"
+          >
+            Create room
+            <ArrowRight className="size-4" />
+          </Link>
+          <Link
+            className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-4 py-2.5 text-sm font-semibold text-surface-foreground transition hover:bg-muted"
+            href="/login"
+          >
+            Login
+          </Link>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4 border-b border-border pb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-surface-foreground">Active rooms</h2>
+            <p className="text-sm text-muted-foreground">Room list integration starts in Phase 5.</p>
+          </div>
+        </div>
+        <div className="py-10 text-center">
+          <p className="text-sm font-medium text-surface-foreground">No rooms loaded yet</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            This shell is ready for the REST-backed room list.
+          </p>
+        </div>
+      </div>
+    </section>
+  );
 }

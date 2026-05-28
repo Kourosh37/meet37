@@ -32,15 +32,14 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Public route group layout placeholder.
-//
-// Planned responsibilities:
-// - Provide public-facing shell for home and room discovery.
-// - Include theme switch and auth entry points.
-// - Keep layout restrained and app-focused rather than marketing-heavy.
-
+import { TopBar } from "@/components/layout/TopBar";
 import type { ReactNode } from "react";
 
 export default function PublicLayout({ children }: { children: ReactNode }) {
-  return children;
+  return (
+    <div className="min-h-screen bg-background text-foreground">
+      <TopBar />
+      <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">{children}</main>
+    </div>
+  );
 }

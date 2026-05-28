@@ -32,14 +32,19 @@ Future tests: admin guard behavior, public/private toggle, user CRUD validation,
 
 */
 
-// Admin user management page placeholder.
-//
-// Planned responsibilities:
-// - List users from GET /api/admin/users.
-// - Provide create, update, and delete user workflows.
-// - Validate username/password constraints before sending requests.
-// - Use responsive table/cards for desktop and mobile layouts.
-
 export default function AdminUsersPage() {
-  return null;
+  return (
+    <section className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-normal text-foreground">Users</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Private-mode user CRUD will connect to the admin API in Phase 13.
+        </p>
+      </div>
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <p className="text-sm font-medium text-surface-foreground">No users loaded yet</p>
+        <p className="mt-2 text-sm text-muted-foreground">The table shell is ready for backend data.</p>
+      </div>
+    </section>
+  );
 }

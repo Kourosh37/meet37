@@ -32,15 +32,14 @@ Future tests: admin guard behavior, public/private toggle, user CRUD validation,
 
 */
 
-// Admin route layout placeholder.
-//
-// Planned responsibilities:
-// - Render the admin shell with sidebar navigation.
-// - Require an authenticated admin session before showing children.
-// - Keep admin polling providers scoped away from public meeting pages.
-
+import { Sidebar } from "@/components/layout/Sidebar";
 import type { ReactNode } from "react";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
-  return children;
+  return (
+    <div className="min-h-screen bg-background text-foreground md:flex">
+      <Sidebar />
+      <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+    </div>
+  );
 }

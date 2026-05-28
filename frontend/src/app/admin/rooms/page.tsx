@@ -32,13 +32,18 @@ Future tests: admin guard behavior, public/private toggle, user CRUD validation,
 
 */
 
-// Admin live rooms page placeholder.
-//
-// Planned responsibilities:
-// - Display active room list and live room stats.
-// - Link room rows to room-specific operational detail views later.
-// - Refresh live counts through React Query polling.
-
 export default function AdminRoomsPage() {
-  return null;
+  return (
+    <section className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-normal text-foreground">Live rooms</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Live room stats will refresh through React Query after admin APIs are wired.
+        </p>
+      </div>
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <p className="text-sm font-medium text-surface-foreground">No room stats loaded yet</p>
+      </div>
+    </section>
+  );
 }

@@ -32,9 +32,34 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Theme switch placeholder.
-//
-// Planned responsibilities:
-// - Toggle next-themes dark/light/system modes.
-// - Use icon-only controls with accessible labels.
-// - Avoid hydration flicker after the theme provider is implemented.
+"use client";
+
+import { Monitor, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
+
+export function ThemeSwitch() {
+  const { resolvedTheme, setTheme, theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const nextTheme = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+  const label = `Switch theme to ${nextTheme}`;
+
+  return (
+    <button
+      aria-label={label}
+      className="inline-flex size-10 items-center justify-center rounded-md border border-border bg-surface text-surface-foreground transition hover:bg-muted"
+      onClick={() => setTheme(nextTheme)}
+      title={label}
+      type="button"
+    >
+      {!mounted ? <Monitor className="size-4" /> : null}
+      {mounted && resolvedTheme === "dark" ? <Moon className="size-4" /> : null}
+      {mounted && resolvedTheme !== "dark" ? <Sun className="size-4" /> : null}
+    </button>
+  );
+}

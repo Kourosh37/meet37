@@ -32,14 +32,23 @@ Future tests: admin guard behavior, public/private toggle, user CRUD validation,
 
 */
 
-// Admin SFU stats page placeholder.
-//
-// Planned responsibilities:
-// - Read GET /api/admin/sfu/stats.
-// - Display active sessions, peer counts, track counts, packet/byte counters, and recording count.
-// - Refresh metrics on an interval with React Query.
-// - Keep the page useful on mobile and desktop.
-
 export default function AdminSFUStatsPage() {
-  return null;
+  return (
+    <section className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-normal text-foreground">SFU stats</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Relay session metrics will be displayed after the admin SFU endpoint is wired.
+        </p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-3">
+        {["Sessions", "Peers", "Relayed bytes"].map((label) => (
+          <div className="rounded-lg border border-border bg-surface p-5 shadow-sm" key={label}>
+            <p className="text-sm text-muted-foreground">{label}</p>
+            <p className="mt-2 text-2xl font-semibold text-surface-foreground">--</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }

@@ -32,13 +32,19 @@ Future tests: admin guard behavior, public/private toggle, user CRUD validation,
 
 */
 
-// Admin settings page placeholder.
-//
-// Planned responsibilities:
-// - Render app mode controls backed by GET/PUT /api/admin/settings.
-// - Surface security-sensitive deployment settings as read-only guidance.
-// - Keep destructive production toggles explicit and confirmable.
-
 export default function AdminSettingsPage() {
-  return null;
+  return (
+    <section className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-semibold tracking-normal text-foreground">Settings</h1>
+        <p className="mt-3 text-sm text-muted-foreground">
+          Public/private app mode controls will be connected to `/api/admin/settings`.
+        </p>
+      </div>
+      <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-surface-foreground">Application mode</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Toggle control pending implementation.</p>
+      </div>
+    </section>
+  );
 }

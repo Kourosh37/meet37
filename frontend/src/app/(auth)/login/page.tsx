@@ -32,15 +32,39 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Login page placeholder.
-//
-// Planned responsibilities:
-// - Render admin/user login form.
-// - Validate credentials with zod and react-hook-form.
-// - Call POST /api/auth/login through the auth hook.
-// - Store access and refresh token metadata in authStore.
-// - Route admins to /admin and users to room creation/home flows.
+import Link from "next/link";
 
 export default function LoginPage() {
-  return null;
+  return (
+    <section className="w-full max-w-md rounded-lg border border-border bg-surface p-6 shadow-sm">
+      <div className="space-y-2">
+        <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">Login</h1>
+        <p className="text-sm leading-6 text-muted-foreground">
+          Admin and private-mode user authentication will be wired in Phase 4.
+        </p>
+      </div>
+      <div className="mt-6 grid gap-4">
+        <div className="space-y-2">
+          <div className="h-4 w-24 rounded bg-muted" aria-hidden="true" />
+          <div className="h-11 rounded-md border border-border bg-background" aria-hidden="true" />
+        </div>
+        <div className="space-y-2">
+          <div className="h-4 w-24 rounded bg-muted" aria-hidden="true" />
+          <div className="h-11 rounded-md border border-border bg-background" aria-hidden="true" />
+        </div>
+      </div>
+      <div className="mt-6 flex items-center justify-between gap-3">
+        <Link className="text-sm font-medium text-muted-foreground hover:text-foreground" href="/">
+          Back home
+        </Link>
+        <button
+          className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground opacity-60"
+          disabled
+          type="button"
+        >
+          Sign in
+        </button>
+      </div>
+    </section>
+  );
 }

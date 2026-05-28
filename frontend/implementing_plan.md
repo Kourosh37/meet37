@@ -25,17 +25,17 @@ This plan is the working roadmap for turning the current comment-only frontend s
 Goal: make the placeholder app buildable before adding business logic.
 
 Tasks:
-- Replace placeholder route returns with minimal accessible shells.
-- Mount `QueryProvider`, `ThemeProvider`, and `ToastProvider` in the root layout.
-- Define global metadata and app language.
-- Configure Tailwind tokens in `globals.css` and verify light/dark theme variables.
-- Ensure `pnpm typecheck`, `pnpm lint`, and `pnpm build` run against the empty shell.
-- Remove or rename any file that duplicates another responsibility.
+- [x] Replace placeholder route returns with minimal accessible shells.
+- [x] Mount `QueryProvider`, `ThemeProvider`, and `ToastProvider` in the root layout.
+- [x] Define global metadata and app language.
+- [x] Configure Tailwind tokens in `globals.css` and verify light/dark theme variables.
+- [x] Ensure `pnpm typecheck`, `pnpm lint`, and `pnpm build` run against the empty shell.
+- [x] Remove or rename any file that duplicates another responsibility.
 
 Acceptance:
-- Home, login, room creation, prejoin, and admin routes render minimal screens.
-- No stale `.next` generated types refer to removed route groups.
-- The project has no npm lockfiles or npm-specific commands.
+- [x] Home, login, room creation, prejoin, and admin routes render minimal screens.
+- [x] No stale `.next` generated types refer to removed route groups.
+- [x] The project has no npm lockfiles or npm-specific commands.
 
 ## Phase 2 - Shared Types, Environment, and Utilities
 

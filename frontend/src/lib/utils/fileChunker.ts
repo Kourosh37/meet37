@@ -32,10 +32,48 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// File chunking service placeholder.
-//
-// Planned responsibilities:
-// - Split File/Blob objects into bounded ArrayBuffer chunks.
-// - Reassemble chunks into Blob objects on receiver side.
-// - Track sequence numbers if multiple transfers share one DataChannel.
-// - Enforce frontend-only size/chunk policy.
+import type { FileChunk } from "@/features/meeting/types/file";
+
+export const DEFAULT_FILE_CHUNK_SIZE = 64 * 1024;
+export const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024;
+
+export function assertFilePolicy(file: Blob) {
+  if (file.size <= 0) {
+    throw new Error("File is empty");
+  }
+
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error("File is larger than the 500 MB limit");
+  }
+}
+
+export async function* chunkBlob(
+  fileId: string,
+  blob: Blob,
+  chunkSize = DEFAULT_FILE_CHUNK_SIZE
+): AsyncGenerator<FileChunk> {
+  assertFilePolicy(blob);
+
+  const totalChunks = Math.ceil(blob.size / chunkSize);
+
+  for (let index = 0; index < totalChunks; index += 1) {
+    const start = index * chunkSize;
+    const end = Math.min(start + chunkSize, blob.size);
+    const bytes = await blob.slice(start, end).arrayBuffer();
+
+    yield {
+      bytes,
+      fileId,
+      index,
+      totalChunks
+    };
+  }
+}
+
+export function reassembleChunks(chunks: FileChunk[], mime = "application/octet-stream") {
+  const sorted = [...chunks].sort((left, right) => left.index - right.index);
+  return new Blob(
+    sorted.map((chunk) => chunk.bytes),
+    { type: mime }
+  );
+}

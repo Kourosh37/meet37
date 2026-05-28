@@ -32,8 +32,9 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Class name utility placeholder.
-//
-// Planned responsibilities:
-// - Combine clsx and tailwind-merge for shadcn-style components.
-// - Keep conditional Tailwind classes deterministic.
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}

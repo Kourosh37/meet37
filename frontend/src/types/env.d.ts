@@ -32,8 +32,10 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// Environment variable type placeholder.
-//
-// Planned responsibilities:
-// - Declare NEXT_PUBLIC_API_BASE_URL and NEXT_PUBLIC_WS_URL.
-// - Add future public config variables in one typed location.
+declare namespace NodeJS {
+  interface ProcessEnv {
+    NEXT_PUBLIC_API_BASE_URL?: string;
+    NEXT_PUBLIC_WS_URL?: string;
+    NEXT_PUBLIC_TURN_PUBLIC_IP?: string;
+  }
+}

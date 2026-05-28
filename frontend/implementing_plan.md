@@ -249,16 +249,16 @@ Acceptance:
 Goal: lock down behavior before larger UI polish.
 
 Tasks:
-- Add unit tests for validators, API error mapping, token storage, message routing, and stores.
-- Add integration tests for login, room creation, prejoin, admin users, and room metadata.
-- Add Playwright E2E for public room creation, private room guard, approval flow, chat, and host kick.
-- Add browser media mocks for CI where real devices are unavailable.
-- Run backend and frontend together for smoke tests.
+- [x] Add unit tests for validators, API error mapping, token storage, message routing, and stores.
+- [x] Add integration tests for login, room creation, prejoin, admin users, and room metadata.
+- [x] Add Playwright E2E for public room creation, private room guard, approval flow, chat, and host kick.
+- [x] Add browser media mocks for CI where real devices are unavailable.
+- [x] Run backend and frontend together for smoke tests.
 
 Acceptance:
-- `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm build` pass.
-- E2E smoke tests pass against a local backend.
-- Regression tests cover the core business rules from backend docs.
+- [x] `pnpm typecheck`, `pnpm lint`, `pnpm test`, and `pnpm build` pass.
+- [x] E2E smoke tests pass against a local backend.
+- [x] Regression tests cover the core business rules from backend docs.
 
 ## Phase 15 - UI Polish, Accessibility, and Production Readiness
 

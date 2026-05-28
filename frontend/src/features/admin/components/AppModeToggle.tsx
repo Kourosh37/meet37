@@ -1,0 +1,41 @@
+/*
+Frontend architecture note
+
+File: src\features\admin\components\AppModeToggle.tsx
+Layer: Admin Panel
+
+Responsibility:
+- Frontend file for the Admin Panel layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with frontend-architecture.md.
+
+Implementation contract:
+- Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
+- Prefer feature-local components/hooks/stores first, then shared lib utilities only when behavior is reused across features.
+- Match the existing backend contract exactly; if backend/docs/API.md or backend/docs/WEBSOCKET.md changes, update this file's types and assumptions in the same change.
+
+Backend contract: /api/admin/settings for public/private mode, /api/admin/users for CRUD, /api/admin/rooms/{id}/stats for live room stats, and /api/admin/sfu/stats for relay stats. Every request requires an admin bearer token.
+
+State model to plan: loading, unauthorized, forbidden, empty, optimistic mutation, mutation error, stale stats refresh, and confirmed delete/update.
+
+UX and edge cases to plan:
+- Display clear loading and empty states instead of rendering nothing once implementation starts.
+- Normalize backend errors into user-safe messages while preserving technical details for logger.ts.
+- Keep room links shareable; never require global login just to open an existing meeting link.
+- In private app mode, require login only for room creation, not for joining a shared room link.
+- Every meeting participant must provide a non-empty display name before joining.
+
+Security and privacy notes:
+- Never expose refresh tokens to arbitrary components; use the storage/auth layer only.
+- Treat host_token as room-scoped moderation authority and avoid leaking it into URLs or logs.
+- Do not persist raw media streams, SDP blobs, ICE candidates, or file bytes unless a later backend feature explicitly requires it.
+
+Future tests: admin guard behavior, public/private toggle, user CRUD validation, room stats rendering, SFU stats rendering, and token failure handling.
+
+*/
+
+// Admin app mode toggle placeholder.
+//
+// Planned responsibilities:
+// - Read app_mode from GET /api/admin/settings.
+// - Write app_mode with PUT /api/admin/settings.
+// - Communicate public/private mode consequences in the admin UI.
+// - Optimistically update with rollback on failure.

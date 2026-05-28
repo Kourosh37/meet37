@@ -9,6 +9,9 @@ frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
 frontend/tsconfig.tsbuildinfo
+frontend/package-lock.json
+frontend/npm-shrinkwrap.json
+frontend/.npmrc
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local

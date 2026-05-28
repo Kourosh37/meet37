@@ -10,7 +10,7 @@ This document replaces the raw planning prompt with the working frontend archite
 - Zustand for ephemeral client state such as peers, media toggles, panels, and auth session state.
 - Native WebSocket for signaling.
 - Native WebRTC for P2P media, SFU fallback negotiation, and DataChannel file transfer.
-- Jest/React Testing Library for units and Playwright for multi-browser E2E flows.
+- Vitest/React Testing Library for units and Playwright for multi-browser E2E flows.
 
 ## Architecture Rules
 

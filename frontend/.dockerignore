@@ -1,5 +1,6 @@
 # Local dependencies and build outputs should not be sent to Docker build context.
 node_modules
+.pnpm-store
 .next
 out
 coverage

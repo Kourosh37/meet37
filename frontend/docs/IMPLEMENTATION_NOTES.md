@@ -7,12 +7,14 @@
 - `date-fns` is included for formatting backend Unix timestamps.
 - `uuid` is included for frontend-generated file transfer IDs and temporary client-side correlation IDs.
 - `@hookform/resolvers` is included to connect zod schemas to react-hook-form.
+- `pnpm` is the only package manager for this workspace; keep `pnpm-lock.yaml` authoritative and do not regenerate alternate package-manager lockfiles.
+- Vitest replaces Jest to match the architecture document and keep unit tests fast.
 
 ## Audit Notes
 
 After installing dependencies, direct high/critical advisories were resolved by upgrading Next, Axios, Playwright, ESLint, PostCSS, and uuid.
 
-`npm audit` still reports a moderate advisory through Next's bundled `postcss@8.4.31`. The project also has a direct `postcss@8.5.15`, but Next currently pins its internal PostCSS dependency exactly. Do not apply `npm audit fix --force`; npm proposes a major downgrade to old Next versions. Re-check this after the next patched Next release.
+Security review should be run through the pnpm toolchain. Next currently pins an internal PostCSS dependency separately from the project's direct `postcss@8.5.15`; do not use forced automated audit fixes from another package manager because they can rewrite the lockfile and propose incompatible Next changes. Re-check this after the next patched Next release.
 
 ## Performance Notes
 

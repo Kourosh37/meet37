@@ -32,8 +32,27 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-// API endpoint constants placeholder.
-//
-// Planned responsibilities:
-// - Centralize REST path construction for auth, rooms, admin, chat, and files.
-// - Avoid hard-coded endpoint strings in features.
+const encodePathSegment = (value: string) => encodeURIComponent(value);
+
+export const endpoints = {
+  health: "/health",
+  auth: {
+    login: "/api/auth/login",
+    refresh: "/api/auth/refresh",
+    logout: "/api/auth/logout",
+    register: "/api/auth/register"
+  },
+  rooms: {
+    base: "/api/rooms",
+    byId: (roomId: string) => `/api/rooms/${encodePathSegment(roomId)}`,
+    chat: (roomId: string) => `/api/rooms/${encodePathSegment(roomId)}/chat`,
+    files: (roomId: string) => `/api/rooms/${encodePathSegment(roomId)}/files`
+  },
+  admin: {
+    settings: "/api/admin/settings",
+    users: "/api/admin/users",
+    user: (userId: string) => `/api/admin/users/${encodePathSegment(userId)}`,
+    roomStats: (roomId: string) => `/api/admin/rooms/${encodePathSegment(roomId)}/stats`,
+    sfuStats: "/api/admin/sfu/stats"
+  }
+} as const;

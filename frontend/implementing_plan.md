@@ -165,17 +165,17 @@ Acceptance:
 Goal: make the call usable for real meetings.
 
 Tasks:
-- Implement `MeetingRoom.tsx` composition.
-- Implement `ControlBar.tsx`, `ParticipantsPanel.tsx`, `ParticipantItem.tsx`, `AdmissionModal.tsx`, `WaitingRoom.tsx`, and `SettingsDrawer.tsx`.
-- Implement `useModeration.ts` for approve, reject, mute request, and kick.
-- Add copy invite link behavior.
-- Add kicked/rejected/closed overlays.
+- [x] Implement `MeetingRoom.tsx` composition.
+- [x] Implement `ControlBar.tsx`, `ParticipantsPanel.tsx`, `ParticipantItem.tsx`, `AdmissionModal.tsx`, `WaitingRoom.tsx`, and `SettingsDrawer.tsx`.
+- [x] Implement `useModeration.ts` for approve, reject, mute request, and kick.
+- [x] Add copy invite link behavior.
+- [x] Add kicked/rejected/closed overlays.
 
 Acceptance:
-- Host can approve/reject pending guests.
-- Host can request mute and kick participants.
-- Participants see accurate local and remote mute/camera state.
-- Meeting controls are keyboard accessible and responsive.
+- [x] Host can approve/reject pending guests.
+- [x] Host can request mute and kick participants.
+- [x] Participants see accurate local and remote mute/camera state.
+- [x] Meeting controls are keyboard accessible and responsive.
 
 ## Phase 10 - Chat and File Transfer Metadata
 

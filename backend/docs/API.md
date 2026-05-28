@@ -295,6 +295,62 @@ Status codes:
 - `403`: not owner/admin.
 - `404`: not found.
 
+### `GET /api/rooms/{id}/chat`
+
+Return persisted chat history for a room. Authentication is optional, matching room-link access.
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "room_id": "room-id",
+    "peer_id": "peer-id",
+    "user_id": "user-id",
+    "display_name": "Alice",
+    "text": "hello",
+    "ts": 1710000000
+  }
+]
+```
+
+Notes:
+
+- The backend stores WebSocket `chat` messages after a peer has joined a room.
+- Results are ordered oldest first and capped at 500 records.
+- The endpoint returns `404` if the room does not exist or has expired.
+
+### `GET /api/rooms/{id}/files`
+
+Return persisted file-transfer metadata for a room.
+
+Response:
+
+```json
+[
+  {
+    "id": 1,
+    "room_id": "room-id",
+    "file_id": "file-uuid",
+    "sender_peer_id": "peer-a",
+    "target_peer_id": "peer-b",
+    "name": "report.pdf",
+    "size": 1234567,
+    "mime": "application/pdf",
+    "status": "offered",
+    "reason": "",
+    "ts": 1710000000
+  }
+]
+```
+
+Notes:
+
+- `file-offer` creates an `offered` record.
+- `file-answer` creates an `answered` record, or `rejected` when `accepted` is `false`.
+- File bytes are still transferred only between browsers over WebRTC DataChannel.
+
 ## Admin Settings
 
 ### `GET /api/admin/settings`
@@ -430,3 +486,34 @@ Response:
   "has_sfu_session": false
 }
 ```
+
+## Admin SFU Stats
+
+### `GET /api/admin/sfu/stats`
+
+Admin-only.
+
+Response:
+
+```json
+{
+  "session_count": 1,
+  "sessions": {
+    "room-id": {
+      "peer_count": 2,
+      "track_count": 1,
+      "packets_relayed": 1200,
+      "bytes_relayed": 1450000,
+      "recordings": 1
+    }
+  }
+}
+```
+
+Fields:
+
+- `session_count`: number of active in-process SFU sessions.
+- `peer_count`: peers connected to the SFU session.
+- `track_count`: currently forwarded RTP tracks.
+- `packets_relayed` and `bytes_relayed`: cumulative relay counters since session creation.
+- `recordings`: number of active raw RTP recording files.

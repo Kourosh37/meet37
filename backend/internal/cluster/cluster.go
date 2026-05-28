@@ -22,6 +22,14 @@ type Message struct {
 	Signal       models.SignalMessage `json:"signal"`
 }
 
+type PendingRecord struct {
+	ID          string `json:"id"`
+	UserID      string `json:"user_id,omitempty"`
+	DisplayName string `json:"display_name"`
+	InstanceID  string `json:"instance_id"`
+	UpdatedAt   int64  `json:"updated_at"`
+}
+
 type PeerRecord struct {
 	ID          string `json:"id"`
 	UserID      string `json:"user_id,omitempty"`
@@ -40,6 +48,9 @@ type Bus interface {
 	RemovePeer(ctx context.Context, roomID, peerID string) error
 	RemoveRoom(ctx context.Context, roomID string) error
 	ListPeers(ctx context.Context, roomID string) ([]PeerRecord, error)
+	UpsertPending(ctx context.Context, roomID string, pending PendingRecord) error
+	RemovePending(ctx context.Context, roomID, peerID string) error
+	ListPending(ctx context.Context, roomID string) ([]PendingRecord, error)
 }
 
 type NoopBus struct{}
@@ -55,13 +66,16 @@ func New(cfg *config.Config) Bus {
 	return &RedisBus{client: redis.NewClient(opt), instanceID: cfg.InstanceID}
 }
 
-func (NoopBus) Enabled() bool                                           { return false }
-func (NoopBus) Start(context.Context, func(Message))                    {}
-func (NoopBus) Publish(context.Context, Message) error                  { return nil }
-func (NoopBus) UpsertPeer(context.Context, string, PeerRecord) error    { return nil }
-func (NoopBus) RemovePeer(context.Context, string, string) error        { return nil }
-func (NoopBus) RemoveRoom(context.Context, string) error                { return nil }
-func (NoopBus) ListPeers(context.Context, string) ([]PeerRecord, error) { return nil, nil }
+func (NoopBus) Enabled() bool                                                { return false }
+func (NoopBus) Start(context.Context, func(Message))                         {}
+func (NoopBus) Publish(context.Context, Message) error                       { return nil }
+func (NoopBus) UpsertPeer(context.Context, string, PeerRecord) error         { return nil }
+func (NoopBus) RemovePeer(context.Context, string, string) error             { return nil }
+func (NoopBus) RemoveRoom(context.Context, string) error                     { return nil }
+func (NoopBus) ListPeers(context.Context, string) ([]PeerRecord, error)      { return nil, nil }
+func (NoopBus) UpsertPending(context.Context, string, PendingRecord) error   { return nil }
+func (NoopBus) RemovePending(context.Context, string, string) error          { return nil }
+func (NoopBus) ListPending(context.Context, string) ([]PendingRecord, error) { return nil, nil }
 
 type RedisBus struct {
 	client     *redis.Client
@@ -121,7 +135,7 @@ func (b *RedisBus) RemovePeer(ctx context.Context, roomID, peerID string) error 
 }
 
 func (b *RedisBus) RemoveRoom(ctx context.Context, roomID string) error {
-	return b.client.Del(ctx, roomPeersKey(roomID)).Err()
+	return b.client.Del(ctx, roomPeersKey(roomID), roomPendingKey(roomID)).Err()
 }
 
 func (b *RedisBus) ListPeers(ctx context.Context, roomID string) ([]PeerRecord, error) {
@@ -139,6 +153,44 @@ func (b *RedisBus) ListPeers(ctx context.Context, roomID string) ([]PeerRecord, 
 	return peers, nil
 }
 
+func (b *RedisBus) UpsertPending(ctx context.Context, roomID string, pending PendingRecord) error {
+	pending.InstanceID = b.instanceID
+	pending.UpdatedAt = time.Now().Unix()
+	raw, err := json.Marshal(pending)
+	if err != nil {
+		return err
+	}
+	key := roomPendingKey(roomID)
+	pipe := b.client.Pipeline()
+	pipe.HSet(ctx, key, pending.ID, raw)
+	pipe.Expire(ctx, key, 24*time.Hour)
+	_, err = pipe.Exec(ctx)
+	return err
+}
+
+func (b *RedisBus) RemovePending(ctx context.Context, roomID, peerID string) error {
+	return b.client.HDel(ctx, roomPendingKey(roomID), peerID).Err()
+}
+
+func (b *RedisBus) ListPending(ctx context.Context, roomID string) ([]PendingRecord, error) {
+	values, err := b.client.HVals(ctx, roomPendingKey(roomID)).Result()
+	if err != nil {
+		return nil, err
+	}
+	pending := make([]PendingRecord, 0, len(values))
+	for _, value := range values {
+		var record PendingRecord
+		if json.Unmarshal([]byte(value), &record) == nil {
+			pending = append(pending, record)
+		}
+	}
+	return pending, nil
+}
+
 func roomPeersKey(roomID string) string {
 	return "meet:room:" + roomID + ":peers"
+}
+
+func roomPendingKey(roomID string) string {
+	return "meet:room:" + roomID + ":pending"
 }

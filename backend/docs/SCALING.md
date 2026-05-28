@@ -25,14 +25,17 @@ INSTANCE_ID=backend-1
 When enabled:
 
 - Each instance registers approved peers in Redis.
+- Each instance registers pending approval peers in Redis.
 - Peer lists can include peers connected to other instances.
 - P2P signaling relay can publish through Redis pub/sub.
 - Broadcast room events can fan out to other instances.
+- Host approval, rejection, mute, and kick commands can be delivered to peers on another instance.
 
 Redis keys:
 
 ```text
 meet:room:{room_id}:peers
+meet:room:{room_id}:pending
 meet:signals
 ```
 
@@ -41,23 +44,23 @@ meet:signals
 Shared:
 
 - Peer presence records.
+- Pending approval records.
 - Peer display name/mode/host metadata.
 - Relay messages to remote peers.
 - Broadcast messages to remote instances.
+- Approval/rejection/moderation commands for peers connected to another instance.
 - Room-closed notifications and Redis room presence cleanup.
 
 Still local:
 
 - Open WebSocket TCP connections.
-- Pending approval maps.
 - Pion SFU peer connections and RTP media forwarding.
 
 ## Current Multi-Instance Caveats
 
-Redis support makes normal approved-peer signaling work across instances, but complete production scaling needs more:
+Redis support makes approved-peer signaling and waiting-room commands work across instances, but complete production scaling still needs room/media placement discipline:
 
-- Sticky routing by room is still recommended.
-- Approval-mode pending peers should ideally be routed to the same instance as a host, or a distributed pending-command flow should be added.
+- Sticky routing by room is recommended for lower latency and simpler SFU placement.
 - SFU media sessions are process-local. An SFU room should stay on one instance unless a dedicated SFU media layer is introduced.
 - SQLite must be replaced or carefully deployed if multiple containers need durable writes from different hosts.
 

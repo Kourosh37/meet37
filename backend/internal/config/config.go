@@ -24,6 +24,8 @@ type Config struct {
 	RateLimitRPS             int
 	RateLimitBurst           int
 	MaxBodyBytes             int64
+	SFURecordingEnabled      bool
+	SFURecordingPath         string
 	RedisURL                 string
 	InstanceID               string
 }
@@ -47,6 +49,8 @@ func Load() *Config {
 		RateLimitRPS:             getEnvInt("RATE_LIMIT_RPS", 20),
 		RateLimitBurst:           getEnvInt("RATE_LIMIT_BURST", 60),
 		MaxBodyBytes:             int64(getEnvInt("MAX_BODY_BYTES", 1<<20)),
+		SFURecordingEnabled:      getEnvBool("SFU_RECORDING_ENABLED", false),
+		SFURecordingPath:         getEnv("SFU_RECORDING_PATH", "/data/recordings"),
 		RedisURL:                 getEnv("REDIS_URL", ""),
 		InstanceID:               getEnv("INSTANCE_ID", getHostname()),
 	}
@@ -65,6 +69,14 @@ func getEnvInt(key string, fallback int) int {
 		return fallback
 	}
 	return v
+}
+
+func getEnvBool(key string, fallback bool) bool {
+	v := strings.ToLower(strings.TrimSpace(getEnv(key, "")))
+	if v == "" {
+		return fallback
+	}
+	return v == "1" || v == "true" || v == "yes" || v == "on"
 }
 
 func splitCSV(v string) []string {

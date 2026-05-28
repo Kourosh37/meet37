@@ -29,7 +29,8 @@ The backend handles coordination:
 - Peer presence.
 - SDP/ICE signaling relay.
 - Chat message relay if using backend WebSocket chat.
-- File-transfer metadata relay.
+- Chat history persistence for recent room reloads.
+- File-transfer metadata relay and history persistence.
 - Quality stats ingestion.
 - Fallback decision messaging.
 
@@ -40,7 +41,7 @@ The backend does not:
 - Store media frames.
 - Mix audio.
 - Transcode video.
-- Forward RTP packets in the current implementation.
+- Forward RTP packets while the room remains in pure P2P mode. RTP forwarding starts only after SFU fallback negotiation.
 
 ## Frontend Responsibilities In P2P Mode
 
@@ -193,16 +194,18 @@ Implemented SFU behavior:
 - `sfu-ice-candidate` exchange.
 - RTP forwarding from publisher tracks to subscriber tracks.
 - `sfu-renegotiate-needed` when a new forwarded track is available.
+- Packet and byte counters exposed through `GET /api/admin/sfu/stats`.
+- Optional raw RTP recording when `SFU_RECORDING_ENABLED=true`.
 - Per-room SFU sessions cleaned up when rooms close.
 - Peer SFU state cleaned up when peers leave.
 
-Current production limitations:
+Production media boundaries:
 
 - No simulcast/SVC layer selection yet.
-- No recording.
 - No media moderation at RTP level.
 - No distributed SFU media plane. Each SFU room currently lives inside one backend process.
 - Clients must handle renegotiation when `sfu-renegotiate-needed` arrives.
+- Recording files are raw RTP packet dumps for diagnostics/post-processing, not MP4/WebM assets.
 
 The frontend must send offers with enough recv-capable transceivers for expected remote SFU tracks, or renegotiate when the backend asks.
 
@@ -262,14 +265,6 @@ Server pressure:
 
 ## Recommended Frontend Behavior On `sfu-switch`
 
-Until real SFU media relay is added, frontend should:
-
-1. Mark the peer/room as degraded or server-assisted.
-2. Add the provided TURN servers to the next ICE configuration.
-3. Renegotiate affected peer connections if the current product wants TURN-assisted retry.
-4. Avoid repeatedly triggering UI changes for the same peer.
-5. Continue sending stats.
-
 Frontend should:
 
 1. Close or pause direct P2P sender paths for the affected peer when product policy requires it.
@@ -282,20 +277,17 @@ Frontend should:
 8. Renegotiate when `sfu-renegotiate-needed` arrives.
 9. Keep WebSocket signaling for room control and moderation.
 
-## Suggested Future Backend Work
+## Suggested Future Media Hardening
 
 Future SFU hardening:
 
 - Integration with an existing SFU such as LiveKit, Janus, mediasoup, or ion-sfu.
 - Dedicated TURN server process with operational monitoring.
 
-Needed backend additions:
-
-- Subscriber management.
 - Simulcast/SVC layer selection.
 - Bandwidth estimation.
 - Reconnection behavior.
-- Metrics for SFU bandwidth and packet loss.
+- Dedicated distributed SFU media plane for very large deployments.
 
 ## Summary
 
@@ -306,5 +298,4 @@ The backend is already designed around a P2P-first contract:
 - Watch client quality stats.
 - Send `sfu-switch` when quality crosses thresholds.
 - Provide fallback session and TURN credential metadata.
-
-The remaining major media milestone is implementing or integrating a real SFU relay that consumes this fallback contract.
+- Forward RTP in fallback mode while leaving the normal room path direct between browsers.

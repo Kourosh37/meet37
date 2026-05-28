@@ -104,7 +104,11 @@ Two options:
 - Use backend WebSocket `chat` messages for server-broadcast chat.
 - Use WebRTC data channels for P2P chat.
 
-Current backend supports WebSocket chat broadcast. This is simpler and persists no chat history.
+Current backend supports WebSocket chat broadcast and persists recent room history. Load history with:
+
+```http
+GET /api/rooms/{room_id}/chat
+```
 
 ## File Sharing
 
@@ -118,6 +122,12 @@ Recommended flow:
 6. Progress is tracked entirely in frontend.
 
 Backend does not store file bytes.
+
+To show recent transfer metadata after reconnect, call:
+
+```http
+GET /api/rooms/{room_id}/files
+```
 
 ## Approval UI
 

@@ -148,3 +148,7 @@ func (h *AdminHandler) GetRoomStats(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, h.hub.GetRoomStats(parts[3]))
 }
+
+func (h *AdminHandler) GetSFUStats(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, h.hub.GetSFUStats())
+}

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -71,6 +72,14 @@ func main() {
 	mux.Handle("/api/rooms/", optionalAuthMw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
+			if strings.HasSuffix(r.URL.Path, "/chat") {
+				roomH.GetChatHistory(w, r)
+				return
+			}
+			if strings.HasSuffix(r.URL.Path, "/files") {
+				roomH.GetFileHistory(w, r)
+				return
+			}
 			roomH.GetRoom(w, r)
 		case http.MethodDelete:
 			roomH.DeleteRoom(w, r)
@@ -109,6 +118,7 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))))
+	mux.Handle("/api/admin/sfu/stats", authMw(adminMw(http.HandlerFunc(adminH.GetSFUStats))))
 	mux.Handle("/api/admin/rooms/", authMw(adminMw(http.HandlerFunc(adminH.GetRoomStats))))
 
 	limiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)

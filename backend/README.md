@@ -1,6 +1,6 @@
 # Meet Backend
 
-Production-oriented Go backend for a browser-based meeting product. The backend provides authentication, admin-controlled public/private access, room lifecycle APIs, public shared-room joining, WebSocket signaling, room admission control, host moderation, file-transfer signaling, and quality-stat based fallback metadata for server-assisted transport.
+Production-oriented Go backend for a browser-based meeting product. The backend provides authentication, admin-controlled public/private access, room lifecycle APIs, public shared-room joining, WebSocket signaling, room admission control, host moderation, chat/file-transfer history, and quality-stat based fallback to a Pion RTP relay.
 
 Media itself is browser-side WebRTC. Camera, microphone, screen share, and file payloads are not proxied through the REST API. This service is responsible for coordination, authorization, signaling, persistence, and operational controls.
 
@@ -67,21 +67,22 @@ Implemented:
 - Per-room `host_token` for creator moderation controls.
 - WebSocket signaling relay for WebRTC offer/answer/ICE.
 - Pion-based SFU media relay with RTP forwarding for fallback mode.
-- Chat signaling.
-- File-transfer signaling metadata relay.
+- Optional raw RTP recording for diagnostics/post-processing.
+- Chat signaling with persisted room history.
+- Browser-to-browser file-transfer signaling with persisted transfer metadata.
 - Rotating refresh-token sessions and logout revocation.
 - Per-IP rate limiting and request body limits.
-- Optional Redis shared signaling for multi-instance deployments.
+- Optional Redis shared signaling, presence, and distributed approval/moderation commands for multi-instance deployments.
 - Host approval/rejection, mute request, and kick.
 - Quality stats ingestion and `sfu-switch` fallback instruction.
 - SQLite persistence with WAL and runtime data under `/data`.
 - Dockerfile and Docker Compose setup.
 
-Not implemented yet:
+Boundaries to keep in mind:
 
-- Production-grade SFU layer selection, recording, simulcast policy, and observability.
-- Fully distributed waiting-room host approval commands across non-sticky instances.
-- Persistent chat/file history.
+- Media stays P2P-first and uses the SFU only when clients request or are instructed to fallback.
+- File bytes are never uploaded to the backend; only transfer metadata is persisted.
+- SFU RTP forwarding is process-local. Use room affinity or dedicated SFU nodes when running many backend instances.
 
 ## Verification
 
@@ -103,6 +104,8 @@ An end-to-end smoke test was also run against a real local server, covering:
 - WebSocket host join.
 - Approval-mode guest join request and approval.
 - SFU fallback message after poor stats.
+- SFU stats endpoint.
+- Chat and file-transfer history endpoints.
 - Host mute and kick commands.
 - Refresh-token rotation and logout.
 - Pion SFU offer/answer handling.

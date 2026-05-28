@@ -47,6 +47,7 @@ Host abilities:
 - Approve or reject pending participants.
 - Ask participants to mute audio/video.
 - Kick participants from the room.
+- Trigger moderation actions across instances when Redis signaling is enabled.
 
 ## App Mode
 
@@ -159,5 +160,21 @@ Current fallback behavior:
 - Frontend can negotiate a Pion SFU PeerConnection with `sfu-offer`.
 - Backend returns `sfu-answer`, exchanges `sfu-ice-candidate`, receives RTP tracks, and forwards those tracks to other SFU peers.
 - Existing SFU peers may receive `sfu-renegotiate-needed` when a new forwarded track is available.
+- Admin can inspect in-process SFU counters at `GET /api/admin/sfu/stats`.
+- When enabled, the SFU writes raw RTP packet dumps to `SFU_RECORDING_PATH` for diagnostics/post-processing.
 
-The SFU relay is intentionally minimal: it forwards RTP tracks but does not yet implement recording, simulcast/SVC layer policy, server-side muting, or a distributed media plane.
+The SFU relay forwards RTP tracks and counts packets/bytes. It does not transcode media and does not make moderation decisions by itself; host moderation still flows through signaling and the frontend disables local tracks when requested.
+
+## Chat And File History
+
+Chat messages are real-time WebSocket messages and are also appended to SQLite. The frontend can reload recent room chat through:
+
+```text
+GET /api/rooms/{room_id}/chat
+```
+
+File bytes remain browser-to-browser. The backend persists only transfer metadata from `file-offer` and `file-answer`, available through:
+
+```text
+GET /api/rooms/{room_id}/files
+```

@@ -84,11 +84,37 @@ CREATE TABLE IF NOT EXISTS refresh_sessions (
 	revoked_at INTEGER
 );
 
+CREATE TABLE IF NOT EXISTS chat_messages (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	room_id TEXT NOT NULL,
+	peer_id TEXT NOT NULL,
+	user_id TEXT,
+	display_name TEXT NOT NULL,
+	text TEXT NOT NULL,
+	ts INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS file_transfers (
+	id INTEGER PRIMARY KEY AUTOINCREMENT,
+	room_id TEXT NOT NULL,
+	file_id TEXT NOT NULL,
+	sender_peer_id TEXT NOT NULL,
+	target_peer_id TEXT,
+	name TEXT,
+	size INTEGER,
+	mime TEXT,
+	status TEXT NOT NULL,
+	reason TEXT,
+	ts INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_room_events_room ON room_events(room_id, ts);
 CREATE INDEX IF NOT EXISTS idx_rooms_host ON rooms(host_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_expires ON rooms(expires_at);
 CREATE INDEX IF NOT EXISTS idx_refresh_sessions_token ON refresh_sessions(token_hash);
 CREATE INDEX IF NOT EXISTS idx_refresh_sessions_user ON refresh_sessions(user_id, revoked_at, expires_at);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(room_id, ts);
+CREATE INDEX IF NOT EXISTS idx_file_transfers_room ON file_transfers(room_id, ts);
 `
 	if _, err := db.Exec(schema); err != nil {
 		return err

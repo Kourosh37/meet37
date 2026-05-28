@@ -123,6 +123,95 @@ func (h *RoomHandler) GetRoom(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]interface{}{"room": room, "live": h.hub.GetRoomStats(roomID)})
 }
 
+func (h *RoomHandler) GetChatHistory(w http.ResponseWriter, r *http.Request) {
+	roomID := roomIDFromNestedPath(r.URL.Path, "chat")
+	if roomID == "" {
+		writeError(w, http.StatusBadRequest, "bad path")
+		return
+	}
+	if _, err := h.loadRoom(roomID); err == sql.ErrNoRows {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	rows, err := h.db.Query(
+		`SELECT id, room_id, peer_id, user_id, display_name, text, ts
+		 FROM chat_messages WHERE room_id = ? ORDER BY ts ASC, id ASC LIMIT 500`,
+		roomID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	defer rows.Close()
+
+	messages := make([]models.ChatMessage, 0)
+	for rows.Next() {
+		var message models.ChatMessage
+		var userID sql.NullString
+		if rows.Scan(&message.ID, &message.RoomID, &message.PeerID, &userID, &message.DisplayName, &message.Text, &message.Timestamp) == nil {
+			if userID.Valid {
+				message.UserID = userID.String
+			}
+			messages = append(messages, message)
+		}
+	}
+	writeJSON(w, http.StatusOK, messages)
+}
+
+func (h *RoomHandler) GetFileHistory(w http.ResponseWriter, r *http.Request) {
+	roomID := roomIDFromNestedPath(r.URL.Path, "files")
+	if roomID == "" {
+		writeError(w, http.StatusBadRequest, "bad path")
+		return
+	}
+	if _, err := h.loadRoom(roomID); err == sql.ErrNoRows {
+		writeError(w, http.StatusNotFound, "not found")
+		return
+	} else if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	rows, err := h.db.Query(
+		`SELECT id, room_id, file_id, sender_peer_id, target_peer_id, name, size, mime, status, reason, ts
+		 FROM file_transfers WHERE room_id = ? ORDER BY ts ASC, id ASC LIMIT 500`,
+		roomID,
+	)
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	defer rows.Close()
+
+	transfers := make([]models.FileTransfer, 0)
+	for rows.Next() {
+		var transfer models.FileTransfer
+		var targetPeerID, name, mime, reason sql.NullString
+		var size sql.NullInt64
+		if rows.Scan(&transfer.ID, &transfer.RoomID, &transfer.FileID, &transfer.SenderPeerID, &targetPeerID, &name, &size, &mime, &transfer.Status, &reason, &transfer.Timestamp) == nil {
+			if targetPeerID.Valid {
+				transfer.TargetPeerID = targetPeerID.String
+			}
+			if name.Valid {
+				transfer.Name = name.String
+			}
+			if size.Valid {
+				transfer.Size = size.Int64
+			}
+			if mime.Valid {
+				transfer.MIME = mime.String
+			}
+			if reason.Valid {
+				transfer.Reason = reason.String
+			}
+			transfers = append(transfers, transfer)
+		}
+	}
+	writeJSON(w, http.StatusOK, transfers)
+}
+
 func (h *RoomHandler) ListRooms(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.Query(`SELECT id, name, host_id, is_locked, password, join_policy, max_peers, created_at, expires_at FROM rooms WHERE expires_at IS NULL OR expires_at > ? ORDER BY created_at DESC`, time.Now().Unix())
 	if err != nil {
@@ -230,4 +319,12 @@ func nullInt64(v *int64) interface{} {
 		return nil
 	}
 	return *v
+}
+
+func roomIDFromNestedPath(path, suffix string) string {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) != 4 || parts[0] != "api" || parts[1] != "rooms" || parts[3] != suffix {
+		return ""
+	}
+	return parts[2]
 }

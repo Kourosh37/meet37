@@ -6,7 +6,10 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"meet-backend/internal/config"
@@ -24,6 +27,10 @@ type Session struct {
 	mu     sync.RWMutex
 	peers  map[string]*Peer
 	tracks map[string]*forwardedTrack
+	stats  SessionStats
+
+	recordingEnabled bool
+	recordingPath    string
 }
 
 type Peer struct {
@@ -45,6 +52,20 @@ type forwardedTrack struct {
 	mimeType  string
 	local     *webrtc.TrackLocalStaticRTP
 	createdAt int64
+	recording *os.File
+}
+
+type SessionStats struct {
+	PeerCount      int    `json:"peer_count"`
+	TrackCount     int    `json:"track_count"`
+	PacketsRelayed uint64 `json:"packets_relayed"`
+	BytesRelayed   uint64 `json:"bytes_relayed"`
+	Recordings     int    `json:"recordings"`
+}
+
+type Stats struct {
+	SessionCount int                     `json:"session_count"`
+	Sessions     map[string]SessionStats `json:"sessions"`
 }
 
 type Manager struct {
@@ -69,11 +90,13 @@ func (m *Manager) CreateSession(roomID string) *Session {
 		return s
 	}
 	s := &Session{
-		ID:        uuid.NewString(),
-		RoomID:    roomID,
-		CreatedAt: time.Now().Unix(),
-		peers:     make(map[string]*Peer),
-		tracks:    make(map[string]*forwardedTrack),
+		ID:               uuid.NewString(),
+		RoomID:           roomID,
+		CreatedAt:        time.Now().Unix(),
+		peers:            make(map[string]*Peer),
+		tracks:           make(map[string]*forwardedTrack),
+		recordingEnabled: m.cfg.SFURecordingEnabled,
+		recordingPath:    m.cfg.SFURecordingPath,
 	}
 	m.sessions[roomID] = s
 	return s
@@ -162,6 +185,16 @@ func (m *Manager) GetTURNCredentials(peerID string) []map[string]interface{} {
 	}
 }
 
+func (m *Manager) Stats() Stats {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	out := Stats{SessionCount: len(m.sessions), Sessions: make(map[string]SessionStats, len(m.sessions))}
+	for roomID, session := range m.sessions {
+		out.Sessions[roomID] = session.Stats()
+	}
+	return out
+}
+
 func (s *Session) ensurePeer(m *Manager, peerID string, onCandidate func(webrtc.ICECandidateInit), onSignal func(string, map[string]interface{})) (*Peer, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -209,6 +242,7 @@ func (s *Session) handleRemoteTrack(ownerID string, remote *webrtc.TrackRemote, 
 		local:     local,
 		createdAt: time.Now().Unix(),
 	}
+	ft.recording = s.openRecording(ownerID, remote)
 
 	s.mu.Lock()
 	s.tracks[ft.id] = ft
@@ -233,6 +267,13 @@ func (s *Session) handleRemoteTrack(ownerID string, remote *webrtc.TrackRemote, 
 			*cloned = *pkt
 			if err := local.WriteRTP(cloned); err != nil {
 				return
+			}
+			atomic.AddUint64(&s.stats.PacketsRelayed, 1)
+			atomic.AddUint64(&s.stats.BytesRelayed, uint64(pkt.MarshalSize()))
+			if ft.recording != nil {
+				if raw, err := pkt.Marshal(); err == nil {
+					_, _ = ft.recording.Write(raw)
+				}
 			}
 		}
 	}()
@@ -277,6 +318,9 @@ func (s *Session) removePeer(peerID string) {
 	delete(s.peers, peerID)
 	for id, track := range s.tracks {
 		if track.ownerID == peerID {
+			if track.recording != nil {
+				_ = track.recording.Close()
+			}
 			delete(s.tracks, id)
 		}
 	}
@@ -293,11 +337,54 @@ func (s *Session) close() {
 		peers = append(peers, peer)
 	}
 	s.peers = map[string]*Peer{}
+	for _, track := range s.tracks {
+		if track.recording != nil {
+			_ = track.recording.Close()
+		}
+	}
 	s.tracks = map[string]*forwardedTrack{}
 	s.mu.Unlock()
 	for _, peer := range peers {
 		_ = peer.pc.Close()
 	}
+}
+
+func (s *Session) Stats() SessionStats {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	recordings := 0
+	for _, track := range s.tracks {
+		if track.recording != nil {
+			recordings++
+		}
+	}
+	return SessionStats{
+		PeerCount:      len(s.peers),
+		TrackCount:     len(s.tracks),
+		PacketsRelayed: atomic.LoadUint64(&s.stats.PacketsRelayed),
+		BytesRelayed:   atomic.LoadUint64(&s.stats.BytesRelayed),
+		Recordings:     recordings,
+	}
+}
+
+func (s *Session) openRecording(ownerID string, remote *webrtc.TrackRemote) *os.File {
+	// RTP recording is deliberately raw and append-only. It is useful for
+	// diagnostics and later processing, but it is not a playable media file.
+	if remote == nil || remote.Kind() == webrtc.RTPCodecTypeUnknown {
+		return nil
+	}
+	if !s.recordingEnabled || s.recordingPath == "" {
+		return nil
+	}
+	if err := os.MkdirAll(s.recordingPath, 0o750); err != nil {
+		return nil
+	}
+	name := fmt.Sprintf("%s_%s_%s_%d.rtp", s.RoomID, ownerID, remote.ID(), time.Now().UnixNano())
+	f, err := os.Create(filepath.Join(s.recordingPath, name))
+	if err != nil {
+		return nil
+	}
+	return f
 }
 
 func readRTCP(receiver *webrtc.RTPReceiver) {

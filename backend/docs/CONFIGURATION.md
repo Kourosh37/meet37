@@ -23,6 +23,8 @@ Configuration is read from environment variables.
 | `RATE_LIMIT_RPS` | `20` | Per-IP refill rate for HTTP/WebSocket requests. |
 | `RATE_LIMIT_BURST` | `60` | Per-IP burst capacity. |
 | `MAX_BODY_BYTES` | `1048576` | Maximum HTTP request body size. |
+| `SFU_RECORDING_ENABLED` | `false` | Enable raw RTP recording for SFU-forwarded tracks. |
+| `SFU_RECORDING_PATH` | `/data/recordings` | Directory for raw `.rtp` recording files when recording is enabled. |
 | `REDIS_URL` | empty | Optional Redis URL for shared signaling state. |
 | `INSTANCE_ID` | hostname | Instance identity used in Redis signaling messages. |
 
@@ -51,6 +53,8 @@ REFRESH_TOKEN_TTL_DAYS=30
 RATE_LIMIT_RPS=20
 RATE_LIMIT_BURST=60
 MAX_BODY_BYTES=1048576
+SFU_RECORDING_ENABLED=false
+SFU_RECORDING_PATH=/data/recordings
 REDIS_URL=
 INSTANCE_ID=
 ```
@@ -60,6 +64,8 @@ INSTANCE_ID=
 - `.env` is ignored by git.
 - `DEFAULT_APP_MODE` only affects first database initialization. After the settings row exists, admin changes are stored in SQLite.
 - `DB_PATH` should stay under `/data` in Docker.
+- `SFU_RECORDING_PATH` should stay under `/data` in Docker if recordings must persist.
+- SFU recording files are raw RTP packet dumps, not browser-playable MP4/WebM files.
 - For production, replace `JWT_SECRET`, `ADMIN_PASSWORD`, and `TURN_SECRET`.
 - For production CORS, avoid `*`; set explicit frontend origins.
 - Set `REDIS_URL` when running multiple backend instances.

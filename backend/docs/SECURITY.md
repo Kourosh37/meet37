@@ -26,6 +26,7 @@ Required production changes:
 - Room `host_token` is JWT-signed and includes a room-scoped secret. The backend validates that secret against a bcrypt hash in SQLite.
 - Per-IP rate limiting is enabled globally.
 - HTTP request bodies are capped with `MAX_BODY_BYTES`.
+- Redis signaling ignores events from the same `INSTANCE_ID` to avoid command echo loops.
 
 ## Host Token Handling
 
@@ -54,8 +55,8 @@ ALLOWED_ORIGINS=https://app.example.com
 ## Current Gaps To Address Before Large Public Launch
 
 - Stronger audit logging.
-- Refresh-token/session revocation strategy.
 - CSRF strategy if browser cookies are introduced.
-- Abuse controls for public room creation.
+- More granular abuse controls for public room creation, such as per-account quotas and CAPTCHA.
 - Production TURN server process hardening and monitoring.
-- Distributed approval/kick command routing for every edge case in multi-instance mode.
+- Dedicated distributed SFU media plane if large rooms must span many backend instances.
+- Virus scanning or object-storage policy if a future server-side file upload fallback is added.

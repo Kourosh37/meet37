@@ -10,7 +10,15 @@ go test ./...
 go vet ./...
 ```
 
-The current codebase has no package-level test files yet, so `go test` validates compilation across all packages.
+The repository includes package-level tests for:
+
+- SQLite migration and default settings.
+- Auth login and refresh-token rotation/replay rejection.
+- Room chat/file history handlers.
+- Real WebSocket room join, chat relay, and chat persistence.
+- Admin SFU stats handler.
+- Rate limiting and body-size middleware.
+- SFU offer/answer and existing-track renegotiation behavior.
 
 ## Manual Runtime Checks
 
@@ -59,17 +67,17 @@ The latest runtime verification covered:
 - Guest receiving `kicked`.
 - Host receiving `peer-left`.
 - Admin room stats.
+- Admin SFU stats.
+- Chat history endpoint.
+- File-transfer metadata history endpoint.
 - Refresh-token rotation.
 - Logout refresh-token revocation.
 - SFU offer/answer generation through Pion.
 
-## Recommended Automated Tests To Add
+## Additional Automated Tests To Add As The Frontend Lands
 
 Backend unit/integration tests:
 
-- Config default loading.
-- SQLite migration idempotency.
-- Admin login success/failure.
 - User CRUD.
 - Public/private room creation policy.
 - Room password validation.
@@ -77,6 +85,7 @@ Backend unit/integration tests:
 - WebSocket approval flow.
 - WebSocket moderation flow.
 - SFU fallback threshold behavior.
+- Redis-backed cross-instance signaling using a disposable Redis container.
 
 Frontend E2E tests:
 

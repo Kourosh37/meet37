@@ -52,3 +52,27 @@ type StatsReport struct {
 	PacketLossPct float64 `json:"packet_loss_pct"`
 	RTTMs         float64 `json:"rtt_ms"`
 }
+
+type ChatMessage struct {
+	ID          int64  `json:"id"`
+	RoomID      string `json:"room_id"`
+	PeerID      string `json:"peer_id"`
+	UserID      string `json:"user_id,omitempty"`
+	DisplayName string `json:"display_name"`
+	Text        string `json:"text"`
+	Timestamp   int64  `json:"ts"`
+}
+
+type FileTransfer struct {
+	ID           int64  `json:"id"`
+	RoomID       string `json:"room_id"`
+	FileID       string `json:"file_id"`
+	SenderPeerID string `json:"sender_peer_id"`
+	TargetPeerID string `json:"target_peer_id,omitempty"`
+	Name         string `json:"name,omitempty"`
+	Size         int64  `json:"size,omitempty"`
+	MIME         string `json:"mime,omitempty"`
+	Status       string `json:"status"`
+	Reason       string `json:"reason,omitempty"`
+	Timestamp    int64  `json:"ts"`
+}

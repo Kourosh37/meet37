@@ -11,16 +11,15 @@ Implemented backend behavior:
   - `file-answer`
   - `file-candidate`
 - Preserves sender and target peer IDs.
+- Persists transfer metadata so the frontend can show recent offers/answers after reconnect.
 - Keeps file payload bytes out of the server.
 
-Not implemented:
+Intentionally outside backend scope:
 
 - File storage.
 - Upload endpoint.
 - Download endpoint.
 - Virus scanning.
-- Transfer history.
-- Resume metadata.
 - Server-side file size enforcement.
 
 ## Why Browser-To-Browser
@@ -86,7 +85,7 @@ Recommended payload fields:
 - `mime`: browser-provided MIME type.
 - `channel`: data channel label or transfer channel identifier.
 
-The backend does not validate this payload beyond relaying it.
+The backend persists `file_id`, name, size, MIME type, sender peer, target peer, status, and timestamp. It does not inspect or validate the file bytes.
 
 ### `file-answer`
 
@@ -261,6 +260,35 @@ Recommended control frames over data channel:
 }
 ```
 
+## Transfer History Endpoint
+
+The frontend can request recent transfer metadata:
+
+```http
+GET /api/rooms/{room_id}/files
+```
+
+Example response:
+
+```json
+[
+  {
+    "id": 1,
+    "room_id": "room-id",
+    "file_id": "uuid",
+    "sender_peer_id": "peer-a",
+    "target_peer_id": "peer-b",
+    "name": "report.pdf",
+    "size": 1234567,
+    "mime": "application/pdf",
+    "status": "offered",
+    "ts": 1710000000
+  }
+]
+```
+
+History is metadata only. A refreshed client can show what was offered or accepted, but it cannot download the file from the backend.
+
 ```json
 {
   "type": "file-error",
@@ -296,19 +324,19 @@ File sharing follows the same philosophy as media:
 - Use browser-to-browser WebRTC for heavy bytes.
 - Keep server bandwidth low by default.
 
-If direct P2P data channels fail, future options include:
+If direct P2P data channels fail, deployment options include:
 
 - TURN-assisted data channel relay.
 - Server-upload fallback endpoint.
 - Object storage fallback.
 
-Those fallbacks are not implemented today.
+The current backend keeps the default path browser-to-browser and does not expose upload/download endpoints.
 
 ## Summary
 
 Current file sharing is a signaling contract:
 
 - Backend relays `file-offer`, `file-answer`, and `file-candidate`.
+- Backend persists transfer metadata for history/audit.
 - Frontend owns DataChannel creation, chunking, progress, cancellation, and file reconstruction.
 - The server never stores or streams file bytes.
-

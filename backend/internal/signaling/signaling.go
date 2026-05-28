@@ -167,10 +167,17 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.handleJoin(p, msg)
 	case "leave":
 		h.removePeer(p)
-	case "offer", "answer", "ice-candidate", "file-offer", "file-answer", "file-candidate":
+	case "offer", "answer", "ice-candidate", "file-candidate":
 		h.relay(p, msg)
 	case "chat":
+		h.persistChat(p, msg)
 		h.broadcast(p.roomID, msg, p.id)
+	case "file-offer":
+		h.persistFileTransfer(p, msg, "offered")
+		h.relay(p, msg)
+	case "file-answer":
+		h.persistFileTransfer(p, msg, "answered")
+		h.relay(p, msg)
 	case "stats":
 		h.handleStats(p, msg)
 	case "sfu-offer":
@@ -294,8 +301,10 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 		room.pending[p.id] = p
 		room.mu.Unlock()
 		p.roomID = req.RoomID
+		h.upsertClusterPending(p)
 		p.sendMsg(models.SignalMessage{Type: "waiting-approval", Payload: map[string]interface{}{"your_id": p.id}})
 		h.notifyHosts(req.RoomID, models.SignalMessage{Type: "join-request", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName}})
+		h.publishCluster(cluster.Message{Kind: "join-request", RoomID: req.RoomID, TargetPeerID: p.id, Signal: models.SignalMessage{Type: "join-request", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName}}})
 		return
 	}
 	room.peers[p.id] = p
@@ -330,12 +339,15 @@ func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
 	peer := room.pending[req.PeerID]
 	if peer == nil {
 		room.mu.Unlock()
-		host.sendMsg(errMsg("peer not pending"))
+		if !h.publishCluster(cluster.Message{Kind: "approve-pending", RoomID: host.roomID, TargetPeerID: req.PeerID, Signal: msg}) {
+			host.sendMsg(errMsg("peer not pending"))
+		}
 		return
 	}
 	delete(room.pending, req.PeerID)
 	room.peers[peer.id] = peer
 	room.mu.Unlock()
+	h.removeClusterPending(host.roomID, peer.id)
 	h.upsertClusterPeer(peer)
 
 	go h.logEvent(host.roomID, peer.userID, "join")
@@ -369,8 +381,14 @@ func (h *Hub) handleKickPeer(host *Peer, msg models.SignalMessage) {
 	room.mu.RLock()
 	target := room.peers[req.PeerID]
 	room.mu.RUnlock()
-	if target == nil || target.isHost {
+	if target != nil && target.isHost {
 		host.sendMsg(errMsg("peer not found"))
+		return
+	}
+	if target == nil {
+		if !h.publishCluster(cluster.Message{Kind: "kick-peer", RoomID: host.roomID, TargetPeerID: req.PeerID, Signal: models.SignalMessage{Type: "kicked", Payload: map[string]string{"reason": req.Reason}}}) {
+			host.sendMsg(errMsg("peer not found"))
+		}
 		return
 	}
 	target.sendMsg(models.SignalMessage{Type: "kicked", Payload: map[string]string{"reason": req.Reason}})
@@ -402,8 +420,14 @@ func (h *Hub) handleMutePeer(host *Peer, msg models.SignalMessage) {
 	room.mu.RLock()
 	target := room.peers[req.PeerID]
 	room.mu.RUnlock()
-	if target == nil || target.isHost {
+	if target != nil && target.isHost {
 		host.sendMsg(errMsg("peer not found"))
+		return
+	}
+	if target == nil {
+		if !h.publishCluster(cluster.Message{Kind: "mute-peer", RoomID: host.roomID, TargetPeerID: req.PeerID, Signal: models.SignalMessage{Type: "mute-request", From: host.id, Payload: map[string]string{"kind": req.Kind}}}) {
+			host.sendMsg(errMsg("peer not found"))
+		}
 		return
 	}
 	target.sendMsg(models.SignalMessage{Type: "mute-request", From: host.id, Payload: map[string]string{"kind": req.Kind}})
@@ -434,10 +458,15 @@ func (h *Hub) closePendingByHost(host *Peer, msg models.SignalMessage, eventType
 	room.mu.Unlock()
 	if peer != nil {
 		peer.sendMsg(models.SignalMessage{Type: eventType, Payload: map[string]string{"reason": req.Reason}})
+		h.removeClusterPending(host.roomID, peer.id)
 		go func() {
 			time.Sleep(250 * time.Millisecond)
 			_ = peer.conn.Close()
 		}()
+		return
+	}
+	if !h.publishCluster(cluster.Message{Kind: eventType, RoomID: host.roomID, TargetPeerID: req.PeerID, Signal: models.SignalMessage{Type: eventType, Payload: map[string]string{"reason": req.Reason}}}) {
+		host.sendMsg(errMsg("peer not pending"))
 	}
 }
 
@@ -497,13 +526,13 @@ func (h *Hub) relay(from *Peer, msg models.SignalMessage) {
 	h.publishCluster(cluster.Message{Kind: "relay", RoomID: from.roomID, TargetPeerID: msg.To, Signal: msg})
 }
 
-func (h *Hub) publishCluster(msg cluster.Message) {
+func (h *Hub) publishCluster(msg cluster.Message) bool {
 	if h.bus == nil || !h.bus.Enabled() {
-		return
+		return false
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
-	_ = h.bus.Publish(ctx, msg)
+	return h.bus.Publish(ctx, msg) == nil
 }
 
 func (h *Hub) broadcast(roomID string, msg models.SignalMessage, exceptPeerID string) {
@@ -545,6 +574,7 @@ func (h *Hub) removePeer(p *Peer) {
 		empty := len(room.peers) == 0 && len(room.pending) == 0
 		room.mu.Unlock()
 		h.removeClusterPeer(p.roomID, p.id)
+		h.removeClusterPending(p.roomID, p.id)
 
 		h.broadcast(p.roomID, models.SignalMessage{Type: "peer-left", From: p.id, Payload: map[string]interface{}{"peer_id": p.id}}, p.id)
 		go h.logEvent(p.roomID, p.userID, "leave")
@@ -605,6 +635,10 @@ func (h *Hub) GetRoomStats(roomID string) map[string]interface{} {
 		}
 	}
 	return map[string]interface{}{"active": true, "peer_count": len(room.peers), "pending_count": len(room.pending), "p2p_peers": p2p, "sfu_peers": sfuCount, "has_sfu_session": room.sfuSession != nil}
+}
+
+func (h *Hub) GetSFUStats() sfu.Stats {
+	return h.sfuMgr.Stats()
 }
 
 func (h *Hub) getOrCreateRoom(roomID string) *Room {
@@ -730,6 +764,14 @@ func (h *Hub) handleClusterMessage(event cluster.Message) {
 		h.deliverClusterBroadcast(event)
 	case "room-closed":
 		h.closeRoom(event.RoomID, false)
+	case "join-request":
+		h.notifyHosts(event.RoomID, event.Signal)
+	case "approve-pending":
+		h.approvePendingPeer(event.RoomID, event.TargetPeerID)
+	case "join-rejected":
+		h.closePendingPeer(event.RoomID, event.TargetPeerID, event.Signal)
+	case "kick-peer", "mute-peer":
+		h.deliverClusterRelay(event)
 	}
 }
 
@@ -771,6 +813,125 @@ func (h *Hub) removeClusterRoom(roomID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	_ = h.bus.RemoveRoom(ctx, roomID)
+}
+
+func (h *Hub) upsertClusterPending(p *Peer) {
+	// Pending participants are stored in the shared bus so a host on another
+	// instance can approve or reject the join request without sticky routing.
+	if h.bus == nil || !h.bus.Enabled() || p.roomID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = h.bus.UpsertPending(ctx, p.roomID, cluster.PendingRecord{
+		ID:          p.id,
+		UserID:      p.userID,
+		DisplayName: p.displayName,
+	})
+}
+
+func (h *Hub) removeClusterPending(roomID, peerID string) {
+	if h.bus == nil || !h.bus.Enabled() || roomID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = h.bus.RemovePending(ctx, roomID, peerID)
+}
+
+func (h *Hub) approvePendingPeer(roomID, peerID string) {
+	// This is invoked from the cluster bus when the approving host is connected
+	// to a different process than the pending participant.
+	h.mu.RLock()
+	room := h.rooms[roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+	room.mu.Lock()
+	peer := room.pending[peerID]
+	if peer == nil {
+		room.mu.Unlock()
+		return
+	}
+	delete(room.pending, peerID)
+	room.peers[peerID] = peer
+	room.mu.Unlock()
+	h.removeClusterPending(roomID, peerID)
+	h.upsertClusterPeer(peer)
+	go h.logEvent(roomID, peer.userID, "join")
+	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(roomID, peer.id), "mode": peer.mode, "is_host": false}})
+	h.broadcast(roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false}}, peer.id)
+}
+
+func (h *Hub) closePendingPeer(roomID, peerID string, signal models.SignalMessage) {
+	h.mu.RLock()
+	room := h.rooms[roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+	room.mu.Lock()
+	peer := room.pending[peerID]
+	delete(room.pending, peerID)
+	room.mu.Unlock()
+	if peer == nil {
+		return
+	}
+	h.removeClusterPending(roomID, peerID)
+	peer.sendMsg(signal)
+	go func() {
+		time.Sleep(250 * time.Millisecond)
+		_ = peer.conn.Close()
+	}()
+}
+
+func (h *Hub) persistChat(p *Peer, msg models.SignalMessage) {
+	// Chat remains real-time over WebSocket, while this append-only table gives
+	// the frontend a short room history after reconnects or page refreshes.
+	if p.roomID == "" {
+		return
+	}
+	var body struct {
+		Text string `json:"text"`
+	}
+	if !decodePayload(msg.Payload, &body) || strings.TrimSpace(body.Text) == "" {
+		return
+	}
+	_, _ = h.db.Exec(
+		`INSERT INTO chat_messages (room_id, peer_id, user_id, display_name, text, ts) VALUES (?, ?, ?, ?, ?, ?)`,
+		p.roomID, p.id, p.userID, p.displayName, body.Text, time.Now().Unix(),
+	)
+}
+
+func (h *Hub) persistFileTransfer(p *Peer, msg models.SignalMessage, status string) {
+	// File bytes are still browser-to-browser over RTCDataChannel; the backend
+	// only records transfer metadata for audit/history and reconnect recovery.
+	if p.roomID == "" {
+		return
+	}
+	var body struct {
+		FileID   string `json:"file_id"`
+		Name     string `json:"name"`
+		Size     int64  `json:"size"`
+		MIME     string `json:"mime"`
+		Accepted *bool  `json:"accepted"`
+		Reason   string `json:"reason"`
+	}
+	if !decodePayload(msg.Payload, &body) {
+		return
+	}
+	if status == "answered" && body.Accepted != nil && !*body.Accepted {
+		status = "rejected"
+	}
+	if body.FileID == "" {
+		body.FileID = uuid.NewString()
+	}
+	_, _ = h.db.Exec(
+		`INSERT INTO file_transfers (room_id, file_id, sender_peer_id, target_peer_id, name, size, mime, status, reason, ts)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		p.roomID, body.FileID, p.id, msg.To, body.Name, body.Size, body.MIME, status, body.Reason, time.Now().Unix(),
+	)
 }
 
 func decodePayload(payload interface{}, out interface{}) bool {

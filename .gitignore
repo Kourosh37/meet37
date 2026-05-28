@@ -9,6 +9,7 @@ frontend/coverage/
 frontend/playwright-report/
 frontend/test-results/
 frontend/tsconfig.tsbuildinfo
+frontend/dev-server-*.log
 frontend/package-lock.json
 frontend/npm-shrinkwrap.json
 frontend/.npmrc

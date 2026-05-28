@@ -33,6 +33,7 @@ Future tests: public room creation without token, private mode creation with tok
 */
 
 import Link from "next/link";
+import { RoomCreationForm } from "@/features/rooms/components/RoomCreationForm";
 
 export default function CreateRoomPage() {
   return (
@@ -47,25 +48,11 @@ export default function CreateRoomPage() {
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-        <div className="grid gap-4">
-          {["Room name", "Join policy", "Maximum peers", "Optional password"].map((label) => (
-            <div className="space-y-2" key={label}>
-              <div className="h-4 w-32 rounded bg-muted" aria-hidden="true" />
-              <div className="h-11 rounded-md border border-border bg-background" aria-hidden="true" />
-            </div>
-          ))}
-        </div>
-        <div className="mt-6 flex items-center justify-between gap-3">
+        <RoomCreationForm />
+        <div className="mt-6">
           <Link className="text-sm font-medium text-muted-foreground hover:text-foreground" href="/">
             Back home
           </Link>
-          <button
-            className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground opacity-60"
-            disabled
-            type="button"
-          >
-            Create room
-          </button>
         </div>
       </div>
     </section>

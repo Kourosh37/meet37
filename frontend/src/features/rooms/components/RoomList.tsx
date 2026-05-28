@@ -32,9 +32,67 @@ Future tests: public room creation without token, private mode creation with tok
 
 */
 
-// Room list placeholder.
-//
-// Planned responsibilities:
-// - Render rooms returned by GET /api/rooms.
-// - Show empty, loading, and error states.
-// - Keep room cards accessible and responsive.
+"use client";
+
+import { useRooms } from "@/features/rooms/hooks/useRoomMeta";
+import { formatUnixSeconds } from "@/lib/utils/formatters";
+import { Lock, Users, Video } from "lucide-react";
+import Link from "next/link";
+
+export function RoomList() {
+  const { data: rooms, error, isLoading } = useRooms();
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3 py-6" aria-label="Loading rooms">
+        {[0, 1, 2].map((item) => (
+          <div className="h-20 animate-pulse rounded-md bg-muted" key={item} />
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-md border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
+        Failed to load rooms.
+      </div>
+    );
+  }
+
+  if (!rooms || rooms.length === 0) {
+    return (
+      <div className="py-10 text-center">
+        <Video className="mx-auto size-8 text-muted-foreground" />
+        <p className="mt-3 text-sm font-medium text-surface-foreground">No active rooms</p>
+        <p className="mt-2 text-sm text-muted-foreground">Create a room to start the first meeting.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="divide-y divide-border">
+      {rooms.map((room) => (
+        <Link
+          className="block py-4 transition hover:bg-muted/60"
+          href={`/meet/${room.id}`}
+          key={room.id}
+        >
+          <div className="flex items-start justify-between gap-4 px-2">
+            <div className="min-w-0">
+              <h3 className="truncate text-sm font-semibold text-surface-foreground">{room.name}</h3>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Created {formatUnixSeconds(room.created_at)}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
+              {room.has_password ? <Lock className="size-4" aria-label="Password protected" /> : null}
+              <Users className="size-4" />
+              {room.max_peers}
+            </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+}

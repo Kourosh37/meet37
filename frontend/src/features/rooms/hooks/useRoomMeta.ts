@@ -32,9 +32,27 @@ Future tests: public room creation without token, private mode creation with tok
 
 */
 
-// Room metadata hook placeholder.
-//
-// Planned responsibilities:
-// - Fetch GET /api/rooms/{id}.
-// - Surface room availability, password requirement, and live counts.
-// - Cache metadata with React Query.
+import { getRoom, listRooms } from "@/features/rooms/api/roomsApi";
+import { useQuery } from "@tanstack/react-query";
+
+export const roomQueryKeys = {
+  all: ["rooms"] as const,
+  detail: (roomId: string) => ["rooms", roomId] as const
+};
+
+export function useRooms() {
+  return useQuery({
+    queryFn: listRooms,
+    queryKey: roomQueryKeys.all,
+    staleTime: 15_000
+  });
+}
+
+export function useRoomMeta(roomId: string) {
+  return useQuery({
+    enabled: roomId.length > 0,
+    queryFn: () => getRoom(roomId),
+    queryKey: roomQueryKeys.detail(roomId),
+    staleTime: 10_000
+  });
+}

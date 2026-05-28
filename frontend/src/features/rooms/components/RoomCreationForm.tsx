@@ -32,9 +32,122 @@ Future tests: public room creation without token, private mode creation with tok
 
 */
 
-// Room creation form placeholder.
-//
-// Planned responsibilities:
-// - Collect room name, password, join policy, max peers, and expiry.
-// - Store returned host_token privately by room id.
-// - Route creator to the meeting prejoin flow.
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { ApiClientError } from "@/lib/api/client";
+import { roomCreationSchema, type RoomCreationFormValues } from "@/lib/utils/validators";
+import { useCreateRoom } from "@/features/rooms/hooks/useCreateRoom";
+
+export function RoomCreationForm() {
+  const router = useRouter();
+  const createRoom = useCreateRoom();
+  const {
+    formState: { errors },
+    handleSubmit,
+    register
+  } = useForm<RoomCreationFormValues>({
+    defaultValues: {
+      expires_in: 0,
+      join_policy: "open",
+      max_peers: 50
+    },
+    resolver: zodResolver(roomCreationSchema)
+  });
+
+  async function onSubmit(values: RoomCreationFormValues) {
+    try {
+      const response = await createRoom.mutateAsync({
+        ...values,
+        password: values.password || undefined
+      });
+
+      toast.success("Room created");
+      router.push(`/meet/${response.room.id}`);
+    } catch (error) {
+      if (error instanceof ApiClientError && error.status === 403) {
+        toast.error("Login is required to create rooms in private mode");
+        router.push("/login");
+        return;
+      }
+
+      toast.error(error instanceof Error ? error.message : "Could not create room");
+    }
+  }
+
+  return (
+    <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-surface-foreground" htmlFor="room-name">
+          Room name
+        </label>
+        <input
+          className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+          id="room-name"
+          type="text"
+          {...register("name")}
+        />
+        {errors.name ? <p className="text-sm text-danger">{errors.name.message}</p> : null}
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-surface-foreground" htmlFor="join-policy">
+            Join policy
+          </label>
+          <select
+            className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+            id="join-policy"
+            {...register("join_policy")}
+          >
+            <option value="open">Open</option>
+            <option value="approval">Host approval</option>
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium text-surface-foreground" htmlFor="max-peers">
+            Maximum peers
+          </label>
+          <input
+            className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+            id="max-peers"
+            min={2}
+            max={500}
+            type="number"
+            {...register("max_peers")}
+          />
+          {errors.max_peers ? (
+            <p className="text-sm text-danger">{errors.max_peers.message}</p>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-surface-foreground" htmlFor="password">
+          Optional password
+        </label>
+        <input
+          className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
+          id="password"
+          type="password"
+          {...register("password")}
+        />
+        {errors.password ? <p className="text-sm text-danger">{errors.password.message}</p> : null}
+      </div>
+
+      <input type="hidden" {...register("expires_in")} />
+
+      <button
+        className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+        disabled={createRoom.isPending}
+        type="submit"
+      >
+        {createRoom.isPending ? "Creating..." : "Create room"}
+      </button>
+    </form>
+  );
+}

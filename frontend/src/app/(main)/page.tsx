@@ -34,6 +34,7 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 import { ArrowRight, Video } from "lucide-react";
 import Link from "next/link";
+import { RoomList } from "@/features/rooms/components/RoomList";
 
 export default function HomePage() {
   return (
@@ -76,12 +77,7 @@ export default function HomePage() {
             <p className="text-sm text-muted-foreground">Room list integration starts in Phase 5.</p>
           </div>
         </div>
-        <div className="py-10 text-center">
-          <p className="text-sm font-medium text-surface-foreground">No rooms loaded yet</p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            This shell is ready for the REST-backed room list.
-          </p>
-        </div>
+        <RoomList />
       </div>
     </section>
   );

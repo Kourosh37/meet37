@@ -10,6 +10,7 @@ Media itself is browser-side WebRTC. Camera, microphone, screen share, and file 
 - [Business Logic](docs/BUSINESS_LOGIC.md)
 - [P2P-First Media And Fallback](docs/P2P_FIRST_MEDIA.md)
 - [Browser-To-Browser File Sharing](docs/FILE_SHARING.md)
+- [Horizontal Scaling](docs/SCALING.md)
 - [REST API](docs/API.md)
 - [WebSocket Protocol](docs/WEBSOCKET.md)
 - [Frontend Integration Guide](docs/FRONTEND_GUIDE.md)
@@ -74,10 +75,9 @@ Implemented:
 
 Not implemented yet:
 
-- Full media SFU relay. The current `sfu` package issues session metadata and TURN-style credentials for fallback orchestration, but does not yet forward RTP media.
-- Refresh tokens and long-lived session management.
-- Rate limiting and abuse protection.
-- Horizontal scaling with shared signaling state.
+- Production-grade SFU layer selection, recording, simulcast policy, and observability.
+- Distributed waiting-room host approval commands across instances.
+- Persistent chat/file history.
 
 ## Verification
 
@@ -100,3 +100,5 @@ An end-to-end smoke test was also run against a real local server, covering:
 - Approval-mode guest join request and approval.
 - SFU fallback message after poor stats.
 - Host mute and kick commands.
+- Refresh-token rotation and logout.
+- Pion SFU offer/answer handling.

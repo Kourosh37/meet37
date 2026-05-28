@@ -18,6 +18,13 @@ Configuration is read from environment variables.
 | `DB_PATH` | `/data/meet.db` | SQLite database path. |
 | `SFU_FALLBACK_THRESHOLD_KBPS` | `1500` | Bitrate threshold for fallback trigger. |
 | `ALLOWED_ORIGINS` | `*` | Comma-separated CORS origins or `*`. |
+| `ACCESS_TOKEN_TTL_MINUTES` | `15` | Access JWT lifetime. |
+| `REFRESH_TOKEN_TTL_DAYS` | `30` | Refresh session lifetime. |
+| `RATE_LIMIT_RPS` | `20` | Per-IP refill rate for HTTP/WebSocket requests. |
+| `RATE_LIMIT_BURST` | `60` | Per-IP burst capacity. |
+| `MAX_BODY_BYTES` | `1048576` | Maximum HTTP request body size. |
+| `REDIS_URL` | empty | Optional Redis URL for shared signaling state. |
+| `INSTANCE_ID` | hostname | Instance identity used in Redis signaling messages. |
 
 ## Example `.env`
 
@@ -38,6 +45,14 @@ TURN_SECRET=another_random_secret_for_turn
 DB_PATH=/data/meet.db
 SFU_FALLBACK_THRESHOLD_KBPS=1500
 ALLOWED_ORIGINS=*
+
+ACCESS_TOKEN_TTL_MINUTES=15
+REFRESH_TOKEN_TTL_DAYS=30
+RATE_LIMIT_RPS=20
+RATE_LIMIT_BURST=60
+MAX_BODY_BYTES=1048576
+REDIS_URL=
+INSTANCE_ID=
 ```
 
 ## Important Notes
@@ -47,4 +62,4 @@ ALLOWED_ORIGINS=*
 - `DB_PATH` should stay under `/data` in Docker.
 - For production, replace `JWT_SECRET`, `ADMIN_PASSWORD`, and `TURN_SECRET`.
 - For production CORS, avoid `*`; set explicit frontend origins.
-
+- Set `REDIS_URL` when running multiple backend instances.

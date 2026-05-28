@@ -95,7 +95,7 @@ const pc = new RTCPeerConnection({
 });
 ```
 
-After `sfu-switch`, product behavior depends on the media architecture chosen for the next phase. At minimum, frontend should surface degraded quality state and prepare to renegotiate using server-provided ICE servers.
+After `sfu-switch`, create an SFU-facing `RTCPeerConnection`, add local tracks, add recv-capable transceivers for remote tracks, send `sfu-offer`, apply `sfu-answer`, and exchange `sfu-ice-candidate` over WebSocket. When `sfu-renegotiate-needed` arrives, create a fresh offer for the SFU connection.
 
 ## Chat
 
@@ -189,4 +189,3 @@ Frontend should clean up old `RTCPeerConnection` instances when a WebSocket clos
 - Clean up media tracks on leave.
 - Revoke object URLs created for received files.
 - Show clear state for expired/not found/full/locked/password-protected rooms.
-

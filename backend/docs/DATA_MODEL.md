@@ -53,6 +53,21 @@ Minimal audit/event stream for joins and leaves.
 | `event` | text | `join` or `leave`. |
 | `ts` | integer | Unix timestamp. |
 
+## `refresh_sessions`
+
+Rotating refresh-token sessions.
+
+| Column | Type | Description |
+| --- | --- | --- |
+| `id` | text | Session UUID. |
+| `user_id` | text | `admin` or user UUID. |
+| `username` | text | Username snapshot. |
+| `is_admin` | integer | Admin flag snapshot. |
+| `token_hash` | text | SHA-256 hash of refresh token. |
+| `created_at` | integer | Unix timestamp. |
+| `expires_at` | integer | Unix timestamp. |
+| `revoked_at` | integer/null | Revocation timestamp. |
+
 ## In-Memory Runtime State
 
 The signaling hub stores:
@@ -63,4 +78,3 @@ The signaling hub stores:
 - Per-room fallback session metadata.
 
 This state is lost on server restart. Durable room records remain in SQLite, but connected peers must reconnect.
-

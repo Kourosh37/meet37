@@ -73,9 +73,22 @@ CREATE TABLE IF NOT EXISTS room_events (
 	ts INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS refresh_sessions (
+	id TEXT PRIMARY KEY,
+	user_id TEXT NOT NULL,
+	username TEXT NOT NULL,
+	is_admin INTEGER NOT NULL DEFAULT 0,
+	token_hash TEXT NOT NULL UNIQUE,
+	created_at INTEGER NOT NULL,
+	expires_at INTEGER NOT NULL,
+	revoked_at INTEGER
+);
+
 CREATE INDEX IF NOT EXISTS idx_room_events_room ON room_events(room_id, ts);
 CREATE INDEX IF NOT EXISTS idx_rooms_host ON rooms(host_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_expires ON rooms(expires_at);
+CREATE INDEX IF NOT EXISTS idx_refresh_sessions_token ON refresh_sessions(token_hash);
+CREATE INDEX IF NOT EXISTS idx_refresh_sessions_user ON refresh_sessions(user_id, revoked_at, expires_at);
 `
 	if _, err := db.Exec(schema); err != nil {
 		return err

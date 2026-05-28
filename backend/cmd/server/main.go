@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"meet-backend/internal/cluster"
 	"meet-backend/internal/config"
 	"meet-backend/internal/db"
 	"meet-backend/internal/handlers"
@@ -32,7 +33,11 @@ func main() {
 	defer database.Close()
 
 	sfuMgr := sfu.NewManager(cfg)
-	hub := signaling.NewHub(cfg, database, sfuMgr)
+	clusterBus := cluster.New(cfg)
+	hub := signaling.NewHub(cfg, database, sfuMgr, clusterBus)
+	rootCtx, rootCancel := context.WithCancel(context.Background())
+	defer rootCancel()
+	hub.StartCluster(rootCtx)
 	authH := handlers.NewAuthHandler(cfg, database)
 	roomH := handlers.NewRoomHandler(cfg, database, hub)
 	adminH := handlers.NewAdminHandler(database, hub)
@@ -48,6 +53,8 @@ func main() {
 		_, _ = w.Write([]byte("ok"))
 	})
 	mux.HandleFunc("/api/auth/login", authH.Login)
+	mux.HandleFunc("/api/auth/refresh", authH.Refresh)
+	mux.HandleFunc("/api/auth/logout", authH.Logout)
 	mux.Handle("/api/auth/register", authMw(adminMw(http.HandlerFunc(authH.Register))))
 	mux.Handle("/ws", optionalAuthMw(http.HandlerFunc(wsH.ServeWS)))
 
@@ -104,7 +111,8 @@ func main() {
 	}))))
 	mux.Handle("/api/admin/rooms/", authMw(adminMw(http.HandlerFunc(adminH.GetRoomStats))))
 
-	handler := middleware.Logger(middleware.CORS(cfg.AllowedOrigins)(mux))
+	limiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
+	handler := middleware.Logger(limiter.Middleware(middleware.MaxBodyBytes(cfg.MaxBodyBytes)(middleware.CORS(cfg.AllowedOrigins)(mux))))
 	srv := &http.Server{
 		Addr:              ":" + cfg.Port,
 		Handler:           handler,
@@ -124,6 +132,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
+	rootCancel()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

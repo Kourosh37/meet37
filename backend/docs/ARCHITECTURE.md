@@ -12,7 +12,8 @@ The backend is a coordination service for a browser meeting app. It intentionall
 - Admission control.
 - Host moderation.
 - Quality monitoring decisions.
-- TURN/SFU fallback metadata.
+- TURN/SFU fallback and Pion SFU media relay.
+- Optional Redis-backed shared signaling state.
 
 ## High-Level Components
 
@@ -28,7 +29,8 @@ Go HTTP server
         +-- handlers: REST + WebSocket entrypoints
         +-- middleware: CORS, logging, JWT auth
         +-- signaling: in-memory room peers and WebSocket routing
-        +-- sfu: fallback session and TURN credential metadata
+        +-- sfu: Pion WebRTC SFU sessions and TURN credential metadata
+        +-- cluster: optional Redis presence and signaling fanout
         +-- db: SQLite connection and migrations
         +-- models: shared response/message types
         +-- config: environment configuration
@@ -61,6 +63,7 @@ backend/
 2. Backend compares admin credentials against environment variables.
 3. Backend returns a JWT with `is_admin: true`.
 4. Frontend stores the token and uses `Authorization: Bearer <token>` for admin APIs.
+5. Frontend also receives a rotating `refresh_token` for long-lived sessions.
 
 ### User Login
 
@@ -95,6 +98,7 @@ The database stores durable configuration and room metadata. Active WebSocket pe
 - `peers`: approved connected peers.
 - `pending`: approval-mode peers waiting for host decision.
 - `sfuSession`: per-room fallback session metadata.
+- Redis peer presence when `REDIS_URL` is enabled.
 
 This means a single backend instance owns live signaling state. Horizontal scaling requires a shared signaling layer or sticky sessions.
 
@@ -119,6 +123,7 @@ Backend:
 - Coordinates file-transfer metadata.
 - Emits mute/kick/admission messages.
 - Emits `sfu-switch` instructions when client stats are poor.
+- Accepts `sfu-offer`, answers with `sfu-answer`, and forwards RTP media between SFU peers.
 
 Frontend:
 
@@ -128,4 +133,4 @@ Frontend:
 - Opens WebRTC data channels for chat/file bytes if desired.
 - Applies mute requests locally.
 - Performs reconnection and UI state transitions.
-
+- Renegotiates SFU PeerConnections when `sfu-renegotiate-needed` is received.

@@ -1,6 +1,7 @@
 package signaling
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"net/http"
@@ -8,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"meet-backend/internal/cluster"
 	"meet-backend/internal/config"
 	"meet-backend/internal/db"
 	"meet-backend/internal/middleware"
@@ -17,6 +19,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"github.com/pion/webrtc/v4"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -65,11 +68,18 @@ type Hub struct {
 	cfg    *config.Config
 	db     *db.DB
 	sfuMgr *sfu.Manager
+	bus    cluster.Bus
 	mu     sync.RWMutex
 }
 
-func NewHub(cfg *config.Config, database *db.DB, sfuMgr *sfu.Manager) *Hub {
-	return &Hub{rooms: make(map[string]*Room), cfg: cfg, db: database, sfuMgr: sfuMgr}
+func NewHub(cfg *config.Config, database *db.DB, sfuMgr *sfu.Manager, bus cluster.Bus) *Hub {
+	return &Hub{rooms: make(map[string]*Room), cfg: cfg, db: database, sfuMgr: sfuMgr, bus: bus}
+}
+
+func (h *Hub) StartCluster(ctx context.Context) {
+	if h.bus != nil && h.bus.Enabled() {
+		h.bus.Start(ctx, h.handleClusterMessage)
+	}
 }
 
 func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
@@ -163,6 +173,10 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.broadcast(p.roomID, msg, p.id)
 	case "stats":
 		h.handleStats(p, msg)
+	case "sfu-offer":
+		h.handleSFUOffer(p, msg)
+	case "sfu-ice-candidate":
+		h.handleSFUIceCandidate(p, msg)
 	case "approve-peer":
 		h.handleApprovePeer(p, msg)
 	case "reject-peer":
@@ -173,6 +187,63 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.handleMutePeer(p, msg)
 	default:
 		p.sendMsg(errMsg("unknown message type"))
+	}
+}
+
+func (h *Hub) handleSFUOffer(p *Peer, msg models.SignalMessage) {
+	if p.roomID == "" {
+		p.sendMsg(errMsg("join a room before using sfu"))
+		return
+	}
+	var req struct {
+		SDP string `json:"sdp"`
+	}
+	if !decodePayload(msg.Payload, &req) || req.SDP == "" {
+		p.sendMsg(errMsg("invalid sfu offer payload"))
+		return
+	}
+	p.mu.Lock()
+	p.mode = "sfu"
+	p.mu.Unlock()
+
+	session := h.sfuMgr.CreateSession(p.roomID)
+	answerSDP, err := h.sfuMgr.HandleOffer(
+		p.roomID,
+		p.id,
+		req.SDP,
+		func(candidate webrtc.ICECandidateInit) {
+			p.sendMsg(models.SignalMessage{Type: "sfu-ice-candidate", Payload: candidate})
+		},
+		func(signalType string, payload map[string]interface{}) {
+			p.sendMsg(models.SignalMessage{Type: signalType, Payload: payload})
+		},
+	)
+	if err != nil {
+		log.Warn().Err(err).Str("peer", p.id).Str("room", p.roomID).Msg("sfu offer failed")
+		p.sendMsg(errMsg("sfu offer failed"))
+		return
+	}
+	p.sendMsg(models.SignalMessage{
+		Type: "sfu-answer",
+		Payload: map[string]interface{}{
+			"session_id": session.ID,
+			"sdp":        answerSDP,
+		},
+	})
+	h.broadcast(p.roomID, models.SignalMessage{Type: "peer-mode-changed", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "mode": "sfu"}}, p.id)
+}
+
+func (h *Hub) handleSFUIceCandidate(p *Peer, msg models.SignalMessage) {
+	if p.roomID == "" {
+		return
+	}
+	var candidate webrtc.ICECandidateInit
+	if !decodePayload(msg.Payload, &candidate) {
+		p.sendMsg(errMsg("invalid sfu ice candidate"))
+		return
+	}
+	if err := h.sfuMgr.AddICECandidate(p.roomID, p.id, candidate); err != nil {
+		p.sendMsg(errMsg("sfu ice candidate failed"))
 	}
 }
 
@@ -230,6 +301,7 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 	room.peers[p.id] = p
 	room.mu.Unlock()
 	p.roomID = req.RoomID
+	h.upsertClusterPeer(p)
 
 	go h.logEvent(req.RoomID, p.userID, "join")
 	p.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": p.id, "peers": h.getPeerList(req.RoomID, p.id), "mode": p.mode, "is_host": p.isHost}})
@@ -264,6 +336,7 @@ func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
 	delete(room.pending, req.PeerID)
 	room.peers[peer.id] = peer
 	room.mu.Unlock()
+	h.upsertClusterPeer(peer)
 
 	go h.logEvent(host.roomID, peer.userID, "join")
 	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(host.roomID, peer.id), "mode": peer.mode, "is_host": false}})
@@ -419,7 +492,18 @@ func (h *Hub) relay(from *Peer, msg models.SignalMessage) {
 	room.mu.RUnlock()
 	if target != nil {
 		target.sendMsg(msg)
+		return
 	}
+	h.publishCluster(cluster.Message{Kind: "relay", RoomID: from.roomID, TargetPeerID: msg.To, Signal: msg})
+}
+
+func (h *Hub) publishCluster(msg cluster.Message) {
+	if h.bus == nil || !h.bus.Enabled() {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = h.bus.Publish(ctx, msg)
 }
 
 func (h *Hub) broadcast(roomID string, msg models.SignalMessage, exceptPeerID string) {
@@ -439,6 +523,7 @@ func (h *Hub) broadcast(roomID string, msg models.SignalMessage, exceptPeerID st
 			peer.sendMsg(msg)
 		}
 	}
+	h.publishCluster(cluster.Message{Kind: "broadcast", RoomID: roomID, ExceptPeerID: exceptPeerID, Signal: msg})
 }
 
 func (h *Hub) removePeer(p *Peer) {
@@ -459,9 +544,11 @@ func (h *Hub) removePeer(p *Peer) {
 		delete(room.pending, p.id)
 		empty := len(room.peers) == 0 && len(room.pending) == 0
 		room.mu.Unlock()
+		h.removeClusterPeer(p.roomID, p.id)
 
 		h.broadcast(p.roomID, models.SignalMessage{Type: "peer-left", From: p.id, Payload: map[string]interface{}{"peer_id": p.id}}, p.id)
 		go h.logEvent(p.roomID, p.userID, "leave")
+		h.sfuMgr.RemovePeer(p.roomID, p.id)
 		if empty {
 			h.CloseRoom(p.roomID)
 		}
@@ -538,6 +625,22 @@ func (h *Hub) getPeerList(roomID, exceptID string) []models.PeerInfo {
 			peers = append(peers, models.PeerInfo{ID: peer.id, UserID: peer.userID, DisplayName: peer.displayName, Mode: peer.mode, IsHost: peer.isHost})
 		}
 	}
+	if h.bus != nil && h.bus.Enabled() {
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		records, err := h.bus.ListPeers(ctx, roomID)
+		if err == nil {
+			seen := map[string]bool{exceptID: true}
+			for _, peer := range peers {
+				seen[peer.ID] = true
+			}
+			for _, record := range records {
+				if !seen[record.ID] {
+					peers = append(peers, models.PeerInfo{ID: record.ID, UserID: record.UserID, DisplayName: record.DisplayName, Mode: record.Mode, IsHost: record.IsHost})
+				}
+			}
+		}
+	}
 	return peers
 }
 
@@ -585,6 +688,70 @@ func (h *Hub) isRoomHost(roomID, userID, hostToken string) bool {
 
 func (h *Hub) logEvent(roomID, userID, event string) {
 	_, _ = h.db.Exec(`INSERT INTO room_events (room_id, user_id, event, ts) VALUES (?, ?, ?, ?)`, roomID, userID, event, time.Now().Unix())
+}
+
+func (h *Hub) upsertClusterPeer(p *Peer) {
+	if h.bus == nil || !h.bus.Enabled() || p.roomID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = h.bus.UpsertPeer(ctx, p.roomID, cluster.PeerRecord{
+		ID:          p.id,
+		UserID:      p.userID,
+		DisplayName: p.displayName,
+		Mode:        p.mode,
+		IsHost:      p.isHost,
+	})
+}
+
+func (h *Hub) removeClusterPeer(roomID, peerID string) {
+	if h.bus == nil || !h.bus.Enabled() || roomID == "" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	_ = h.bus.RemovePeer(ctx, roomID, peerID)
+}
+
+func (h *Hub) handleClusterMessage(event cluster.Message) {
+	switch event.Kind {
+	case "relay":
+		h.deliverClusterRelay(event)
+	case "broadcast":
+		h.deliverClusterBroadcast(event)
+	}
+}
+
+func (h *Hub) deliverClusterRelay(event cluster.Message) {
+	h.mu.RLock()
+	room := h.rooms[event.RoomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+	room.mu.RLock()
+	target := room.peers[event.TargetPeerID]
+	room.mu.RUnlock()
+	if target != nil {
+		target.sendMsg(event.Signal)
+	}
+}
+
+func (h *Hub) deliverClusterBroadcast(event cluster.Message) {
+	h.mu.RLock()
+	room := h.rooms[event.RoomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+	room.mu.RLock()
+	defer room.mu.RUnlock()
+	for id, peer := range room.peers {
+		if id != event.ExceptPeerID {
+			peer.sendMsg(event.Signal)
+		}
+	}
 }
 
 func decodePayload(payload interface{}, out interface{}) bool {

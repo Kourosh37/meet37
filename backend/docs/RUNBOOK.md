@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.22 or newer.
+- Go 1.24 or newer.
 - GCC toolchain for `github.com/mattn/go-sqlite3` because it uses CGO.
 - PowerShell, Bash, or another shell.
 
@@ -111,4 +111,3 @@ DB_PATH=./data/meet.db go run ./cmd/server
 ```
 
 The backend creates parent directories automatically.
-

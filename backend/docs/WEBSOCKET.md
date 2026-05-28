@@ -244,6 +244,65 @@ ICE example:
 
 The backend does not inspect SDP/ICE payloads. It forwards them as JSON.
 
+## SFU Media Relay Signaling
+
+When a client receives `sfu-switch`, it should create a server-facing `RTCPeerConnection` and send an SFU offer.
+
+Client:
+
+```json
+{
+  "type": "sfu-offer",
+  "payload": {
+    "sdp": "client-offer-sdp"
+  }
+}
+```
+
+Backend:
+
+```json
+{
+  "type": "sfu-answer",
+  "payload": {
+    "session_id": "session-id",
+    "sdp": "server-answer-sdp"
+  }
+}
+```
+
+Client sends SFU ICE candidates:
+
+```json
+{
+  "type": "sfu-ice-candidate",
+  "payload": {
+    "candidate": "...",
+    "sdpMid": "0",
+    "sdpMLineIndex": 0
+  }
+}
+```
+
+Backend sends SFU ICE candidates with the same `sfu-ice-candidate` type.
+
+When the SFU receives a new remote track and adds it to existing subscribers, the affected client receives:
+
+```json
+{
+  "type": "sfu-renegotiate-needed",
+  "payload": {
+    "session_id": "session-id",
+    "track_id": "audio",
+    "stream_id": "stream",
+    "owner_id": "publisher-peer-id",
+    "mime_type": "audio/opus"
+  }
+}
+```
+
+The frontend should create and send a fresh `sfu-offer` so the new SFU sender track can appear in the next answer.
+
 ## Chat
 
 Client:
@@ -416,4 +475,3 @@ Common errors:
 - `host permission required`
 - `peer not pending`
 - `peer not found`
-

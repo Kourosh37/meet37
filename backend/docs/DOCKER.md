@@ -50,6 +50,11 @@ JWT_SECRET=<long random secret>
 TURN_SECRET=<long random secret>
 ALLOWED_ORIGINS=https://your-frontend.example.com
 TURN_PUBLIC_IP=<public server ip or hostname>
+ACCESS_TOKEN_TTL_MINUTES=15
+REFRESH_TOKEN_TTL_DAYS=30
+RATE_LIMIT_RPS=20
+RATE_LIMIT_BURST=60
+REDIS_URL=redis://redis:6379/0
 ```
 
 ## Reverse Proxy
@@ -102,3 +107,4 @@ Before running multiple replicas, add one of:
 - Shared signaling state through Redis/NATS.
 - A dedicated SFU/signaling layer.
 
+This backend includes optional Redis signaling fanout through `REDIS_URL`, but SFU media sessions are still process-local. Sticky routing by room remains recommended.

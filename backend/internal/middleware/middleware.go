@@ -4,6 +4,7 @@ import (
 	"context"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"meet-backend/internal/config"
@@ -25,6 +26,86 @@ type Claims struct {
 	Username string `json:"username"`
 	IsAdmin  bool   `json:"is_admin"`
 	jwt.RegisteredClaims
+}
+
+type rateBucket struct {
+	tokens float64
+	last   time.Time
+}
+
+type RateLimiter struct {
+	rps     float64
+	burst   float64
+	buckets map[string]*rateBucket
+	mu      sync.Mutex
+}
+
+func NewRateLimiter(rps, burst int) *RateLimiter {
+	if rps <= 0 {
+		rps = 20
+	}
+	if burst <= 0 {
+		burst = 60
+	}
+	return &RateLimiter{
+		rps:     float64(rps),
+		burst:   float64(burst),
+		buckets: make(map[string]*rateBucket),
+	}
+}
+
+func (l *RateLimiter) Middleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !l.allow(clientIP(r)) {
+			http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func MaxBodyBytes(limit int64) func(http.Handler) http.Handler {
+	if limit <= 0 {
+		limit = 1 << 20
+	}
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			r.Body = http.MaxBytesReader(w, r.Body, limit)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func (l *RateLimiter) allow(key string) bool {
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	b := l.buckets[key]
+	if b == nil {
+		l.buckets[key] = &rateBucket{tokens: l.burst - 1, last: now}
+		return true
+	}
+
+	elapsed := now.Sub(b.last).Seconds()
+	b.tokens += elapsed * l.rps
+	if b.tokens > l.burst {
+		b.tokens = l.burst
+	}
+	b.last = now
+	if b.tokens < 1 {
+		return false
+	}
+	b.tokens--
+
+	if len(l.buckets) > 10000 {
+		for k, bucket := range l.buckets {
+			if now.Sub(bucket.last) > 10*time.Minute {
+				delete(l.buckets, k)
+			}
+		}
+	}
+	return true
 }
 
 func Auth(cfg *config.Config) func(http.Handler) http.Handler {
@@ -124,6 +205,23 @@ func Logger(next http.Handler) http.Handler {
 		next.ServeHTTP(w, r)
 		log.Info().Str("method", r.Method).Str("path", r.URL.Path).Dur("duration", time.Since(start)).Msg("request")
 	})
+}
+
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.IndexByte(xff, ','); idx >= 0 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if xrip := r.Header.Get("X-Real-IP"); xrip != "" {
+		return strings.TrimSpace(xrip)
+	}
+	host := r.RemoteAddr
+	if idx := strings.LastIndexByte(host, ':'); idx > 0 {
+		return host[:idx]
+	}
+	return host
 }
 
 func bearerToken(r *http.Request) string {

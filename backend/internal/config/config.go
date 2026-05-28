@@ -19,6 +19,13 @@ type Config struct {
 	DBPath                   string
 	SFUFallbackThresholdKbps int
 	AllowedOrigins           []string
+	AccessTokenTTLMinutes    int
+	RefreshTokenTTLDays      int
+	RateLimitRPS             int
+	RateLimitBurst           int
+	MaxBodyBytes             int64
+	RedisURL                 string
+	InstanceID               string
 }
 
 func Load() *Config {
@@ -35,6 +42,13 @@ func Load() *Config {
 		DBPath:                   getEnv("DB_PATH", "/data/meet.db"),
 		SFUFallbackThresholdKbps: getEnvInt("SFU_FALLBACK_THRESHOLD_KBPS", 1500),
 		AllowedOrigins:           splitCSV(getEnv("ALLOWED_ORIGINS", "*")),
+		AccessTokenTTLMinutes:    getEnvInt("ACCESS_TOKEN_TTL_MINUTES", 15),
+		RefreshTokenTTLDays:      getEnvInt("REFRESH_TOKEN_TTL_DAYS", 30),
+		RateLimitRPS:             getEnvInt("RATE_LIMIT_RPS", 20),
+		RateLimitBurst:           getEnvInt("RATE_LIMIT_BURST", 60),
+		MaxBodyBytes:             int64(getEnvInt("MAX_BODY_BYTES", 1<<20)),
+		RedisURL:                 getEnv("REDIS_URL", ""),
+		InstanceID:               getEnv("INSTANCE_ID", getHostname()),
 	}
 }
 
@@ -63,4 +77,12 @@ func splitCSV(v string) []string {
 		}
 	}
 	return out
+}
+
+func getHostname() string {
+	host, err := os.Hostname()
+	if err != nil || host == "" {
+		return "local"
+	}
+	return host
 }

@@ -59,7 +59,12 @@ Response:
 
 ```json
 {
-  "token": "jwt",
+  "token": "access-jwt",
+  "access_token": "access-jwt",
+  "refresh_token": "refresh-token",
+  "token_type": "Bearer",
+  "expires_at": 1710000900,
+  "refresh_expires_at": 1712592000,
   "user_id": "admin",
   "username": "admin",
   "is_admin": true
@@ -72,6 +77,44 @@ Status codes:
 - `400`: invalid JSON.
 - `401`: invalid credentials.
 - `405`: method not allowed.
+
+### `POST /api/auth/refresh`
+
+Rotate a refresh token and receive a new access/refresh pair.
+
+Request:
+
+```json
+{
+  "refresh_token": "refresh-token"
+}
+```
+
+Response format is the same as login.
+
+Rules:
+
+- Refresh tokens are stored hashed in SQLite.
+- Refresh tokens are single-use. A successful refresh revokes the old token and returns a new one.
+- Expired or revoked refresh tokens return `401`.
+
+### `POST /api/auth/logout`
+
+Revoke a refresh token.
+
+Request:
+
+```json
+{
+  "refresh_token": "refresh-token"
+}
+```
+
+Response:
+
+```text
+204 No Content
+```
 
 ### `POST /api/auth/register`
 
@@ -387,4 +430,3 @@ Response:
   "has_sfu_session": false
 }
 ```
-

@@ -59,6 +59,9 @@ The latest runtime verification covered:
 - Guest receiving `kicked`.
 - Host receiving `peer-left`.
 - Admin room stats.
+- Refresh-token rotation.
+- Logout refresh-token revocation.
+- SFU offer/answer generation through Pion.
 
 ## Recommended Automated Tests To Add
 
@@ -84,4 +87,3 @@ Frontend E2E tests:
 - Mute and kick UI.
 - WebRTC offer/answer/ICE path.
 - File transfer over data channel.
-

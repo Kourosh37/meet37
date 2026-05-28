@@ -24,8 +24,16 @@ export function FileTransferItem({
             {transfer.name}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {formatBytes(transfer.size)} · {transfer.status}
+            {formatBytes(transfer.size)} - {transfer.status}
           </p>
+          {transfer.status === "transferring" ? (
+            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{ width: `${transfer.progress.percentage}%` }}
+              />
+            </div>
+          ) : null}
           {transfer.reason ? (
             <p className="mt-1 text-xs text-danger">{transfer.reason}</p>
           ) : null}
@@ -49,6 +57,16 @@ export function FileTransferItem({
             Reject
           </button>
         </div>
+      ) : null}
+
+      {transfer.objectUrl ? (
+        <a
+          className="mt-3 inline-flex rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-muted"
+          download={transfer.name}
+          href={transfer.objectUrl}
+        >
+          Download
+        </a>
       ) : null}
     </article>
   );

@@ -43,6 +43,7 @@ const defaultIceServers: RTCIceServer[] = [
 
 export interface PeerConnectionFactoryOptions {
   iceServers?: RTCIceServer[];
+  onDataChannel?: (event: RTCDataChannelEvent) => void;
   onIceCandidate?: (candidate: IceCandidatePayload) => void;
   onTrack?: (event: RTCTrackEvent) => void;
 }
@@ -64,6 +65,10 @@ export function createPeerConnection(
 
   if (options.onTrack) {
     connection.ontrack = options.onTrack;
+  }
+
+  if (options.onDataChannel) {
+    connection.ondatachannel = options.onDataChannel;
   }
 
   return connection;

@@ -48,7 +48,10 @@ import {
   payloadToSessionDescription,
   sessionDescriptionToPayload
 } from "@/lib/webrtc/PeerConnectionFactory";
+import { dataChannelRegistry } from "@/lib/webrtc/DataChannelRegistry";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
+
+const FILE_TRANSFER_CHANNEL = "file-transfer";
 
 export function usePeerConnections(localStream: MediaStream | null) {
   const peers = useMeetingStore((state) => state.peers);
@@ -85,6 +88,11 @@ export function usePeerConnections(localStream: MediaStream | null) {
       }
 
       const connection = createPeerConnection({
+        onDataChannel: (event) => {
+          if (event.channel.label === FILE_TRANSFER_CHANNEL) {
+            dataChannelRegistry.register(peerId, event.channel);
+          }
+        },
         onIceCandidate: (candidate) => sendIceCandidate(peerId, candidate),
         onTrack: (event) => {
           const stream = event.streams[0];
@@ -98,6 +106,11 @@ export function usePeerConnections(localStream: MediaStream | null) {
       if (localStream) {
         addLocalTracks(connection, localStream);
       }
+
+      const channel = connection.createDataChannel(FILE_TRANSFER_CHANNEL, {
+        ordered: true
+      });
+      dataChannelRegistry.register(peerId, channel);
 
       connections.current.set(peerId, connection);
       return connection;
@@ -145,6 +158,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
       }
 
       closePeerConnection(connection);
+      dataChannelRegistry.unregister(peerId);
       connections.current.delete(peerId);
       offeredPeerIds.current.delete(peerId);
       setRemoteStreams((current) => {
@@ -197,6 +211,9 @@ export function usePeerConnections(localStream: MediaStream | null) {
   useEffect(
     () => () => {
       connections.current.forEach(closePeerConnection);
+      connections.current.forEach((_connection, peerId) =>
+        dataChannelRegistry.unregister(peerId)
+      );
       connections.current.clear();
     },
     []

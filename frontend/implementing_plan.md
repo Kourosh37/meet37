@@ -59,17 +59,17 @@ Acceptance:
 Goal: create a typed API foundation for all feature modules.
 
 Tasks:
-- Implement endpoint builders in `src/lib/api/endpoints.ts`.
-- Implement HTTP client in `src/lib/api/client.ts`.
-- Normalize backend `{ error: string }` responses into a typed client error.
-- Attach bearer access tokens only through the auth/token layer.
-- Add one refresh/retry path for expired access tokens where safe.
-- Keep raw Axios/fetch details out of feature components.
+- [x] Implement endpoint builders in `src/lib/api/endpoints.ts`.
+- [x] Implement HTTP client in `src/lib/api/client.ts`.
+- [x] Normalize backend `{ error: string }` responses into a typed client error.
+- [x] Attach bearer access tokens only through the auth/token layer.
+- [x] Add one refresh/retry path for expired access tokens where safe.
+- [x] Keep raw Axios/fetch details out of feature components.
 
 Acceptance:
-- API modules can call backend endpoints without hard-coded strings.
-- 400/401/403/404 responses map to predictable frontend errors.
-- Refresh failure clears auth state and returns the user to login where appropriate.
+- [x] API modules can call backend endpoints without hard-coded strings.
+- [x] 400/401/403/404 responses map to predictable frontend errors.
+- [ ] Refresh failure clears auth state and returns the user to login where appropriate.
 
 ## Phase 4 - Authentication
 

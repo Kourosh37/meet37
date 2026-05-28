@@ -199,15 +199,15 @@ Acceptance:
 Goal: transfer actual file bytes browser-to-browser.
 
 Tasks:
-- Implement DataChannel creation and negotiation alongside peer connections.
-- Use `fileChunker.ts` for chunking, backpressure, progress, cancellation, and reassembly.
-- Create object URLs for completed downloads and revoke them after expiry.
-- Enforce max file size and safe MIME/name display.
+- [x] Implement DataChannel creation and negotiation alongside peer connections.
+- [x] Use `fileChunker.ts` for chunking, backpressure, progress, cancellation, and reassembly.
+- [x] Create object URLs for completed downloads and revoke them after expiry.
+- [x] Enforce max file size and safe MIME/name display.
 
 Acceptance:
-- Accepted file transfers move bytes without backend upload.
-- Progress updates are accurate for sender and receiver.
-- Cancelled or failed transfers clean up buffers and object URLs.
+- [x] Accepted file transfers move bytes without backend upload.
+- [x] Progress updates are accurate for sender and receiver.
+- [x] Cancelled or failed transfers clean up buffers and object URLs.
 
 ## Phase 12 - SFU Fallback and Quality Stats
 

@@ -42,17 +42,17 @@ Acceptance:
 Goal: define stable contracts before wiring UI.
 
 Tasks:
-- Implement `src/types/api.ts` from backend REST docs.
-- Implement `src/features/meeting/types/signaling.ts` from backend WebSocket docs.
-- Implement `src/features/meeting/types/peer.ts`, `media.ts`, and `file.ts`.
-- Implement `src/types/env.d.ts` and runtime environment validation for `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_WS_URL`.
-- Implement `logger.ts` with redaction for tokens, host tokens, SDP, and ICE candidates.
-- Implement `formatters.ts`, `validators.ts`, `cn.ts`, and `fileChunker.ts`.
+- [x] Implement `src/types/api.ts` from backend REST docs.
+- [x] Implement `src/features/meeting/types/signaling.ts` from backend WebSocket docs.
+- [x] Implement `src/features/meeting/types/peer.ts`, `media.ts`, and `file.ts`.
+- [x] Implement `src/types/env.d.ts` and runtime environment validation for `NEXT_PUBLIC_API_BASE_URL` and `NEXT_PUBLIC_WS_URL`.
+- [x] Implement `logger.ts` with redaction for tokens, host tokens, SDP, and ICE candidates.
+- [x] Implement `formatters.ts`, `validators.ts`, `cn.ts`, and `fileChunker.ts`.
 
 Acceptance:
-- Shared types compile without importing React.
-- Validation schemas cover login, room creation, prejoin display name/password, and admin user forms.
-- Utility tests cover validation, formatting, chunk sizing, and redaction.
+- [x] Shared types compile without importing React.
+- [x] Validation schemas cover login, room creation, prejoin display name/password, and admin user forms.
+- [x] Utility tests cover validation, formatting, chunk sizing, and redaction.
 
 ## Phase 3 - REST API Infrastructure
 

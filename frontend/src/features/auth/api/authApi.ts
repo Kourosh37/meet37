@@ -32,9 +32,34 @@ Future tests: login success/failure, token persistence, refresh rotation, logout
 
 */
 
-// Auth API placeholder.
-//
-// Planned responsibilities:
-// - Wrap POST /api/auth/login, /refresh, and /logout.
-// - Keep auth response typing aligned with backend docs.
-// - Avoid coupling token storage to raw HTTP calls.
+import { apiRequest } from "@/lib/api/client";
+import { endpoints } from "@/lib/api/endpoints";
+import type {
+  AuthLoginRequest,
+  AuthLogoutRequest,
+  AuthRefreshRequest,
+  AuthResponse
+} from "@/types/api";
+
+export function login(request: AuthLoginRequest) {
+  return apiRequest<AuthResponse, AuthLoginRequest>(endpoints.auth.login, {
+    body: request,
+    method: "POST"
+  });
+}
+
+export function refresh(request: AuthRefreshRequest) {
+  return apiRequest<AuthResponse, AuthRefreshRequest>(endpoints.auth.refresh, {
+    body: request,
+    method: "POST",
+    retryOnUnauthorized: false
+  });
+}
+
+export function logout(request: AuthLogoutRequest) {
+  return apiRequest<void, AuthLogoutRequest>(endpoints.auth.logout, {
+    body: request,
+    method: "POST",
+    retryOnUnauthorized: false
+  });
+}

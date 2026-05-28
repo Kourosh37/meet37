@@ -13,7 +13,7 @@ fallback signals.
 
 ## Environment
 
-Copy `.env.example` to `.env.local` or provide these variables in the shell:
+Copy `.env.example` to `.env` or provide these variables in the shell:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8080
@@ -55,6 +55,7 @@ docker run --rm -p 3000:3000 \
 Or use:
 
 ```bash
+cd ..
 docker compose up --build
 ```
 

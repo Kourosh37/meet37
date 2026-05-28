@@ -45,8 +45,8 @@ ok
 ## Docker Quick Start
 
 ```bash
-cd backend
-cp .env.example .env
+cd ..
+cp backend/.env.example backend/.env
 docker compose up --build
 ```
 

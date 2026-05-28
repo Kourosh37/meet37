@@ -50,7 +50,7 @@ export function updateAdminUser(
   userId: string,
   request: UpdateAdminUserRequest
 ) {
-  return apiRequest<AdminUser, UpdateAdminUserRequest>(
+  return apiRequest<void, UpdateAdminUserRequest>(
     endpoints.admin.user(userId),
     {
       body: request,

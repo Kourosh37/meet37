@@ -74,7 +74,17 @@ export function useChat(roomId: string | null, isOpen: boolean) {
     }
 
     webSocketManager.send({ payload: { text: trimmed }, type: "chat" });
-  }, []);
+    appendMessage(
+      {
+        displayName: "You",
+        id: `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        peerId: localPeerId ?? undefined,
+        text: trimmed,
+        timestamp: Date.now()
+      },
+      false
+    );
+  }, [appendMessage, localPeerId]);
 
   return {
     clearUnread,

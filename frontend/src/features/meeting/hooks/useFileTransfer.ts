@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { toast } from "sonner";
 import { getRoomFiles } from "@/features/rooms/api/roomsApi";
 import { useFileTransferStore } from "@/features/meeting/stores/fileTransferStore";
 import type {
@@ -82,6 +83,7 @@ export function useFileTransfer(roomId: string | null) {
   const updateProgress = useFileTransferStore((state) => state.updateProgress);
   const updateStatus = useFileTransferStore((state) => state.updateStatus);
   const localPeerId = useMeetingStore((state) => state.localPeerId);
+  const peers = useMeetingStore((state) => state.peers);
   const pendingFiles = useRef(new Map<string, File>());
   const pendingChunkMeta = useRef(new Map<string, PendingChunkMeta>());
   const receiveBuffers = useRef(new Map<string, ReceiveBuffer>());
@@ -158,8 +160,8 @@ export function useFileTransfer(roomId: string | null) {
         completeTransfer(fileId);
       } catch (error) {
         failTransfer(
-          error instanceof Error ? fileId : fileId,
-          "File transfer failed"
+          fileId,
+          error instanceof Error ? error.message : "File transfer failed"
         );
       }
     },
@@ -283,38 +285,48 @@ export function useFileTransfer(roomId: string | null) {
   const sendOffer = useCallback(
     (file: File) => {
       assertFilePolicy(file);
-      const fileId = crypto.randomUUID();
-      const transfer: FileTransferRecord = {
-        createdAt: Date.now(),
-        direction: "outgoing",
-        fileId,
-        mime: file.type || "application/octet-stream",
-        name: file.name,
-        progress: {
-          bytesTransferred: 0,
-          fileId,
-          percentage: 0,
-          totalBytes: file.size
-        },
-        senderPeerId: localPeerId ?? "",
-        size: file.size,
-        status: "offered",
-        targetPeerId: ""
-      };
+      const peerIds = Object.keys(peers);
 
-      pendingFiles.current.set(fileId, file);
-      addOrUpdateTransfer(transfer);
-      webSocketManager.send({
-        payload: {
-          file_id: fileId,
-          mime: transfer.mime,
+      if (peerIds.length === 0) {
+        toast.error("No participants available for file transfer.");
+        return;
+      }
+
+      peerIds.forEach((peerId) => {
+        const fileId = crypto.randomUUID();
+        const transfer: FileTransferRecord = {
+          createdAt: Date.now(),
+          direction: "outgoing",
+          fileId,
+          mime: file.type || "application/octet-stream",
           name: file.name,
-          size: file.size
-        },
-        type: "file-offer"
+          progress: {
+            bytesTransferred: 0,
+            fileId,
+            percentage: 0,
+            totalBytes: file.size
+          },
+          senderPeerId: localPeerId ?? "",
+          size: file.size,
+          status: "offered",
+          targetPeerId: peerId
+        };
+
+        pendingFiles.current.set(fileId, file);
+        addOrUpdateTransfer(transfer);
+        webSocketManager.send({
+          payload: {
+            file_id: fileId,
+            mime: transfer.mime,
+            name: file.name,
+            size: file.size
+          },
+          to: peerId,
+          type: "file-offer"
+        });
       });
     },
-    [addOrUpdateTransfer, localPeerId]
+    [addOrUpdateTransfer, localPeerId, peers]
   );
 
   const acceptOffer = useCallback(

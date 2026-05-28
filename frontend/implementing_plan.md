@@ -94,18 +94,18 @@ Acceptance:
 Goal: allow users to list and create rooms according to app mode.
 
 Tasks:
-- Implement `roomsApi.ts` for room list, create, get, delete, chat history, and file history.
-- Implement `useCreateRoom.ts` and `useRoomMeta.ts` with React Query.
-- Implement `RoomCreationForm.tsx` with name, password, join policy, max peers, and expiry.
-- Persist returned `host_token` per room after successful creation.
-- Implement `RoomList.tsx` and room navigation.
-- Handle private-mode create failures by directing users to login.
+- [x] Implement `roomsApi.ts` for room list, create, get, delete, chat history, and file history.
+- [x] Implement `useCreateRoom.ts` and `useRoomMeta.ts` with React Query.
+- [x] Implement `RoomCreationForm.tsx` with name, password, join policy, max peers, and expiry.
+- [x] Persist returned `host_token` per room after successful creation.
+- [x] Implement `RoomList.tsx` and room navigation.
+- [x] Handle private-mode create failures by directing users to login.
 
 Acceptance:
-- Public mode allows anonymous room creation.
-- Private mode requires admin/user JWT for room creation.
-- Shared room links remain openable without global login.
-- Created room navigation preserves host authority for the creator session.
+- [x] Public mode allows anonymous room creation.
+- [x] Private mode requires admin/user JWT for room creation.
+- [x] Shared room links remain openable without global login.
+- [x] Created room navigation preserves host authority for the creator session.
 
 ## Phase 6 - Prejoin and Device Setup
 

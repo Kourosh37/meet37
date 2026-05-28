@@ -112,17 +112,17 @@ Acceptance:
 Goal: collect identity and media preferences before connecting to the room.
 
 Tasks:
-- Implement room metadata loading for `/meet/[roomId]`.
-- Implement `DisplayNameInput.tsx`, `PasswordPrompt.tsx`, and `DeviceSetup.tsx`.
-- Implement `useDeviceSetup.ts` for camera/mic enumeration, preview, mute defaults, and permission errors.
-- Persist display name locally for convenience.
-- Keep password only in memory for the join attempt.
+- [x] Implement room metadata loading for `/meet/[roomId]`.
+- [x] Implement `DisplayNameInput.tsx`, `PasswordPrompt.tsx`, and `DeviceSetup.tsx`.
+- [x] Implement `useDeviceSetup.ts` for camera/mic enumeration, preview, mute defaults, and permission errors.
+- [x] Persist display name locally for convenience.
+- [x] Keep password only in memory for the join attempt.
 
 Acceptance:
-- Join is blocked until display name is non-empty.
-- Password input appears only for password-protected rooms.
-- Camera/mic permission denied states are clear and recoverable.
-- Approval rooms clearly tell guests they may need host admission.
+- [x] Join is blocked until display name is non-empty.
+- [x] Password input appears only for password-protected rooms.
+- [x] Camera/mic permission denied states are clear and recoverable.
+- [x] Approval rooms clearly tell guests they may need host admission.
 
 ## Phase 7 - WebSocket Signaling Foundation
 

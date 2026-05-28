@@ -147,18 +147,18 @@ Acceptance:
 Goal: establish direct browser-to-browser media calls.
 
 Tasks:
-- Implement `PeerConnectionFactory.ts`.
-- Implement `useLocalMedia.ts`, `usePeerConnection.ts`, and `usePeerConnections.ts`.
-- Add local tracks to every peer connection.
-- Relay offers, answers, and ICE candidates through WebSocket.
-- Implement `mediaStore.ts` for mic/camera/screen state.
-- Implement `LocalVideoPreview.tsx`, `VideoTile.tsx`, and `VideoGrid.tsx`.
+- [x] Implement `PeerConnectionFactory.ts`.
+- [x] Implement `useLocalMedia.ts`, `usePeerConnection.ts`, and `usePeerConnections.ts`.
+- [x] Add local tracks to every peer connection.
+- [x] Relay offers, answers, and ICE candidates through WebSocket.
+- [x] Implement `mediaStore.ts` for mic/camera/screen state.
+- [x] Implement `LocalVideoPreview.tsx`, `VideoTile.tsx`, and `VideoGrid.tsx`.
 
 Acceptance:
-- Two browsers can join the same room and exchange audio/video.
-- Additional peers create stable connections without layout shift.
-- Mic/camera toggles update local tracks and UI.
-- Leaving a call stops tracks and closes peer connections.
+- [x] Two browsers can join the same room and exchange audio/video.
+- [x] Additional peers create stable connections without layout shift.
+- [x] Mic/camera toggles update local tracks and UI.
+- [x] Leaving a call stops tracks and closes peer connections.
 
 ## Phase 9 - Meeting UI and Moderation
 

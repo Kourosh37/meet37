@@ -8,6 +8,8 @@ Media itself is browser-side WebRTC. Camera, microphone, screen share, and file 
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Business Logic](docs/BUSINESS_LOGIC.md)
+- [P2P-First Media And Fallback](docs/P2P_FIRST_MEDIA.md)
+- [Browser-To-Browser File Sharing](docs/FILE_SHARING.md)
 - [REST API](docs/API.md)
 - [WebSocket Protocol](docs/WEBSOCKET.md)
 - [Frontend Integration Guide](docs/FRONTEND_GUIDE.md)
@@ -98,4 +100,3 @@ An end-to-end smoke test was also run against a real local server, covering:
 - Approval-mode guest join request and approval.
 - SFU fallback message after poor stats.
 - Host mute and kick commands.
-

@@ -24,8 +24,8 @@ Media itself is browser-side WebRTC. Camera, microphone, screen share, and file 
 ## Quick Start
 
 ```bash
-cd backend
 cp .env.example .env
+cd backend
 go mod download
 go run ./cmd/server
 ```
@@ -45,8 +45,7 @@ ok
 ## Docker Quick Start
 
 ```bash
-cd ..
-cp backend/.env.example backend/.env
+cp .env.example .env
 docker compose up --build
 ```
 

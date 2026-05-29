@@ -29,8 +29,8 @@ go mod download
 ## Run Locally
 
 ```bash
-cd backend
 cp .env.example .env
+cd backend
 go run ./cmd/server
 ```
 

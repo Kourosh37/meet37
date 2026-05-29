@@ -3,7 +3,7 @@
 ## Docker Files
 
 - `Dockerfile`: multi-stage build for Go + SQLite CGO.
-- `docker-compose.yml`: local single-service deployment.
+- root `docker-compose.yml`: local full-stack deployment.
 - `.dockerignore`: excludes local secrets, runtime data, and build artifacts.
 
 ## Build Image
@@ -18,7 +18,7 @@ docker build -t meet-backend .
 ```bash
 docker run --rm -p 8080:8080 \
   -v meet-data:/data \
-  --env-file .env \
+  --env-file ../.env \
   meet-backend
 ```
 
@@ -31,7 +31,7 @@ GET http://localhost:${PORT:-8080}/health
 ## Run With Docker Compose
 
 ```bash
-cd backend
+cd ..
 cp .env.example .env
 docker compose up --build
 ```

@@ -13,7 +13,7 @@ fallback signals.
 
 ## Environment
 
-Copy `.env.example` to `.env` or provide these variables in the shell:
+From the repository root, copy `.env.example` to `.env` or provide these variables in the shell:
 
 ```env
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8080

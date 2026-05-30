@@ -66,8 +66,11 @@ export function useLocalMedia() {
       return null;
     }
 
-    const shouldUseAudio = overrides?.audioEnabled ?? audioEnabled;
-    const shouldUseVideo = overrides?.videoEnabled ?? videoEnabled;
+    const mediaState = useMediaStore.getState();
+    const shouldUseAudio = overrides?.audioEnabled ?? mediaState.audioEnabled;
+    const shouldUseVideo = overrides?.videoEnabled ?? mediaState.videoEnabled;
+    const audioDeviceId = mediaState.selectedAudioDeviceId;
+    const videoDeviceId = mediaState.selectedVideoDeviceId;
 
     if (!shouldUseAudio && !shouldUseVideo) {
       setStream((current) => {
@@ -83,15 +86,15 @@ export function useLocalMedia() {
       const nextStream = await navigator.mediaDevices.getUserMedia({
         audio: shouldUseAudio
           ? {
-              deviceId: selectedAudioDeviceId
-                ? { exact: selectedAudioDeviceId }
+              deviceId: audioDeviceId
+                ? { exact: audioDeviceId }
                 : undefined
             }
           : false,
         video: shouldUseVideo
           ? {
-              deviceId: selectedVideoDeviceId
-                ? { exact: selectedVideoDeviceId }
+              deviceId: videoDeviceId
+                ? { exact: videoDeviceId }
                 : undefined
             }
           : false
@@ -118,13 +121,7 @@ export function useLocalMedia() {
     } finally {
       setIsStarting(false);
     }
-  }, [
-    audioEnabled,
-    selectedAudioDeviceId,
-    selectedVideoDeviceId,
-    setError,
-    videoEnabled
-  ]);
+  }, [setError]);
 
   const stop = useCallback(() => {
     screenTrackRef.current = null;
@@ -185,7 +182,6 @@ export function useLocalMedia() {
       screenTrackRef.current = screenTrack;
       screenTrack.onended = () => stopScreenShare();
       setScreenSharing(true);
-      setVideoEnabled(true);
       setError(null);
 
       setStream((current) => {
@@ -203,7 +199,7 @@ export function useLocalMedia() {
         error instanceof Error ? error.message : "Could not start screen sharing."
       );
     }
-  }, [setError, setScreenSharing, setVideoEnabled, stopScreenShare]);
+  }, [setError, setScreenSharing, stopScreenShare]);
 
   const toggleScreenShare = useCallback(() => {
     if (screenSharing) {

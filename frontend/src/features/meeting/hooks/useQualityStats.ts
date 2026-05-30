@@ -15,11 +15,14 @@ export function useQualityStats(connections: Map<string, RTCPeerConnection>) {
         return;
       }
 
-      void collector.current.collect(connections.values()).then((stats) => {
-        if (stats) {
-          webSocketManager.send({ payload: stats, type: "stats" });
-        }
-      });
+      void collector.current
+        .collect(connections.values())
+        .then((stats) => {
+          if (stats) {
+            webSocketManager.send({ payload: stats, type: "stats" });
+          }
+        })
+        .catch(() => undefined);
     }, STATS_INTERVAL_MS);
 
     return () => window.clearInterval(timer);

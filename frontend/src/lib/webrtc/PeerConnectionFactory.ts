@@ -113,7 +113,7 @@ export function syncLocalTracks(
     }
 
     if (replacement.id !== track.id) {
-      void sender.replaceTrack(replacement);
+      void sender.replaceTrack(replacement).catch(() => undefined);
     }
   });
 

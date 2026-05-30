@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { Mic, MicOff, MonitorUp, VideoOff } from "lucide-react";
+import { Maximize2, Mic, MicOff, MonitorUp, VideoOff } from "lucide-react";
 import type { PeerMode } from "@/features/meeting/types/signaling";
 import { cn } from "@/lib/utils/cn";
 
@@ -12,6 +12,7 @@ interface VideoTileProps {
   isHost?: boolean;
   isLocal?: boolean;
   mode?: PeerMode;
+  onMaximize?: () => void;
   screenSharing?: boolean;
   stream: MediaStream | null;
   videoEnabled?: boolean;
@@ -24,12 +25,15 @@ export function VideoTile({
   isHost = false,
   isLocal = false,
   mode = "p2p",
+  onMaximize,
   screenSharing = false,
   stream,
   videoEnabled = true
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const hasVideo = Boolean(stream?.getVideoTracks().length && videoEnabled);
+  const hasVideo = Boolean(
+    stream?.getVideoTracks().length && (videoEnabled || screenSharing)
+  );
   const initials = useMemo(
     () =>
       displayName
@@ -54,6 +58,18 @@ export function VideoTile({
         className
       )}
     >
+      {onMaximize ? (
+        <button
+          aria-label={`Maximize ${displayName}`}
+          className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-md border border-white/20 bg-black/55 text-white shadow-sm transition hover:bg-black/75"
+          onClick={onMaximize}
+          title="Maximize"
+          type="button"
+        >
+          <Maximize2 className="size-4" />
+        </button>
+      ) : null}
+
       {hasVideo ? (
         <video
           ref={videoRef}

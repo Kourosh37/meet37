@@ -54,11 +54,18 @@ import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 const FILE_TRANSFER_CHANNEL = "file-transfer";
 
+function isConnectionUsable(connection: RTCPeerConnection) {
+  return !["closed", "failed"].includes(connection.connectionState);
+}
+
 export function usePeerConnections(localStream: MediaStream | null) {
   const peers = useMeetingStore((state) => state.peers);
   const localPeerId = useMeetingStore((state) => state.localPeerId);
   const connections = useRef(new Map<string, RTCPeerConnection>());
+  const ignoredOfferPeerIds = useRef(new Set<string>());
+  const makingOfferPeerIds = useRef(new Set<string>());
   const offeredPeerIds = useRef(new Set<string>());
+  const pendingNegotiationPeerIds = useRef(new Set<string>());
   const [remoteStreams, setRemoteStreams] = useState<
     Record<string, MediaStream>
   >({});
@@ -79,6 +86,61 @@ export function usePeerConnections(localStream: MediaStream | null) {
       webSocketManager.send({ payload, to: peerId, type: "ice-candidate" });
     },
     []
+  );
+
+  const flushNegotiation = useCallback(
+    async (peerId: string) => {
+      const connection = connections.current.get(peerId);
+
+      if (!connection || !isConnectionUsable(connection)) {
+        pendingNegotiationPeerIds.current.delete(peerId);
+        return;
+      }
+
+      if (
+        makingOfferPeerIds.current.has(peerId) ||
+        connection.signalingState !== "stable"
+      ) {
+        window.setTimeout(() => {
+          void flushNegotiation(peerId);
+        }, 200);
+        return;
+      }
+
+      pendingNegotiationPeerIds.current.delete(peerId);
+      makingOfferPeerIds.current.add(peerId);
+
+      try {
+        const offer = await connection.createOffer();
+
+        if (connection.signalingState !== "stable") {
+          pendingNegotiationPeerIds.current.add(peerId);
+          return;
+        }
+
+        await connection.setLocalDescription(offer);
+        sendDescription("offer", peerId, sessionDescriptionToPayload(offer));
+      } catch {
+        pendingNegotiationPeerIds.current.add(peerId);
+      } finally {
+        makingOfferPeerIds.current.delete(peerId);
+
+        if (pendingNegotiationPeerIds.current.has(peerId)) {
+          window.setTimeout(() => {
+            void flushNegotiation(peerId);
+          }, 200);
+        }
+      }
+    },
+    [sendDescription]
+  );
+
+  const requestNegotiation = useCallback(
+    (peerId: string) => {
+      pendingNegotiationPeerIds.current.add(peerId);
+      void flushNegotiation(peerId);
+    },
+    [flushNegotiation]
   );
 
   const ensureConnection = useCallback(
@@ -104,6 +166,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
           }
         }
       });
+      connection.onnegotiationneeded = () => requestNegotiation(peerId);
 
       if (localStream) {
         addLocalTracks(connection, localStream);
@@ -117,17 +180,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
       connections.current.set(peerId, connection);
       return connection;
     },
-    [localStream, sendIceCandidate]
-  );
-
-  const createOffer = useCallback(
-    async (peerId: string) => {
-      const connection = ensureConnection(peerId);
-      const offer = await connection.createOffer();
-      await connection.setLocalDescription(offer);
-      sendDescription("offer", peerId, sessionDescriptionToPayload(offer));
-    },
-    [ensureConnection, sendDescription]
+    [localStream, requestNegotiation, sendIceCandidate]
   );
 
   useEffect(() => {
@@ -141,9 +194,10 @@ export function usePeerConnections(localStream: MediaStream | null) {
       }
 
       offeredPeerIds.current.add(peerId);
-      void createOffer(peerId);
+      ensureConnection(peerId);
+      requestNegotiation(peerId);
     });
-  }, [createOffer, localPeerId, peers]);
+  }, [ensureConnection, localPeerId, peers, requestNegotiation]);
 
   useEffect(() => {
     if (!localStream) {
@@ -151,10 +205,14 @@ export function usePeerConnections(localStream: MediaStream | null) {
     }
 
     connections.current.forEach((connection, peerId) => {
+      if (!isConnectionUsable(connection)) {
+        return;
+      }
+
       syncLocalTracks(connection, localStream);
-      void createOffer(peerId);
+      requestNegotiation(peerId);
     });
-  }, [createOffer, localStream]);
+  }, [localStream, requestNegotiation]);
 
   useEffect(() => {
     const peerIds = new Set(Object.keys(peers));
@@ -167,7 +225,10 @@ export function usePeerConnections(localStream: MediaStream | null) {
       closePeerConnection(connection);
       dataChannelRegistry.unregister(peerId);
       connections.current.delete(peerId);
+      ignoredOfferPeerIds.current.delete(peerId);
+      makingOfferPeerIds.current.delete(peerId);
       offeredPeerIds.current.delete(peerId);
+      pendingNegotiationPeerIds.current.delete(peerId);
       setRemoteStreams((current) => {
         const { [peerId]: _removed, ...next } = current;
         return next;
@@ -183,6 +244,27 @@ export function usePeerConnections(localStream: MediaStream | null) {
         }
 
         const connection = ensureConnection(message.from);
+        if (!isConnectionUsable(connection)) {
+          return;
+        }
+        const offerCollision =
+          makingOfferPeerIds.current.has(message.from) ||
+          connection.signalingState !== "stable";
+        const currentLocalPeerId = localPeerId;
+        const polite =
+          currentLocalPeerId !== null && currentLocalPeerId > message.from;
+
+        ignoredOfferPeerIds.current.delete(message.from);
+
+        if (offerCollision) {
+          if (!polite) {
+            ignoredOfferPeerIds.current.add(message.from);
+            return;
+          }
+
+          await connection.setLocalDescription({ type: "rollback" });
+        }
+
         await connection.setRemoteDescription(
           payloadToSessionDescription("offer", message.payload)
         );
@@ -196,14 +278,26 @@ export function usePeerConnections(localStream: MediaStream | null) {
       }),
       webSocketManager.subscribe("answer", async (message) => {
         if (message.from) {
-          await ensureConnection(message.from).setRemoteDescription(
+          const connection = ensureConnection(message.from);
+          if (!isConnectionUsable(connection) || connection.signalingState === "stable") {
+            return;
+          }
+          await connection.setRemoteDescription(
             payloadToSessionDescription("answer", message.payload)
           );
         }
       }),
       webSocketManager.subscribe("ice-candidate", async (message) => {
         if (message.from) {
-          await ensureConnection(message.from).addIceCandidate(
+          if (ignoredOfferPeerIds.current.has(message.from)) {
+            return;
+          }
+
+          const connection = ensureConnection(message.from);
+          if (!isConnectionUsable(connection) || !connection.remoteDescription) {
+            return;
+          }
+          await connection.addIceCandidate(
             payloadToIceCandidate(message.payload)
           );
         }
@@ -213,7 +307,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [ensureConnection, sendDescription]);
+  }, [ensureConnection, localPeerId, sendDescription]);
 
   useEffect(
     () => () => {

@@ -8,6 +8,7 @@ import {
   MessageSquare,
   Mic,
   MicOff,
+  MonitorUp,
   Settings,
   Users
 } from "lucide-react";
@@ -20,8 +21,10 @@ interface ControlBarProps {
   onToggleAudio: () => void;
   onToggleChat: () => void;
   onToggleParticipants: () => void;
+  onToggleScreenShare: () => void;
   onToggleVideo: () => void;
   participantsOpen: boolean;
+  screenSharing: boolean;
   videoEnabled: boolean;
 }
 
@@ -33,8 +36,10 @@ export function ControlBar({
   onToggleAudio,
   onToggleChat,
   onToggleParticipants,
+  onToggleScreenShare,
   onToggleVideo,
   participantsOpen,
+  screenSharing,
   videoEnabled
 }: ControlBarProps) {
   return (
@@ -51,6 +56,19 @@ export function ControlBar({
         ) : (
           <MicOff className="size-5" />
         )}
+      </button>
+      <button
+        aria-label={screenSharing ? "Stop screen sharing" : "Share screen"}
+        className={
+          screenSharing
+            ? "grid size-11 place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90"
+            : "grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+        }
+        onClick={onToggleScreenShare}
+        title={screenSharing ? "Stop screen sharing" : "Share screen"}
+        type="button"
+      >
+        <MonitorUp className="size-5" />
       </button>
       <button
         aria-label={videoEnabled ? "Turn camera off" : "Turn camera on"}

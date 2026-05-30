@@ -41,12 +41,23 @@ export const useChatStore = create<ChatState>((set) => ({
   clearUnread: () => set({ unreadCount: 0 }),
 
   loadHistory: (messages) =>
-    set({
-      messages: messages
+    set((state) => {
+      const byId = new Map(
+        state.messages.map((message) => [message.id, message])
+      );
+
+      messages
         .slice()
         .sort((a, b) => a.ts - b.ts)
-        .map((message) => fromHistory(message)),
-      unreadCount: 0
+        .map((message) => fromHistory(message))
+        .forEach((message) => byId.set(message.id, message));
+
+      return {
+        messages: [...byId.values()].sort(
+          (left, right) => left.timestamp - right.timestamp
+        ),
+        unreadCount: state.unreadCount
+      };
     }),
 
   reset: () => set({ messages: [], unreadCount: 0 })

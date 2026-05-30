@@ -67,6 +67,17 @@ export function useSignalingMessages() {
       webSocketManager.subscribe("peer-mode-changed", (message) =>
         store.setPeerMode(message.payload.peer_id, message.payload.mode)
       ),
+      webSocketManager.subscribe("media-state", (message) => {
+        if (!message.from) {
+          return;
+        }
+
+        store.setPeerMedia(message.from, {
+          audioEnabled: message.payload.audio_enabled,
+          screenSharing: message.payload.screen_sharing ?? false,
+          videoEnabled: message.payload.video_enabled
+        });
+      }),
       webSocketManager.subscribe("room-closed", () =>
         store.setPhase("room-closed")
       ),
@@ -76,9 +87,12 @@ export function useSignalingMessages() {
         );
         store.setPhase("kicked");
       }),
-      webSocketManager.subscribe("error", (message) =>
-        store.setError(message.payload.message)
-      )
+      webSocketManager.subscribe("error", (message) => {
+        store.setError(message.payload.message);
+        if (store.phase === "joining" || store.phase === "waiting-approval") {
+          store.setPhase("idle");
+        }
+      })
     ];
 
     return () => {

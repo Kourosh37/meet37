@@ -84,7 +84,6 @@ export function useFileTransfer(roomId: string | null) {
   const updateStatus = useFileTransferStore((state) => state.updateStatus);
   const localPeerId = useMeetingStore((state) => state.localPeerId);
   const peers = useMeetingStore((state) => state.peers);
-  const pendingFiles = useRef(new Map<string, File>());
   const pendingChunkMeta = useRef(new Map<string, PendingChunkMeta>());
   const receiveBuffers = useRef(new Map<string, ReceiveBuffer>());
   const objectUrls = useRef(new Set<string>());
@@ -112,14 +111,9 @@ export function useFileTransfer(roomId: string | null) {
   }, [loadHistory, roomId]);
 
   const sendFileBytes = useCallback(
-    async (fileId: string, peerId: string) => {
-      const file = pendingFiles.current.get(fileId);
-
-      if (!file) {
-        return;
-      }
-
+    async (fileId: string, peerId: string, file: File) => {
       try {
+        await dataChannelRegistry.waitUntilOpen(peerId);
         dataChannelRegistry.send(
           peerId,
           JSON.stringify({
@@ -157,7 +151,9 @@ export function useFileTransfer(roomId: string | null) {
             type: "file-complete"
           } satisfies FileChannelMessage)
         );
-        completeTransfer(fileId);
+        const objectUrl = URL.createObjectURL(file);
+        objectUrls.current.add(objectUrl);
+        completeTransfer(fileId, objectUrl);
       } catch (error) {
         failTransfer(
           fileId,
@@ -185,24 +181,16 @@ export function useFileTransfer(roomId: string | null) {
           },
           senderPeerId: message.from ?? "unknown",
           size: message.payload.size,
-          status: "offered",
+          status: "transferring",
           targetPeerId: localPeerId ?? ""
         });
-      }),
-      webSocketManager.subscribe("file-answer", (message) => {
-        const status = message.payload.accepted ? "accepted" : "rejected";
-        updateStatus(message.payload.file_id, status, message.payload.reason);
-
-        if (message.payload.accepted && message.from) {
-          void sendFileBytes(message.payload.file_id, message.from);
-        }
       })
     ];
 
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [addOrUpdateTransfer, localPeerId, sendFileBytes, updateStatus]);
+  }, [addOrUpdateTransfer, localPeerId]);
 
   useEffect(() => {
     return dataChannelRegistry.subscribe(({ data, peerId }) => {
@@ -282,9 +270,15 @@ export function useFileTransfer(roomId: string | null) {
     []
   );
 
-  const sendOffer = useCallback(
+  const sendFile = useCallback(
     (file: File) => {
-      assertFilePolicy(file);
+      try {
+        assertFilePolicy(file);
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "File is not allowed.");
+        return;
+      }
+
       const peerIds = Object.keys(peers);
 
       if (peerIds.length === 0) {
@@ -308,11 +302,10 @@ export function useFileTransfer(roomId: string | null) {
           },
           senderPeerId: localPeerId ?? "",
           size: file.size,
-          status: "offered",
+          status: "transferring",
           targetPeerId: peerId
         };
 
-        pendingFiles.current.set(fileId, file);
         addOrUpdateTransfer(transfer);
         webSocketManager.send({
           payload: {
@@ -324,41 +317,14 @@ export function useFileTransfer(roomId: string | null) {
           to: peerId,
           type: "file-offer"
         });
+        void sendFileBytes(fileId, peerId, file);
       });
     },
-    [addOrUpdateTransfer, localPeerId, peers]
-  );
-
-  const acceptOffer = useCallback(
-    (fileId: string) => {
-      const transfer = transfersById[fileId];
-      updateStatus(fileId, "accepted");
-      webSocketManager.send({
-        payload: { accepted: true, file_id: fileId },
-        to: transfer?.senderPeerId,
-        type: "file-answer"
-      });
-    },
-    [transfersById, updateStatus]
-  );
-
-  const rejectOffer = useCallback(
-    (fileId: string, reason = "Declined") => {
-      const transfer = transfersById[fileId];
-      updateStatus(fileId, "rejected", reason);
-      webSocketManager.send({
-        payload: { accepted: false, file_id: fileId, reason },
-        to: transfer?.senderPeerId,
-        type: "file-answer"
-      });
-    },
-    [transfersById, updateStatus]
+    [addOrUpdateTransfer, localPeerId, peers, sendFileBytes]
   );
 
   return {
-    acceptOffer,
-    rejectOffer,
-    sendOffer,
+    sendFile,
     transfers
   };
 }

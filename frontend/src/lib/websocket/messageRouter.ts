@@ -36,7 +36,7 @@ import type { IncomingSignalMessage } from "@/features/meeting/types/signaling";
 
 export type SignalMessageHandler<TMessage extends IncomingSignalMessage = IncomingSignalMessage> = (
   message: TMessage
-) => void;
+) => Promise<void> | void;
 
 export class MessageRouter {
   private readonly handlers = new Map<string, Set<SignalMessageHandler>>();
@@ -63,8 +63,27 @@ export class MessageRouter {
   }
 
   dispatch(message: IncomingSignalMessage) {
-    this.handlers.get(message.type)?.forEach((handler) => handler(message));
-    this.wildcardHandlers.forEach((handler) => handler(message));
+    this.handlers.get(message.type)?.forEach((handler) =>
+      this.dispatchToHandler(handler, message)
+    );
+    this.wildcardHandlers.forEach((handler) =>
+      this.dispatchToHandler(handler, message)
+    );
+  }
+
+  private dispatchToHandler(
+    handler: SignalMessageHandler,
+    message: IncomingSignalMessage
+  ) {
+    try {
+      const result = handler(message);
+
+      if (result instanceof Promise) {
+        result.catch(() => undefined);
+      }
+    } catch {
+      // Individual signaling failures should not crash the meeting route.
+    }
   }
 }
 

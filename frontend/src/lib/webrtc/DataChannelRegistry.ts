@@ -42,6 +42,42 @@ export class DataChannelRegistry {
     channel.send(data);
   }
 
+  waitUntilOpen(peerId: string, timeoutMs = 15_000) {
+    const channel = this.channels.get(peerId);
+
+    if (!channel) {
+      return Promise.reject(new Error("File transfer channel is not available"));
+    }
+
+    if (channel.readyState === "open") {
+      return Promise.resolve();
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const timeout = window.setTimeout(() => {
+        cleanup();
+        reject(new Error("File transfer channel did not open"));
+      }, timeoutMs);
+
+      const handleOpen = () => {
+        cleanup();
+        resolve();
+      };
+      const handleClose = () => {
+        cleanup();
+        reject(new Error("File transfer channel closed"));
+      };
+      const cleanup = () => {
+        window.clearTimeout(timeout);
+        channel.removeEventListener("open", handleOpen);
+        channel.removeEventListener("close", handleClose);
+      };
+
+      channel.addEventListener("open", handleOpen);
+      channel.addEventListener("close", handleClose);
+    });
+  }
+
   broadcast(data: ArrayBuffer | string) {
     this.channels.forEach((channel) => {
       if (channel.readyState === "open") {

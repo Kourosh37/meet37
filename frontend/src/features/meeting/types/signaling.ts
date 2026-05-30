@@ -133,6 +133,12 @@ export interface ChatPayload {
   text: string;
 }
 
+export interface MediaStatePayload {
+  audio_enabled: boolean;
+  screen_sharing?: boolean;
+  video_enabled: boolean;
+}
+
 export interface FileOfferPayload {
   file_id: string;
   name: string;
@@ -187,6 +193,7 @@ export type OutgoingSignalMessage =
   | SignalEnvelope<"sfu-offer", SessionDescriptionPayload>
   | SignalEnvelope<"sfu-ice-candidate", IceCandidatePayload>
   | SignalEnvelope<"chat", ChatPayload>
+  | SignalEnvelope<"media-state", MediaStatePayload>
   | SignalEnvelope<"file-offer", FileOfferPayload>
   | SignalEnvelope<"file-answer", FileAnswerPayload>
   | SignalEnvelope<"file-candidate", FileCandidatePayload>
@@ -211,6 +218,7 @@ export type IncomingSignalMessage =
   | SignalEnvelope<"sfu-renegotiate-needed", SfuRenegotiateNeededPayload>
   | SignalEnvelope<"peer-mode-changed", PeerModeChangedPayload>
   | SignalEnvelope<"chat", ChatPayload>
+  | SignalEnvelope<"media-state", MediaStatePayload>
   | SignalEnvelope<"file-offer", FileOfferPayload>
   | SignalEnvelope<"file-answer", FileAnswerPayload>
   | SignalEnvelope<"file-candidate", FileCandidatePayload>

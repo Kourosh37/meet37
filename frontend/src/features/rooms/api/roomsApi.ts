@@ -35,6 +35,7 @@ Future tests: public room creation without token, private mode creation with tok
 import { apiRequest } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import type {
+  AdminSettingsResponse,
   ChatHistoryItem,
   CreateRoomRequest,
   CreateRoomResponse,
@@ -42,6 +43,10 @@ import type {
   Room,
   RoomDetailsResponse
 } from "@/types/api";
+
+export function getPublicSettings() {
+  return apiRequest<AdminSettingsResponse>(endpoints.settings);
+}
 
 export function listRooms() {
   return apiRequest<Room[]>(endpoints.rooms.base);

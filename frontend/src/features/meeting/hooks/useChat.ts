@@ -12,7 +12,6 @@ export function useChat(roomId: string | null, isOpen: boolean) {
   const appendMessage = useChatStore((state) => state.appendMessage);
   const clearUnread = useChatStore((state) => state.clearUnread);
   const loadHistory = useChatStore((state) => state.loadHistory);
-  const peers = useMeetingStore((state) => state.peers);
   const localPeerId = useMeetingStore((state) => state.localPeerId);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
 
@@ -49,11 +48,12 @@ export function useChat(roomId: string | null, isOpen: boolean) {
 
   useEffect(() => {
     return webSocketManager.subscribe("chat", (message) => {
-      const peer = message.from ? peers[message.from] : undefined;
+      const meetingState = useMeetingStore.getState();
+      const peer = message.from ? meetingState.peers[message.from] : undefined;
       appendMessage(
         {
           displayName:
-            message.from === localPeerId
+            message.from === meetingState.localPeerId
               ? "You"
               : (peer?.displayName ?? "Participant"),
           id: `live-${Date.now()}-${Math.random().toString(16).slice(2)}`,
@@ -64,7 +64,7 @@ export function useChat(roomId: string | null, isOpen: boolean) {
         !isOpen
       );
     });
-  }, [appendMessage, isOpen, localPeerId, peers]);
+  }, [appendMessage, isOpen]);
 
   const sendMessage = useCallback((text: string) => {
     const trimmed = text.trim();

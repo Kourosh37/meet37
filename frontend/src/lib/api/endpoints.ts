@@ -36,6 +36,7 @@ const encodePathSegment = (value: string) => encodeURIComponent(value);
 
 export const endpoints = {
   health: "/health",
+  settings: "/api/settings",
   auth: {
     login: "/api/auth/login",
     refresh: "/api/auth/refresh",

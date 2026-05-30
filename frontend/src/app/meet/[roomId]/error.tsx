@@ -44,8 +44,8 @@ export default function MeetingError({ reset }: { error: Error; reset: () => voi
           Meeting unavailable
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          The room could not be loaded. The final implementation will map backend room errors to
-          specific recovery actions.
+          The room could not be loaded. Retry the connection or return home and
+          open the invite link again.
         </p>
         <div className="mt-6 flex justify-center gap-3">
           <button

@@ -57,6 +57,7 @@ func main() {
 	mux.HandleFunc("/api/auth/refresh", authH.Refresh)
 	mux.HandleFunc("/api/auth/logout", authH.Logout)
 	mux.Handle("/api/auth/register", authMw(adminMw(http.HandlerFunc(authH.Register))))
+	mux.HandleFunc("/api/settings", adminH.GetSettings)
 	mux.Handle("/ws", optionalAuthMw(http.HandlerFunc(wsH.ServeWS)))
 
 	mux.Handle("/api/rooms", optionalAuthMw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

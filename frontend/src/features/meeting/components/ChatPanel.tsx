@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { X } from "lucide-react";
 import { ChatMessage } from "@/features/meeting/components/ChatMessage";
+import { FileTransferItem } from "@/features/meeting/components/FileTransferItem";
 import { FileTransferPanel } from "@/features/meeting/components/FileTransferPanel";
 import { useChat } from "@/features/meeting/hooks/useChat";
 import { useFileTransfer } from "@/features/meeting/hooks/useFileTransfer";
@@ -17,6 +18,20 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const chat = useChat(roomId, isOpen);
   const files = useFileTransfer(roomId);
+  const timeline = [
+    ...chat.messages.map((message) => ({
+      id: message.id,
+      timestamp: message.timestamp,
+      type: "message" as const,
+      value: message
+    })),
+    ...files.transfers.map((transfer) => ({
+      id: transfer.fileId,
+      timestamp: transfer.createdAt,
+      type: "file" as const,
+      value: transfer
+    }))
+  ].sort((left, right) => left.timestamp - right.timestamp);
 
   if (!isOpen) {
     return null;
@@ -52,22 +67,23 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
       </div>
 
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-        {chat.messages.length === 0 ? (
+        {timeline.length === 0 ? (
           <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
             No messages yet.
           </p>
         ) : (
-          chat.messages.map((message) => (
-            <ChatMessage key={message.id} message={message} />
+          timeline.map((entry) => (
+            entry.type === "message" ? (
+              <ChatMessage key={entry.id} message={entry.value} />
+            ) : (
+              <FileTransferItem key={entry.id} transfer={entry.value} />
+            )
           ))
         )}
       </div>
 
       <FileTransferPanel
-        onAccept={files.acceptOffer}
-        onReject={files.rejectOffer}
-        onSendOffer={files.sendOffer}
-        transfers={files.transfers}
+        onSendFile={files.sendFile}
       />
 
       <form className="border-t border-border p-4" onSubmit={handleSubmit}>

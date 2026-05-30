@@ -67,6 +67,10 @@ export interface MeetingState {
   addPeer: (payload: PeerJoinedPayload) => void;
   removePendingPeer: (peerId: string) => void;
   removePeer: (payload: PeerIdPayload) => void;
+  setPeerMedia: (
+    peerId: string,
+    media: Partial<MeetingPeer["media"]>
+  ) => void;
   setPeerMode: (
     peerId: string,
     mode: MeetingPeer["connection"]["mode"]
@@ -168,6 +172,28 @@ export const useMeetingStore = create<MeetingState>((set) => ({
           (peer) => peer.id !== payload.peer_id
         ),
         peers
+      };
+    }),
+
+  setPeerMedia: (peerId, media) =>
+    set((state) => {
+      const peer = state.peers[peerId];
+
+      if (!peer) {
+        return state;
+      }
+
+      return {
+        peers: {
+          ...state.peers,
+          [peerId]: {
+            ...peer,
+            media: {
+              ...peer.media,
+              ...media
+            }
+          }
+        }
       };
     }),
 

@@ -34,19 +34,20 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 "use client";
 
-import { Monitor, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 export function ThemeSwitch() {
-  const { resolvedTheme, setTheme, theme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
-  const nextTheme = theme === "light" ? "dark" : theme === "dark" ? "system" : "light";
+  const isDark = mounted && resolvedTheme === "dark";
+  const nextTheme = isDark ? "light" : "dark";
   const label = `Switch theme to ${nextTheme}`;
 
   return (
@@ -57,9 +58,7 @@ export function ThemeSwitch() {
       title={label}
       type="button"
     >
-      {!mounted ? <Monitor className="size-4" /> : null}
-      {mounted && resolvedTheme === "dark" ? <Moon className="size-4" /> : null}
-      {mounted && resolvedTheme !== "dark" ? <Sun className="size-4" /> : null}
+      {isDark ? <Moon className="size-4" /> : <Sun className="size-4" />}
     </button>
   );
 }

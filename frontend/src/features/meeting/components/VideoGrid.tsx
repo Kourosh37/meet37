@@ -30,7 +30,7 @@ export function VideoGrid({
   return (
     <section
       className={cn(
-        "grid min-h-0 flex-1 gap-3",
+        "grid min-h-[420px] content-start gap-px overflow-hidden rounded-lg border border-border bg-border p-px",
         participantCount <= 1 && "grid-cols-1",
         participantCount === 2 && "grid-cols-1 lg:grid-cols-2",
         participantCount > 2 && "grid-cols-1 sm:grid-cols-2 xl:grid-cols-3",
@@ -42,6 +42,7 @@ export function VideoGrid({
         displayName={local.displayName}
         isHost={local.isHost}
         isLocal
+        className="rounded-none border-0 shadow-none"
         mode="p2p"
         screenSharing={local.screenSharing}
         stream={local.stream}
@@ -53,6 +54,7 @@ export function VideoGrid({
           displayName={peer.displayName}
           isHost={peer.isHost}
           key={peer.id}
+          className="rounded-none border-0 shadow-none"
           mode={peer.connection.mode}
           screenSharing={peer.media.screenSharing}
           stream={remoteStreams[peer.id] ?? null}

@@ -92,6 +92,34 @@ export function addLocalTracks(
   });
 }
 
+export function syncLocalTracks(
+  connection: RTCPeerConnection,
+  stream: MediaStream
+) {
+  const tracksByKind = new Map(stream.getTracks().map((track) => [track.kind, track]));
+
+  connection.getSenders().forEach((sender) => {
+    const track = sender.track;
+
+    if (!track) {
+      return;
+    }
+
+    const replacement = tracksByKind.get(track.kind);
+
+    if (!replacement) {
+      connection.removeTrack(sender);
+      return;
+    }
+
+    if (replacement.id !== track.id) {
+      void sender.replaceTrack(replacement);
+    }
+  });
+
+  addLocalTracks(connection, stream);
+}
+
 export function stopMediaStream(stream: MediaStream | null | undefined) {
   stream?.getTracks().forEach((track) => track.stop());
 }

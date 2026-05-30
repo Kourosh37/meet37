@@ -7,7 +7,9 @@ interface SettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onToggleAudio: () => void;
+  onToggleScreenShare: () => void;
   onToggleVideo: () => void;
+  screenSharing: boolean;
   videoEnabled: boolean;
 }
 
@@ -16,7 +18,9 @@ export function SettingsDrawer({
   isOpen,
   onClose,
   onToggleAudio,
+  onToggleScreenShare,
   onToggleVideo,
+  screenSharing,
   videoEnabled
 }: SettingsDrawerProps) {
   if (!isOpen) {
@@ -54,6 +58,14 @@ export function SettingsDrawer({
         >
           Camera
           <span>{videoEnabled ? "On" : "Off"}</span>
+        </button>
+        <button
+          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground"
+          onClick={onToggleScreenShare}
+          type="button"
+        >
+          Screen share
+          <span>{screenSharing ? "On" : "Off"}</span>
         </button>
       </div>
     </aside>

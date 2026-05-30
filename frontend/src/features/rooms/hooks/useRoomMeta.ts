@@ -32,13 +32,26 @@ Future tests: public room creation without token, private mode creation with tok
 
 */
 
-import { getRoom, listRooms } from "@/features/rooms/api/roomsApi";
+import {
+  getPublicSettings,
+  getRoom,
+  listRooms
+} from "@/features/rooms/api/roomsApi";
 import { useQuery } from "@tanstack/react-query";
 
 export const roomQueryKeys = {
   all: ["rooms"] as const,
+  settings: ["settings"] as const,
   detail: (roomId: string) => ["rooms", roomId] as const
 };
+
+export function usePublicSettings() {
+  return useQuery({
+    queryFn: getPublicSettings,
+    queryKey: roomQueryKeys.settings,
+    staleTime: 5_000
+  });
+}
 
 export function useRooms() {
   return useQuery({

@@ -63,6 +63,21 @@ type Room struct {
 	mu         sync.RWMutex
 }
 
+func (r *Room) displayNameTaken(displayName, exceptPeerID string) bool {
+	name := strings.TrimSpace(displayName)
+	for id, peer := range r.peers {
+		if id != exceptPeerID && strings.EqualFold(strings.TrimSpace(peer.displayName), name) {
+			return true
+		}
+	}
+	for id, peer := range r.pending {
+		if id != exceptPeerID && strings.EqualFold(strings.TrimSpace(peer.displayName), name) {
+			return true
+		}
+	}
+	return false
+}
+
 type Hub struct {
 	rooms  map[string]*Room
 	cfg    *config.Config
@@ -169,9 +184,11 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.removePeer(p)
 	case "offer", "answer", "ice-candidate", "file-candidate":
 		h.relay(p, msg)
-	case "chat":
-		h.persistChat(p, msg)
+	case "media-state":
 		h.broadcast(p.roomID, msg, p.id)
+	case "chat":
+		h.broadcast(p.roomID, msg, p.id)
+		h.persistChat(p, msg)
 	case "file-offer":
 		h.persistFileTransfer(p, msg, "offered")
 		h.relay(p, msg)
@@ -292,6 +309,11 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 
 	room := h.getOrCreateRoom(req.RoomID)
 	room.mu.Lock()
+	if room.displayNameTaken(req.DisplayName, p.id) {
+		room.mu.Unlock()
+		p.sendMsg(errMsg("That display name is already in this room. Choose another name."))
+		return
+	}
 	if len(room.peers) >= maxPeers {
 		room.mu.Unlock()
 		p.sendMsg(errMsg("room is full"))
@@ -345,6 +367,15 @@ func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
 		return
 	}
 	delete(room.pending, req.PeerID)
+	if room.displayNameTaken(peer.displayName, peer.id) {
+		room.mu.Unlock()
+		peer.sendMsg(errMsg("That display name is already in this room. Choose another name."))
+		go func() {
+			time.Sleep(250 * time.Millisecond)
+			_ = peer.conn.Close()
+		}()
+		return
+	}
 	room.peers[peer.id] = peer
 	room.mu.Unlock()
 	h.removeClusterPending(host.roomID, peer.id)
@@ -855,6 +886,15 @@ func (h *Hub) approvePendingPeer(roomID, peerID string) {
 		return
 	}
 	delete(room.pending, peerID)
+	if room.displayNameTaken(peer.displayName, peer.id) {
+		room.mu.Unlock()
+		peer.sendMsg(errMsg("That display name is already in this room. Choose another name."))
+		go func() {
+			time.Sleep(250 * time.Millisecond)
+			_ = peer.conn.Close()
+		}()
+		return
+	}
 	room.peers[peerID] = peer
 	room.mu.Unlock()
 	h.removeClusterPending(roomID, peerID)

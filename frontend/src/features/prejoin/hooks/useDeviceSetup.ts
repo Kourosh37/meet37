@@ -36,6 +36,7 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 import { useCallback, useEffect, useState } from "react";
 import type { LocalMediaPermissionState } from "@/features/meeting/types/media";
+import { useMediaStore } from "@/features/meeting/stores/mediaStore";
 
 export interface DeviceSetupState {
   audioEnabled: boolean;
@@ -66,7 +67,14 @@ function stopStream(stream: MediaStream | null) {
 }
 
 export function useDeviceSetup() {
-  const [state, setState] = useState<DeviceSetupState>(initialState);
+  const mediaStore = useMediaStore();
+  const [state, setState] = useState<DeviceSetupState>(() => ({
+    ...initialState,
+    audioEnabled: mediaStore.audioEnabled,
+    selectedAudioDeviceId: mediaStore.selectedAudioDeviceId,
+    selectedVideoDeviceId: mediaStore.selectedVideoDeviceId,
+    videoEnabled: mediaStore.videoEnabled
+  }));
 
   const enumerateDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -93,6 +101,19 @@ export function useDeviceSetup() {
         error: "Media devices are not available in this browser.",
         permissionState: "error"
       }));
+      return;
+    }
+
+    if (!state.audioEnabled && !state.videoEnabled) {
+      setState((current) => {
+        stopStream(current.previewStream);
+        return {
+          ...current,
+          error: null,
+          permissionState: "idle",
+          previewStream: null
+        };
+      });
       return;
     }
 
@@ -149,20 +170,34 @@ export function useDeviceSetup() {
   }, []);
 
   const setAudioEnabled = useCallback((audioEnabled: boolean) => {
-    setState((current) => ({ ...current, audioEnabled }));
-  }, []);
+    mediaStore.setAudioEnabled(audioEnabled);
+    setState((current) => {
+      current.previewStream?.getAudioTracks().forEach((track) => {
+        track.enabled = audioEnabled;
+      });
+      return { ...current, audioEnabled };
+    });
+  }, [mediaStore]);
 
   const setVideoEnabled = useCallback((videoEnabled: boolean) => {
-    setState((current) => ({ ...current, videoEnabled }));
-  }, []);
+    mediaStore.setVideoEnabled(videoEnabled);
+    setState((current) => {
+      current.previewStream?.getVideoTracks().forEach((track) => {
+        track.enabled = videoEnabled;
+      });
+      return { ...current, videoEnabled };
+    });
+  }, [mediaStore]);
 
   const setSelectedAudioDeviceId = useCallback((selectedAudioDeviceId: string) => {
+    mediaStore.setSelectedAudioDeviceId(selectedAudioDeviceId);
     setState((current) => ({ ...current, selectedAudioDeviceId }));
-  }, []);
+  }, [mediaStore]);
 
   const setSelectedVideoDeviceId = useCallback((selectedVideoDeviceId: string) => {
+    mediaStore.setSelectedVideoDeviceId(selectedVideoDeviceId);
     setState((current) => ({ ...current, selectedVideoDeviceId }));
-  }, []);
+  }, [mediaStore]);
 
   useEffect(() => {
     void enumerateDevices();

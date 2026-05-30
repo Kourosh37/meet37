@@ -46,7 +46,8 @@ import {
   createPeerConnection,
   payloadToIceCandidate,
   payloadToSessionDescription,
-  sessionDescriptionToPayload
+  sessionDescriptionToPayload,
+  syncLocalTracks
 } from "@/lib/webrtc/PeerConnectionFactory";
 import { dataChannelRegistry } from "@/lib/webrtc/DataChannelRegistry";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
@@ -55,6 +56,7 @@ const FILE_TRANSFER_CHANNEL = "file-transfer";
 
 export function usePeerConnections(localStream: MediaStream | null) {
   const peers = useMeetingStore((state) => state.peers);
+  const localPeerId = useMeetingStore((state) => state.localPeerId);
   const connections = useRef(new Map<string, RTCPeerConnection>());
   const offeredPeerIds = useRef(new Set<string>());
   const [remoteStreams, setRemoteStreams] = useState<
@@ -130,6 +132,10 @@ export function usePeerConnections(localStream: MediaStream | null) {
 
   useEffect(() => {
     Object.keys(peers).forEach((peerId) => {
+      if (!localPeerId || localPeerId > peerId) {
+        return;
+      }
+
       if (offeredPeerIds.current.has(peerId)) {
         return;
       }
@@ -137,17 +143,18 @@ export function usePeerConnections(localStream: MediaStream | null) {
       offeredPeerIds.current.add(peerId);
       void createOffer(peerId);
     });
-  }, [createOffer, peers]);
+  }, [createOffer, localPeerId, peers]);
 
   useEffect(() => {
     if (!localStream) {
       return;
     }
 
-    connections.current.forEach((connection) => {
-      addLocalTracks(connection, localStream);
+    connections.current.forEach((connection, peerId) => {
+      syncLocalTracks(connection, localStream);
+      void createOffer(peerId);
     });
-  }, [localStream]);
+  }, [createOffer, localStream]);
 
   useEffect(() => {
     const peerIds = new Set(Object.keys(peers));

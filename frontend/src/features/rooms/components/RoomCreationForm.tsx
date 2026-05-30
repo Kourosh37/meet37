@@ -38,6 +38,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import Link from "next/link";
+import { useEffect } from "react";
+import { useAuth } from "@/features/auth/hooks/useAuth";
+import { usePublicSettings } from "@/features/rooms/hooks/useRoomMeta";
 import { ApiClientError } from "@/lib/api/client";
 import { roomCreationSchema, type RoomCreationFormValues } from "@/lib/utils/validators";
 import { useCreateRoom } from "@/features/rooms/hooks/useCreateRoom";
@@ -45,6 +49,8 @@ import { useCreateRoom } from "@/features/rooms/hooks/useCreateRoom";
 export function RoomCreationForm() {
   const router = useRouter();
   const createRoom = useCreateRoom();
+  const { hydrate, hydrated, isAuthenticated } = useAuth();
+  const settings = usePublicSettings();
   const {
     formState: { errors },
     handleSubmit,
@@ -57,6 +63,13 @@ export function RoomCreationForm() {
     },
     resolver: zodResolver(roomCreationSchema)
   });
+
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  const privateModeRequiresLogin =
+    settings.data?.app_mode === "private" && hydrated && !isAuthenticated;
 
   async function onSubmit(values: RoomCreationFormValues) {
     try {
@@ -76,6 +89,26 @@ export function RoomCreationForm() {
 
       toast.error(error instanceof Error ? error.message : "Could not create room");
     }
+  }
+
+  if (privateModeRequiresLogin) {
+    return (
+      <div className="rounded-lg border border-border bg-background p-5">
+        <h2 className="text-lg font-semibold text-foreground">
+          Login required
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Room creation is private right now. Sign in with an admin-created
+          account to create a meeting.
+        </p>
+        <Link
+          className="mt-5 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+          href="/login"
+        >
+          Login
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -143,7 +176,7 @@ export function RoomCreationForm() {
 
       <button
         className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={createRoom.isPending}
+        disabled={createRoom.isPending || settings.isLoading}
         type="submit"
       >
         {createRoom.isPending ? "Creating..." : "Create room"}

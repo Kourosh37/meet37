@@ -88,6 +88,26 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     });
   }, [audioEnabled, toggleAudio]);
 
+  useEffect(() => {
+    if (meeting.phase !== "in-call") {
+      return;
+    }
+
+    webSocketManager.send({
+      payload: {
+        audio_enabled: localMedia.audioEnabled,
+        screen_sharing: localMedia.screenSharing,
+        video_enabled: localMedia.videoEnabled
+      },
+      type: "media-state"
+    });
+  }, [
+    localMedia.audioEnabled,
+    localMedia.screenSharing,
+    localMedia.videoEnabled,
+    meeting.phase
+  ]);
+
   function handleLeave() {
     stopLocalMedia();
     websocket.close();
@@ -166,7 +186,9 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onToggleAudio={localMedia.toggleAudio}
+        onToggleScreenShare={localMedia.toggleScreenShare}
         onToggleVideo={localMedia.toggleVideo}
+        screenSharing={localMedia.screenSharing}
         videoEnabled={localMedia.videoEnabled}
       />
       <ChatPanel
@@ -182,8 +204,10 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         onToggleAudio={localMedia.toggleAudio}
         onToggleChat={() => setChatOpen((open) => !open)}
         onToggleParticipants={() => setParticipantsOpen((open) => !open)}
+        onToggleScreenShare={localMedia.toggleScreenShare}
         onToggleVideo={localMedia.toggleVideo}
         participantsOpen={participantsOpen}
+        screenSharing={localMedia.screenSharing}
         videoEnabled={localMedia.videoEnabled}
       />
     </main>

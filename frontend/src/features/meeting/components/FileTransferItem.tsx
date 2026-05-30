@@ -1,20 +1,14 @@
 "use client";
 
-import { FileText } from "lucide-react";
+import { Download, FileText } from "lucide-react";
 import type { FileTransferRecord } from "@/features/meeting/types/file";
 import { formatBytes } from "@/lib/utils/formatters";
 
 interface FileTransferItemProps {
-  onAccept: (fileId: string) => void;
-  onReject: (fileId: string) => void;
   transfer: FileTransferRecord;
 }
 
-export function FileTransferItem({
-  onAccept,
-  onReject,
-  transfer
-}: FileTransferItemProps) {
+export function FileTransferItem({ transfer }: FileTransferItemProps) {
   return (
     <article className="rounded-md border border-border bg-background p-3">
       <div className="flex gap-3">
@@ -24,13 +18,27 @@ export function FileTransferItem({
             {transfer.name}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {formatBytes(transfer.size)} - {transfer.status}
+            {formatBytes(transfer.size)} - {transfer.mime || "unknown"} -{" "}
+            {transfer.status}
           </p>
-          {transfer.status === "transferring" ? (
+          {["offered", "accepted", "transferring"].includes(transfer.status) ? (
+            <div className="mt-2 space-y-1">
+              <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-primary"
+                  style={{ width: `${transfer.progress.percentage}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {Math.round(transfer.progress.percentage)}%
+              </p>
+            </div>
+          ) : null}
+          {transfer.status === "completed" ? (
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-primary"
-                style={{ width: `${transfer.progress.percentage}%` }}
+                style={{ width: "100%" }}
               />
             </div>
           ) : null}
@@ -40,31 +48,13 @@ export function FileTransferItem({
         </div>
       </div>
 
-      {transfer.direction === "incoming" && transfer.status === "offered" ? (
-        <div className="mt-3 flex gap-2">
-          <button
-            className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
-            onClick={() => onAccept(transfer.fileId)}
-            type="button"
-          >
-            Accept
-          </button>
-          <button
-            className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground"
-            onClick={() => onReject(transfer.fileId)}
-            type="button"
-          >
-            Reject
-          </button>
-        </div>
-      ) : null}
-
       {transfer.objectUrl ? (
         <a
-          className="mt-3 inline-flex rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-muted"
+          className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground transition hover:bg-muted"
           download={transfer.name}
           href={transfer.objectUrl}
         >
+          <Download className="size-3.5" />
           Download
         </a>
       ) : null}

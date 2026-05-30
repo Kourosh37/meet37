@@ -22,13 +22,21 @@ export function useAdminRooms() {
     }))
   });
 
-  return {
-    error: rooms.error,
-    isLoading: rooms.isLoading,
-    rooms: (rooms.data ?? []).map((room, index) => ({
+  const liveRooms = (rooms.data ?? [])
+    .map((room, index) => ({
       room,
       stats: stats[index]?.data
     }))
+    .filter(
+      ({ stats: roomStats }) =>
+        roomStats?.active === true && roomStats.peer_count > 0
+    );
+  const statsError = stats.find((query) => query.error)?.error;
+
+  return {
+    error: rooms.error ?? statsError,
+    isLoading: rooms.isLoading || stats.some((query) => query.isLoading),
+    rooms: liveRooms
   };
 }
 

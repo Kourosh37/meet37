@@ -78,46 +78,73 @@ export function addLocalTracks(
   connection: RTCPeerConnection,
   stream: MediaStream
 ) {
-  const existingTrackIds = new Set(
-    connection
-      .getSenders()
-      .map((sender) => sender.track?.id)
-      .filter(Boolean)
+  syncLocalTracks(connection, stream);
+}
+
+function attachOrReplaceTrack(
+  connection: RTCPeerConnection,
+  stream: MediaStream,
+  track: MediaStreamTrack
+) {
+  const senders = connection.getSenders();
+
+  if (senders.some((sender) => sender.track?.id === track.id)) {
+    return;
+  }
+
+  const reusableSender = senders.find(
+    (sender) => !sender.track || sender.track.kind === track.kind
   );
 
-  stream.getTracks().forEach((track) => {
-    if (!existingTrackIds.has(track.id)) {
-      connection.addTrack(track, stream);
-    }
-  });
+  if (reusableSender) {
+    void reusableSender.replaceTrack(track).catch(() => undefined);
+    return;
+  }
+
+  try {
+    connection.addTrack(track, stream);
+  } catch {
+    // Browsers can briefly report stale sender state during renegotiation.
+  }
 }
 
 export function syncLocalTracks(
   connection: RTCPeerConnection,
   stream: MediaStream
 ) {
-  const tracksByKind = new Map(stream.getTracks().map((track) => [track.kind, track]));
+  const tracksByKind = new Map(
+    stream.getTracks().map((track) => [track.kind, track])
+  );
+  const usedTrackIds = new Set<string>();
 
   connection.getSenders().forEach((sender) => {
     const track = sender.track;
+    const kind = track?.kind ?? "";
+    const replacement = kind ? tracksByKind.get(kind) : undefined;
 
-    if (!track) {
+    if (!replacement) {
+      if (track) {
+        connection.removeTrack(sender);
+      }
       return;
     }
 
-    const replacement = tracksByKind.get(track.kind);
-
-    if (!replacement) {
+    if (usedTrackIds.has(replacement.id)) {
       connection.removeTrack(sender);
       return;
     }
 
-    if (replacement.id !== track.id) {
+    usedTrackIds.add(replacement.id);
+    if (!track || replacement.id !== track.id) {
       void sender.replaceTrack(replacement).catch(() => undefined);
     }
   });
 
-  addLocalTracks(connection, stream);
+  stream.getTracks().forEach((track) => {
+    if (!usedTrackIds.has(track.id)) {
+      attachOrReplaceTrack(connection, stream, track);
+    }
+  });
 }
 
 export function stopMediaStream(stream: MediaStream | null | undefined) {

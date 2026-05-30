@@ -19,7 +19,11 @@ export default function AdminRoomsPage() {
       {rooms.error ? (
         <p className="text-sm text-danger">Could not load room stats.</p>
       ) : null}
-      <LiveRoomsTable rows={rooms.rooms} />
+      {rooms.isLoading ? (
+        <p className="text-sm text-muted-foreground">Loading live rooms...</p>
+      ) : (
+        <LiveRoomsTable rows={rooms.rooms} />
+      )}
     </section>
   );
 }

@@ -13,7 +13,7 @@ export function LiveRoomsTable({ rows }: LiveRoomsTableProps) {
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface p-5 text-sm text-muted-foreground shadow-sm">
-        No rooms found.
+        No live rooms with participants.
       </div>
     );
   }

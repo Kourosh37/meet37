@@ -6,6 +6,7 @@ import {
   getAdminSettings,
   updateAdminSettings
 } from "@/features/admin/api/adminApi";
+import { roomQueryKeys } from "@/features/rooms/hooks/useRoomMeta";
 import type { AppMode } from "@/types/api";
 
 const adminSettingsKey = ["admin", "settings"] as const;
@@ -21,6 +22,9 @@ export function useAdminSettings() {
       updateAdminSettings({ app_mode: appMode }),
     onSuccess: (data) => {
       queryClient.setQueryData(adminSettingsKey, data);
+      queryClient.setQueryData(roomQueryKeys.settings, data);
+      void queryClient.invalidateQueries({ queryKey: adminSettingsKey });
+      void queryClient.invalidateQueries({ queryKey: roomQueryKeys.settings });
       toast.success("Application mode updated");
     }
   });

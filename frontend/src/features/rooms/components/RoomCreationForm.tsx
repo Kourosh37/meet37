@@ -73,6 +73,16 @@ export function RoomCreationForm() {
 
   async function onSubmit(values: RoomCreationFormValues) {
     try {
+      const latestSettings = await settings.refetch();
+      if (
+        latestSettings.data?.app_mode === "private" &&
+        !isAuthenticated
+      ) {
+        toast.error("Login is required to create rooms in private mode");
+        router.push("/login");
+        return;
+      }
+
       const response = await createRoom.mutateAsync({
         ...values,
         password: values.password || undefined

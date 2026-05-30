@@ -24,6 +24,7 @@ func NewAdminHandler(database *db.DB, hub *signaling.Hub) *AdminHandler {
 }
 
 func (h *AdminHandler) GetSettings(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Cache-Control", "no-store")
 	var mode string
 	_ = h.db.QueryRow(`SELECT app_mode FROM settings WHERE id = 1`).Scan(&mode)
 	writeJSON(w, http.StatusOK, map[string]string{"app_mode": mode})
@@ -41,6 +42,7 @@ func (h *AdminHandler) UpdateSettings(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid app_mode")
 		return
 	}
+	w.Header().Set("Cache-Control", "no-store")
 	_, _ = h.db.Exec(`UPDATE settings SET app_mode = ? WHERE id = 1`, body.AppMode)
 	writeJSON(w, http.StatusOK, map[string]string{"app_mode": string(body.AppMode)})
 }

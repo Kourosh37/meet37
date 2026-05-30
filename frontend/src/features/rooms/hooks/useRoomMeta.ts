@@ -49,7 +49,7 @@ export function usePublicSettings() {
   return useQuery({
     queryFn: getPublicSettings,
     queryKey: roomQueryKeys.settings,
-    staleTime: 5_000
+    staleTime: 0
   });
 }
 

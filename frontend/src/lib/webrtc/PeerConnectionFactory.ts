@@ -114,12 +114,16 @@ async function attachOrReplaceTrack(
   }
 
   const reusableSender = senders.find(
-    (sender) => !sender.track || sender.track.kind === track.kind
+    (sender) => senderKind(connection, sender) === track.kind
   );
 
   if (reusableSender) {
-    await reusableSender.replaceTrack(track).catch(() => undefined);
-    return;
+    try {
+      await reusableSender.replaceTrack(track);
+      return;
+    } catch {
+      // Fall through to addTrack; some browsers reject stale reusable senders.
+    }
   }
 
   try {
@@ -127,6 +131,19 @@ async function attachOrReplaceTrack(
   } catch {
     // Browsers can briefly report stale sender state during renegotiation.
   }
+}
+
+function senderKind(
+  connection: RTCPeerConnection,
+  sender: RTCRtpSender
+): MediaStreamTrack["kind"] | undefined {
+  if (sender.track) {
+    return sender.track.kind;
+  }
+
+  return connection
+    .getTransceivers()
+    .find((transceiver) => transceiver.sender === sender)?.receiver.track.kind;
 }
 
 export async function syncLocalTracks(
@@ -140,24 +157,24 @@ export async function syncLocalTracks(
 
   for (const sender of connection.getSenders()) {
     const track = sender.track;
-    const kind = track?.kind ?? "";
+    const kind = senderKind(connection, sender);
     const replacement = kind ? tracksByKind.get(kind) : undefined;
 
     if (!replacement) {
       if (track) {
-        connection.removeTrack(sender);
+        await sender.replaceTrack(null).catch(() => undefined);
       }
       continue;
     }
 
     if (usedTrackIds.has(replacement.id)) {
-      connection.removeTrack(sender);
+      await sender.replaceTrack(null).catch(() => undefined);
       continue;
     }
 
     usedTrackIds.add(replacement.id);
     if (!track || replacement.id !== track.id) {
-      await sender.replaceTrack(replacement).catch(() => undefined);
+      await sender.replaceTrack(replacement);
     }
   }
 

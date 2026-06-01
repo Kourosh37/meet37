@@ -39,6 +39,10 @@ import { useMediaStore } from "@/features/meeting/stores/mediaStore";
 import type { MediaTrackStatus } from "@/features/meeting/types/signaling";
 import { stopMediaStream } from "@/lib/webrtc/PeerConnectionFactory";
 
+function isLocalhost(hostname: string) {
+  return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+}
+
 export function useLocalMedia() {
   const audioEnabled = useMediaStore((state) => state.audioEnabled);
   const videoEnabled = useMediaStore((state) => state.videoEnabled);
@@ -64,7 +68,23 @@ export function useLocalMedia() {
   );
   const [screenShareStatus, setScreenShareStatus] =
     useState<MediaTrackStatus>("off");
+  const [screenShareSupported, setScreenShareSupported] = useState(false);
+  const [screenShareUnavailableReason, setScreenShareUnavailableReason] =
+    useState("Screen sharing is not available in this browser.");
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
+
+  const updateScreenShareSupport = useCallback(() => {
+    const hasDisplayMedia = Boolean(navigator.mediaDevices?.getDisplayMedia);
+    const isSecure = window.isSecureContext;
+    const isLocal = isLocalhost(window.location.hostname);
+
+    setScreenShareSupported(hasDisplayMedia && (isSecure || isLocal));
+    setScreenShareUnavailableReason(
+      !isSecure && !isLocal
+        ? "Screen sharing requires HTTPS on this browser."
+        : "Screen sharing is not supported by this browser or device."
+    );
+  }, []);
 
   const start = useCallback(
     async (overrides?: { audioEnabled?: boolean; videoEnabled?: boolean }) => {
@@ -235,9 +255,17 @@ export function useLocalMedia() {
   }, [setScreenSharing, start, videoEnabled]);
 
   const startScreenShare = useCallback(async () => {
+    updateScreenShareSupport();
+
+    if (!window.isSecureContext && !isLocalhost(window.location.hostname)) {
+      setScreenShareStatus("error");
+      setError("Screen sharing requires HTTPS on this browser.");
+      return;
+    }
+
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setScreenShareStatus("error");
-      setError("Screen sharing is not available in this browser.");
+      setError("Screen sharing is not supported by this browser or device.");
       return;
     }
 
@@ -282,7 +310,7 @@ export function useLocalMedia() {
           : "Could not start screen sharing."
       );
     }
-  }, [setError, setScreenSharing, stopScreenShare]);
+  }, [setError, setScreenSharing, stopScreenShare, updateScreenShareSupport]);
 
   const toggleScreenShare = useCallback(() => {
     if (screenSharing) {
@@ -334,13 +362,19 @@ export function useLocalMedia() {
 
   useEffect(() => () => stopMediaStream(stream), [stream]);
 
+  useEffect(() => {
+    updateScreenShareSupport();
+  }, [updateScreenShareSupport]);
+
   return {
     audioEnabled,
     audioStatus,
     error,
     isStarting,
     screenSharing,
+    screenShareSupported,
     screenShareStatus,
+    screenShareUnavailableReason,
     selectedAudioDeviceId,
     selectedVideoDeviceId,
     setScreenSharing,

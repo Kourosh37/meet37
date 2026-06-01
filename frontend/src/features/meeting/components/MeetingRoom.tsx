@@ -160,7 +160,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-7xl flex-col gap-4 border-x border-border px-4 py-4 sm:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 pr-14 shadow-sm sm:pr-4">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {websocket.status === "open" ? "Connected" : websocket.status}
@@ -231,6 +231,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         onToggleScreenShare={localMedia.toggleScreenShare}
         onToggleVideo={localMedia.toggleVideo}
         screenSharing={localMedia.screenSharing}
+        screenShareSupported={localMedia.screenShareSupported}
+        screenShareUnavailableReason={localMedia.screenShareUnavailableReason}
         videoEnabled={localMedia.videoEnabled}
       />
       <ChatPanel
@@ -250,6 +252,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         onToggleVideo={localMedia.toggleVideo}
         participantsOpen={ui.participantsOpen}
         screenSharing={localMedia.screenSharing}
+        screenShareSupported={localMedia.screenShareSupported}
+        screenShareUnavailableReason={localMedia.screenShareUnavailableReason}
         videoEnabled={localMedia.videoEnabled}
       />
     </main>

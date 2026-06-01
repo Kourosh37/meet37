@@ -37,8 +37,13 @@ Future tests: success path, loading path, error path, accessibility expectations
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils/cn";
 
-export function ThemeSwitch() {
+interface ThemeSwitchProps {
+  className?: string;
+}
+
+export function ThemeSwitch({ className }: ThemeSwitchProps) {
   const { resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
@@ -53,7 +58,10 @@ export function ThemeSwitch() {
   return (
     <button
       aria-label={label}
-      className="inline-flex size-10 items-center justify-center rounded-md border border-border bg-surface text-surface-foreground transition hover:bg-muted"
+      className={cn(
+        "inline-flex size-10 items-center justify-center rounded-md border border-border bg-surface text-surface-foreground transition hover:bg-muted",
+        className
+      )}
       onClick={() => setTheme(nextTheme)}
       title={label}
       type="button"

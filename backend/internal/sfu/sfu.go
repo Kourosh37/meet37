@@ -76,9 +76,23 @@ type Manager struct {
 }
 
 func NewManager(cfg *config.Config) *Manager {
+	settingEngine := webrtc.SettingEngine{}
+	if cfg.WebRTCUDPPortMin > 0 && cfg.WebRTCUDPPortMax >= cfg.WebRTCUDPPortMin {
+		_ = settingEngine.SetEphemeralUDPPortRange(
+			uint16(cfg.WebRTCUDPPortMin),
+			uint16(cfg.WebRTCUDPPortMax),
+		)
+	}
+	if cfg.TURNPublicIP != "" && cfg.TURNPublicIP != "127.0.0.1" && cfg.TURNPublicIP != "localhost" {
+		settingEngine.SetNAT1To1IPs(
+			[]string{cfg.TURNPublicIP},
+			webrtc.ICECandidateTypeHost,
+		)
+	}
+
 	return &Manager{
 		cfg:      cfg,
-		api:      webrtc.NewAPI(),
+		api:      webrtc.NewAPI(webrtc.WithSettingEngine(settingEngine)),
 		sessions: make(map[string]*Session),
 	}
 }

@@ -10,6 +10,8 @@ interface SettingsDrawerProps {
   onToggleScreenShare: () => void;
   onToggleVideo: () => void;
   screenSharing: boolean;
+  screenShareSupported?: boolean;
+  screenShareUnavailableReason?: string;
   videoEnabled: boolean;
 }
 
@@ -21,6 +23,8 @@ export function SettingsDrawer({
   onToggleScreenShare,
   onToggleVideo,
   screenSharing,
+  screenShareSupported = true,
+  screenShareUnavailableReason = "Screen sharing is not available in this browser.",
   videoEnabled
 }: SettingsDrawerProps) {
   if (!isOpen) {
@@ -60,12 +64,24 @@ export function SettingsDrawer({
           <span>{videoEnabled ? "On" : "Off"}</span>
         </button>
         <button
-          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground"
+          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={!screenSharing && !screenShareSupported}
           onClick={onToggleScreenShare}
+          title={
+            screenSharing || screenShareSupported
+              ? undefined
+              : screenShareUnavailableReason
+          }
           type="button"
         >
           Screen share
-          <span>{screenSharing ? "On" : "Off"}</span>
+          <span>
+            {screenSharing
+              ? "On"
+              : screenShareSupported
+                ? "Off"
+                : "Unavailable"}
+          </span>
         </button>
       </div>
     </aside>

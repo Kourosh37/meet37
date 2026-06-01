@@ -32,7 +32,6 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { LogIn, Plus } from "lucide-react";
 import Link from "next/link";
 
@@ -48,7 +47,7 @@ export function TopBar() {
         </Link>
         <nav
           aria-label="Primary navigation"
-          className="flex items-center gap-2"
+          className="flex items-center gap-2 pr-12 sm:pr-0"
         >
           <Link
             className="inline-flex min-h-10 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
@@ -64,7 +63,6 @@ export function TopBar() {
             <Plus className="size-4" />
             New room
           </Link>
-          <ThemeSwitch />
         </nav>
       </div>
     </header>

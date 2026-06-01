@@ -9,6 +9,7 @@ services:
       - "${PORT:-8080}:${PORT:-8080}"
       - "${TURN_PORT:-3478}:${TURN_PORT:-3478}/udp"
       - "${TURN_PORT:-3478}:${TURN_PORT:-3478}/tcp"
+      - "${WEBRTC_UDP_PORT_MIN:-40000}-${WEBRTC_UDP_PORT_MAX:-40100}:${WEBRTC_UDP_PORT_MIN:-40000}-${WEBRTC_UDP_PORT_MAX:-40100}/udp"
     volumes:
       - meet-data:/data
     healthcheck:
@@ -23,12 +24,12 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
-        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/ws}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-browser-origin}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-browser-origin}
         NEXT_PUBLIC_TURN_PUBLIC_IP: ${NEXT_PUBLIC_TURN_PUBLIC_IP:-127.0.0.1}
     environment:
-      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8080}
-      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-ws://localhost:8080/ws}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-browser-origin}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-browser-origin}
       NEXT_PUBLIC_TURN_PUBLIC_IP: ${NEXT_PUBLIC_TURN_PUBLIC_IP:-127.0.0.1}
     ports:
       - "3000:3000"

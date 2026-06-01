@@ -46,8 +46,21 @@ export function VideoTile({
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
   const [_trackVersion, setTrackVersion] = useState(0);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const audioTracks = useMemo(() => stream?.getAudioTracks() ?? [], [stream]);
   const videoTracks = useMemo(() => stream?.getVideoTracks() ?? [], [stream]);
+  const audioStream = useMemo(
+    () => (audioTracks.length ? new MediaStream(audioTracks) : null),
+    [audioTracks]
+  );
+  const videoStream = useMemo(
+    () => (videoTracks.length ? new MediaStream(videoTracks) : null),
+    [videoTracks]
+  );
+  const hasAudio = audioTracks.some(
+    (track) => track.readyState === "live" && !track.muted
+  );
   const hasVideo = Boolean(
     videoTracks.some((track) => track.readyState === "live" && !track.muted) &&
       (videoEnabled || screenSharing)
@@ -78,35 +91,51 @@ export function VideoTile({
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.srcObject = hasVideo ? stream : null;
+      videoRef.current.srcObject = hasVideo ? videoStream : null;
+      if (hasVideo) {
+        void videoRef.current.play().catch(() => undefined);
+      }
     }
-  }, [hasVideo, stream]);
+  }, [hasVideo, videoStream]);
 
   useEffect(() => {
     const updateTrackState = () => setTrackVersion((version) => version + 1);
 
-    videoTracks.forEach((track) => {
+    [...audioTracks, ...videoTracks].forEach((track) => {
       track.addEventListener("ended", updateTrackState);
       track.addEventListener("mute", updateTrackState);
       track.addEventListener("unmute", updateTrackState);
     });
 
     return () => {
-      videoTracks.forEach((track) => {
+      [...audioTracks, ...videoTracks].forEach((track) => {
         track.removeEventListener("ended", updateTrackState);
         track.removeEventListener("mute", updateTrackState);
         track.removeEventListener("unmute", updateTrackState);
       });
     };
-  }, [videoTracks]);
+  }, [audioTracks, videoTracks]);
+
+  useEffect(() => {
+    if (!audioRef.current || isLocal) {
+      return;
+    }
+
+    audioRef.current.srcObject = hasAudio ? audioStream : null;
+    if (hasAudio) {
+      void audioRef.current.play().catch(() => undefined);
+    }
+  }, [audioStream, hasAudio, isLocal]);
 
   return (
     <article
       className={cn(
-        "relative grid aspect-video min-h-[180px] overflow-hidden rounded-lg border border-border bg-surface shadow-sm",
+        "relative grid aspect-video min-h-[clamp(150px,48vw,240px)] overflow-hidden rounded-lg border border-border bg-black shadow-sm sm:min-h-[180px]",
         className
       )}
     >
+      {!isLocal ? <audio ref={audioRef} autoPlay playsInline /> : null}
+
       {onMaximize ? (
         <button
           aria-label={`Maximize ${displayName}`}
@@ -131,10 +160,10 @@ export function VideoTile({
           ref={videoRef}
           autoPlay
           className={cn(
-            "h-full w-full object-cover",
+            "h-full w-full object-contain",
             isLocal && "scale-x-[-1]"
           )}
-          muted={isLocal}
+          muted
           playsInline
         />
       ) : loadingLabel ? (

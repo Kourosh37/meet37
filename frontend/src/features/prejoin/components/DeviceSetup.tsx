@@ -52,11 +52,11 @@ export function DeviceSetup() {
 
   return (
     <div className="space-y-4">
-      <div className="aspect-video overflow-hidden rounded-lg border border-border bg-slate-950">
+      <div className="aspect-video overflow-hidden rounded-lg border border-border bg-black">
         {setup.previewStream && setup.videoEnabled ? (
           <video
             autoPlay
-            className="h-full w-full scale-x-[-1] object-cover"
+            className="h-full w-full scale-x-[-1] object-contain"
             muted
             playsInline
             ref={videoRef}
@@ -79,7 +79,8 @@ export function DeviceSetup() {
 
       <div className="flex flex-wrap gap-2">
         <button
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-surface-foreground transition hover:bg-muted"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-surface-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={setup.permissionState === "prompting"}
           onClick={() => setup.setAudioEnabled(!setup.audioEnabled)}
           type="button"
         >
@@ -91,7 +92,8 @@ export function DeviceSetup() {
           Mic
         </button>
         <button
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-surface-foreground transition hover:bg-muted"
+          className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-surface-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={setup.permissionState === "prompting"}
           onClick={() => setup.setVideoEnabled(!setup.videoEnabled)}
           type="button"
         >
@@ -101,16 +103,6 @@ export function DeviceSetup() {
             <CameraOff className="size-4" />
           )}
           Camera
-        </button>
-        <button
-          className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
-          disabled={setup.permissionState === "prompting"}
-          onClick={() => void setup.startPreview()}
-          type="button"
-        >
-          {setup.permissionState === "prompting"
-            ? "Checking..."
-            : "Test camera/mic"}
         </button>
       </div>
 

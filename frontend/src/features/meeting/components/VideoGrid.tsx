@@ -114,9 +114,10 @@ export function VideoGrid({
     <>
       <section
         className={cn(
-          "grid max-h-[calc(100vh-15rem)] min-h-[420px] content-start gap-px overflow-y-auto rounded-lg border border-border bg-border p-px",
+          "grid max-h-[calc(100svh-12rem)] min-h-[min(420px,calc(100svh-12rem))] content-start gap-px overflow-y-auto rounded-lg border border-border bg-border p-px sm:max-h-[calc(100vh-15rem)] sm:min-h-[420px]",
           participantCount <= 1 && "grid-cols-1",
-          participantCount > 1 && "grid-cols-1 lg:grid-cols-2",
+          participantCount > 1 &&
+            "grid-cols-1 auto-rows-[minmax(clamp(160px,52vw,280px),auto)] lg:grid-cols-2 lg:auto-rows-auto",
           className
         )}
       >

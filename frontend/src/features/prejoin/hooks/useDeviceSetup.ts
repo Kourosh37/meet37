@@ -50,6 +50,16 @@ export interface DeviceSetupState {
   videoInputs: MediaDeviceInfo[];
 }
 
+type PreviewOverrides = Partial<
+  Pick<
+    DeviceSetupState,
+    | "audioEnabled"
+    | "selectedAudioDeviceId"
+    | "selectedVideoDeviceId"
+    | "videoEnabled"
+  >
+>;
+
 const initialState: DeviceSetupState = {
   audioEnabled: true,
   audioInputs: [],
@@ -75,6 +85,26 @@ function hasLiveTrack(
       ?.getTracks()
       .some((track) => track.kind === kind && track.readyState === "live")
   );
+}
+
+function removeTracksByKind(
+  stream: MediaStream | null,
+  kind: MediaStreamTrack["kind"]
+) {
+  if (!stream) {
+    return null;
+  }
+
+  const retainedTracks = stream.getTracks().filter((track) => {
+    if (track.kind !== kind) {
+      return true;
+    }
+
+    track.stop();
+    return false;
+  });
+
+  return retainedTracks.length ? new MediaStream(retainedTracks) : null;
 }
 
 export function useDeviceSetup() {
@@ -112,11 +142,7 @@ export function useDeviceSetup() {
   }, []);
 
   const startPreview = useCallback(
-    async (
-      overrides?: Partial<
-        Pick<DeviceSetupState, "audioEnabled" | "videoEnabled">
-      >
-    ) => {
+    async (overrides?: PreviewOverrides) => {
       if (!navigator.mediaDevices?.getUserMedia) {
         setState((current) => ({
           ...current,
@@ -128,6 +154,10 @@ export function useDeviceSetup() {
 
       const audioEnabled = overrides?.audioEnabled ?? state.audioEnabled;
       const videoEnabled = overrides?.videoEnabled ?? state.videoEnabled;
+      const selectedAudioDeviceId =
+        overrides?.selectedAudioDeviceId ?? state.selectedAudioDeviceId;
+      const selectedVideoDeviceId =
+        overrides?.selectedVideoDeviceId ?? state.selectedVideoDeviceId;
 
       if (!audioEnabled && !videoEnabled) {
         setState((current) => {
@@ -154,15 +184,15 @@ export function useDeviceSetup() {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: audioEnabled
             ? {
-                deviceId: state.selectedAudioDeviceId
-                  ? { exact: state.selectedAudioDeviceId }
+                deviceId: selectedAudioDeviceId
+                  ? { exact: selectedAudioDeviceId }
                   : undefined
               }
             : false,
           video: videoEnabled
             ? {
-                deviceId: state.selectedVideoDeviceId
-                  ? { exact: state.selectedVideoDeviceId }
+                deviceId: selectedVideoDeviceId
+                  ? { exact: selectedVideoDeviceId }
                   : undefined
               }
             : false
@@ -210,57 +240,71 @@ export function useDeviceSetup() {
   const setAudioEnabled = useCallback(
     (audioEnabled: boolean) => {
       mediaStore.setAudioEnabled(audioEnabled);
-      setState((current) => {
-        current.previewStream?.getAudioTracks().forEach((track) => {
-          track.enabled = audioEnabled;
-        });
-        return { ...current, audioEnabled };
-      });
+      if (audioEnabled) {
+        void startPreview({ audioEnabled: true });
+        return;
+      }
+
+      setState((current) => ({
+        ...current,
+        audioEnabled,
+        previewStream: removeTracksByKind(current.previewStream, "audio")
+      }));
     },
-    [mediaStore]
+    [mediaStore, startPreview]
   );
 
   const setVideoEnabled = useCallback(
     (videoEnabled: boolean) => {
       mediaStore.setVideoEnabled(videoEnabled);
-      const shouldRestartPreview =
-        videoEnabled && !hasLiveTrack(state.previewStream, "video");
-
-      setState((current) => {
-        current.previewStream?.getVideoTracks().forEach((track) => {
-          track.enabled = videoEnabled;
-        });
-        return { ...current, videoEnabled };
-      });
-
-      if (shouldRestartPreview) {
-        window.setTimeout(() => {
-          void startPreview({ videoEnabled: true });
-        }, 0);
+      if (videoEnabled) {
+        void startPreview({ videoEnabled: true });
+        return;
       }
+
+      setState((current) => ({
+        ...current,
+        previewStream: removeTracksByKind(current.previewStream, "video"),
+        videoEnabled
+      }));
     },
-    [mediaStore, startPreview, state.previewStream]
+    [mediaStore, startPreview]
   );
 
   const setSelectedAudioDeviceId = useCallback(
     (selectedAudioDeviceId: string) => {
       mediaStore.setSelectedAudioDeviceId(selectedAudioDeviceId);
       setState((current) => ({ ...current, selectedAudioDeviceId }));
+      if (state.audioEnabled && hasLiveTrack(state.previewStream, "audio")) {
+        void startPreview({ selectedAudioDeviceId });
+      }
     },
-    [mediaStore]
+    [mediaStore, startPreview, state.audioEnabled, state.previewStream]
   );
 
   const setSelectedVideoDeviceId = useCallback(
     (selectedVideoDeviceId: string) => {
       mediaStore.setSelectedVideoDeviceId(selectedVideoDeviceId);
       setState((current) => ({ ...current, selectedVideoDeviceId }));
+      if (state.videoEnabled && hasLiveTrack(state.previewStream, "video")) {
+        void startPreview({ selectedVideoDeviceId });
+      }
     },
-    [mediaStore]
+    [mediaStore, startPreview, state.previewStream, state.videoEnabled]
   );
 
   useEffect(() => {
     void enumerateDevices();
   }, [enumerateDevices]);
+
+  useEffect(() => {
+    if (state.audioEnabled || state.videoEnabled) {
+      void startPreview();
+    }
+    // This is an initial permission/preview request. Device changes and toggles
+    // are handled by their own callbacks to avoid repeated prompts.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => () => stopStream(state.previewStream), [state.previewStream]);
 

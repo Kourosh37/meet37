@@ -99,6 +99,7 @@ def build_env(args: argparse.Namespace) -> dict[str, str]:
     env = {**example, **current}
     used_ports: set[int] = set()
 
+    backend_host_port = args.backend_port or find_free_port(8080, used_ports)
     frontend_host_port = args.frontend_port or find_free_port(3000, used_ports)
     turn_host_port = args.turn_port or find_free_port(
         int(env.get("TURN_PORT", "3478")), used_ports
@@ -140,12 +141,15 @@ def build_env(args: argparse.Namespace) -> dict[str, str]:
             "MAX_BODY_BYTES": env.get("MAX_BODY_BYTES", "1048576"),
             "SFU_RECORDING_ENABLED": env.get("SFU_RECORDING_ENABLED", "false"),
             "SFU_RECORDING_PATH": "/data/recordings",
+            "WEBRTC_UDP_PORT_MIN": env.get("WEBRTC_UDP_PORT_MIN", "40000"),
+            "WEBRTC_UDP_PORT_MAX": env.get("WEBRTC_UDP_PORT_MAX", "40100"),
             "REDIS_URL": env.get("REDIS_URL", ""),
             "INSTANCE_ID": env.get("INSTANCE_ID", ""),
+            "BACKEND_HOST_PORT": str(backend_host_port),
             "FRONTEND_HOST_PORT": str(frontend_host_port),
             "TURN_HOST_PORT": str(turn_host_port),
-            "NEXT_PUBLIC_API_BASE_URL": "browser-origin",
-            "NEXT_PUBLIC_WS_URL": "browser-origin",
+            "NEXT_PUBLIC_API_BASE_URL": f"http://{public_host}:{backend_host_port}",
+            "NEXT_PUBLIC_WS_URL": f"ws://{public_host}:{backend_host_port}/ws",
             "NEXT_PUBLIC_TURN_PUBLIC_IP": public_host,
         }
     )
@@ -155,6 +159,7 @@ def build_env(args: argparse.Namespace) -> dict[str, str]:
 def write_env(path: Path, env: dict[str, str]) -> None:
     ordered_keys = [
         "PORT",
+        "BACKEND_HOST_PORT",
         "FRONTEND_HOST_PORT",
         "TURN_HOST_PORT",
         "ENV",
@@ -175,6 +180,8 @@ def write_env(path: Path, env: dict[str, str]) -> None:
         "MAX_BODY_BYTES",
         "SFU_RECORDING_ENABLED",
         "SFU_RECORDING_PATH",
+        "WEBRTC_UDP_PORT_MIN",
+        "WEBRTC_UDP_PORT_MAX",
         "REDIS_URL",
         "INSTANCE_ID",
         "NEXT_PUBLIC_API_BASE_URL",
@@ -186,7 +193,7 @@ def write_env(path: Path, env: dict[str, str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def compose_yaml(backend_image: str, frontend_image: str, proxy_image: str) -> str:
+def compose_yaml(backend_image: str, frontend_image: str) -> str:
     return textwrap.dedent(
         f"""\
         services:
@@ -195,11 +202,11 @@ def compose_yaml(backend_image: str, frontend_image: str, proxy_image: str) -> s
             pull_policy: never
             env_file:
               - ./.env
-            expose:
-              - "${{PORT:-8080}}"
             ports:
+              - "${{BACKEND_HOST_PORT:-8080}}:${{PORT:-8080}}"
               - "${{TURN_HOST_PORT:-3478}}:${{TURN_PORT:-3478}}/udp"
               - "${{TURN_HOST_PORT:-3478}}:${{TURN_PORT:-3478}}/tcp"
+              - "${{WEBRTC_UDP_PORT_MIN:-40000}}-${{WEBRTC_UDP_PORT_MAX:-40100}}:${{WEBRTC_UDP_PORT_MIN:-40000}}-${{WEBRTC_UDP_PORT_MAX:-40100}}/udp"
             volumes:
               - ./data:/data
             healthcheck:
@@ -218,34 +225,19 @@ def compose_yaml(backend_image: str, frontend_image: str, proxy_image: str) -> s
               NEXT_PUBLIC_API_BASE_URL: ${{NEXT_PUBLIC_API_BASE_URL}}
               NEXT_PUBLIC_WS_URL: ${{NEXT_PUBLIC_WS_URL}}
               NEXT_PUBLIC_TURN_PUBLIC_IP: ${{NEXT_PUBLIC_TURN_PUBLIC_IP}}
-            expose:
-              - "3000"
-            depends_on:
-              backend:
-                condition: service_healthy
-            restart: unless-stopped
-
-          proxy:
-            image: {proxy_image}
-            pull_policy: never
             ports:
-              - "${{FRONTEND_HOST_PORT:-3000}}:80"
-            volumes:
-              - ./data/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+              - "${{FRONTEND_HOST_PORT:-3000}}:3000"
             depends_on:
               backend:
                 condition: service_healthy
-              frontend:
-                condition: service_started
             restart: unless-stopped
         """
     )
 
 
-def build_images(env: dict[str, str], version: str) -> tuple[str, str, str]:
+def build_images(env: dict[str, str], version: str) -> tuple[str, str]:
     backend_image = f"meet37/backend:{version}"
     frontend_image = f"meet37/frontend:{version}"
-    proxy_image = "nginx:1.27-alpine"
 
     run(["docker", "build", "-t", backend_image, "-f", "backend/Dockerfile", "backend"])
     run(
@@ -265,8 +257,7 @@ def build_images(env: dict[str, str], version: str) -> tuple[str, str, str]:
             "frontend",
         ]
     )
-    run(["docker", "pull", proxy_image])
-    return backend_image, frontend_image, proxy_image
+    return backend_image, frontend_image
 
 
 def save_image(image: str, destination: Path) -> None:
@@ -389,22 +380,25 @@ def write_load_helpers(images_dir: Path) -> None:
             def main() -> int:
                 env = parse_env(ENV_PATH)
                 used: set[int] = set()
+                backend_port = find_free(int(env.get("BACKEND_HOST_PORT", "8080")), used)
                 frontend_port = find_free(int(env.get("FRONTEND_HOST_PORT", "3000")), used)
                 turn_port = find_free(int(env.get("TURN_HOST_PORT", "3478")), used)
 
+                env["BACKEND_HOST_PORT"] = str(backend_port)
                 env["FRONTEND_HOST_PORT"] = str(frontend_port)
                 env["TURN_HOST_PORT"] = str(turn_port)
                 env["TURN_PORT"] = str(turn_port)
 
                 host = env.get("NEXT_PUBLIC_TURN_PUBLIC_IP", "localhost")
-                env["NEXT_PUBLIC_API_BASE_URL"] = "browser-origin"
-                env["NEXT_PUBLIC_WS_URL"] = "browser-origin"
+                env["NEXT_PUBLIC_API_BASE_URL"] = f"http://{host}:{backend_port}"
+                env["NEXT_PUBLIC_WS_URL"] = f"ws://{host}:{backend_port}/ws"
                 env["ALLOWED_ORIGINS"] = f"http://{host}:{frontend_port}"
                 write_env(ENV_PATH, env)
 
                 load_images()
                 run(["docker", "compose", "up", "-d"])
                 print(f"Frontend: http://{host}:{frontend_port}")
+                print(f"Backend:  http://{host}:{backend_port}")
                 return 0
 
 
@@ -421,15 +415,15 @@ def write_manifest(
     *,
     backend_image: str,
     frontend_image: str,
-    proxy_image: str,
     env: dict[str, str],
     version: str,
 ) -> None:
     manifest = {
         "created_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "version": version,
-        "images": [backend_image, frontend_image, proxy_image],
+        "images": [backend_image, frontend_image],
         "ports": {
+            "backend": env["BACKEND_HOST_PORT"],
             "frontend": env["FRONTEND_HOST_PORT"],
             "turn": env["TURN_HOST_PORT"],
         },
@@ -442,48 +436,6 @@ def write_manifest(
     }
     (images_dir / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
-    )
-
-
-def nginx_config() -> str:
-    return textwrap.dedent(
-        """\
-        server {
-          listen 80;
-          server_name _;
-          client_max_body_size 50m;
-
-          location /api/ {
-            proxy_pass http://backend:8080/api/;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-          }
-
-          location /ws {
-            proxy_pass http://backend:8080/ws;
-            proxy_http_version 1.1;
-            proxy_set_header Upgrade $http_upgrade;
-            proxy_set_header Connection "upgrade";
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-            proxy_read_timeout 3600s;
-          }
-
-          location / {
-            proxy_pass http://frontend:3000;
-            proxy_http_version 1.1;
-            proxy_set_header Host $host;
-            proxy_set_header X-Real-IP $remote_addr;
-            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-            proxy_set_header X-Forwarded-Proto $scheme;
-          }
-        }
-        """
     )
 
 
@@ -502,7 +454,7 @@ def create_bundle(args: argparse.Namespace) -> Path:
 
     version = args.version or get_git_version()
     env = build_env(args)
-    backend_image, frontend_image, proxy_image = build_images(env, version)
+    backend_image, frontend_image = build_images(env, version)
     output_zip = Path(args.output).resolve()
 
     with tempfile.TemporaryDirectory(prefix="meet37-offline-") as temp_name:
@@ -511,28 +463,23 @@ def create_bundle(args: argparse.Namespace) -> Path:
         images_dir = bundle_dir / "images"
         data_dir = bundle_dir / "data"
         recordings_dir = data_dir / "recordings"
-        nginx_dir = data_dir / "nginx"
 
         images_dir.mkdir(parents=True)
         recordings_dir.mkdir(parents=True)
-        nginx_dir.mkdir(parents=True)
         (data_dir / ".gitkeep").write_text("", encoding="utf-8")
         (recordings_dir / ".gitkeep").write_text("", encoding="utf-8")
-        (nginx_dir / "default.conf").write_text(nginx_config(), encoding="utf-8")
 
         write_env(bundle_dir / ".env", env)
         (bundle_dir / "docker-compose.yml").write_text(
-            compose_yaml(backend_image, frontend_image, proxy_image), encoding="utf-8"
+            compose_yaml(backend_image, frontend_image), encoding="utf-8"
         )
         save_image(backend_image, images_dir)
         save_image(frontend_image, images_dir)
-        save_image(proxy_image, images_dir)
         write_load_helpers(images_dir)
         write_manifest(
             images_dir,
             backend_image=backend_image,
             frontend_image=frontend_image,
-            proxy_image=proxy_image,
             env=env,
             version=version,
         )
@@ -565,6 +512,12 @@ def parse_args() -> argparse.Namespace:
         "--public-host",
         default=os.environ.get("OFFLINE_PUBLIC_HOST", "localhost"),
         help="Host/IP clients will use to open the offline server.",
+    )
+    parser.add_argument(
+        "--backend-port",
+        type=int,
+        default=0,
+        help="Host port for backend HTTP/WebSocket. Defaults to a free port near 8080.",
     )
     parser.add_argument(
         "--frontend-port",

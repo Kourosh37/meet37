@@ -30,7 +30,7 @@ export function LocalVideoPreview({
   return (
     <div
       className={cn(
-        "relative grid aspect-video min-h-0 place-items-center overflow-hidden rounded-lg border border-border bg-muted",
+        "relative grid aspect-video min-h-0 place-items-center overflow-hidden rounded-lg border border-border bg-black",
         className
       )}
     >
@@ -38,7 +38,7 @@ export function LocalVideoPreview({
         <video
           ref={videoRef}
           autoPlay
-          className="h-full w-full scale-x-[-1] object-cover"
+          className="h-full w-full scale-x-[-1] object-contain"
           muted={muted}
           playsInline
         />

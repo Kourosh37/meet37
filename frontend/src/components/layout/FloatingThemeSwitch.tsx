@@ -1,11 +1,11 @@
 /*
 Frontend architecture note
 
-File: src\app\layout.tsx
-Layer: Next.js Route
+File: src\components\layout\FloatingThemeSwitch.tsx
+Layer: Layout Shell
 
 Responsibility:
-- Frontend file for the Next.js Route layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
+- Frontend file for the Layout Shell layer. It should implement only the responsibility implied by its route/feature name and should stay aligned with docs/ARCHITECTURE.md.
 
 Implementation contract:
 - Keep this file narrowly scoped; do not mix unrelated feature state, route rendering, and infrastructure concerns.
@@ -32,50 +32,12 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-import { QueryProvider } from "@/providers/QueryProvider";
-import { ThemeProvider } from "@/providers/ThemeProvider";
-import { ToastProvider } from "@/providers/ToastProvider";
-import { FloatingThemeSwitch } from "@/components/layout/FloatingThemeSwitch";
-import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
-import "./globals.css";
+import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 
-export const metadata: Metadata = {
-  title: {
-    default: "Meet",
-    template: "%s | Meet"
-  },
-  description:
-    "Browser-based video meetings with room sharing, moderation, and P2P-first media.",
-  applicationName: "Meet"
-};
-
-export const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  colorScheme: "light dark",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
-    { media: "(prefers-color-scheme: dark)", color: "#0f172a" }
-  ]
-};
-
-export default function RootLayout({ children }: { children: ReactNode }) {
+export function FloatingThemeSwitch() {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body>
-        <a
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground"
-          href="#main-content"
-        >
-          Skip to content
-        </a>
-        <ThemeProvider>
-          <QueryProvider>{children}</QueryProvider>
-          <FloatingThemeSwitch />
-          <ToastProvider />
-        </ThemeProvider>
-      </body>
-    </html>
+    <div className="fixed right-3 top-3 z-40 sm:right-4 sm:top-4">
+      <ThemeSwitch className="shadow-lg backdrop-blur" />
+    </div>
   );
 }

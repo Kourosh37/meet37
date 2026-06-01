@@ -25,6 +25,8 @@ interface ControlBarProps {
   onToggleVideo: () => void;
   participantsOpen: boolean;
   screenSharing: boolean;
+  screenShareSupported?: boolean;
+  screenShareUnavailableReason?: string;
   videoEnabled: boolean;
 }
 
@@ -40,8 +42,17 @@ export function ControlBar({
   onToggleVideo,
   participantsOpen,
   screenSharing,
+  screenShareSupported = true,
+  screenShareUnavailableReason = "Screen sharing is not available in this browser.",
   videoEnabled
 }: ControlBarProps) {
+  const canToggleScreenShare = screenSharing || screenShareSupported;
+  const screenShareTitle = screenSharing
+    ? "Stop screen sharing"
+    : screenShareSupported
+      ? "Share screen"
+      : screenShareUnavailableReason;
+
   return (
     <footer className="sticky bottom-4 z-10 mx-auto flex w-fit max-w-full items-center gap-2 rounded-lg border border-border bg-surface/95 p-2 shadow-lg backdrop-blur">
       <button
@@ -62,10 +73,11 @@ export function ControlBar({
         className={
           screenSharing
             ? "grid size-11 place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90"
-            : "grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+            : "grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
         }
+        disabled={!canToggleScreenShare}
         onClick={onToggleScreenShare}
-        title={screenSharing ? "Stop screen sharing" : "Share screen"}
+        title={screenShareTitle}
         type="button"
       >
         <MonitorUp className="size-5" />

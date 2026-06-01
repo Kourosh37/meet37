@@ -34,9 +34,9 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 import type { IncomingSignalMessage } from "@/features/meeting/types/signaling";
 
-export type SignalMessageHandler<TMessage extends IncomingSignalMessage = IncomingSignalMessage> = (
-  message: TMessage
-) => Promise<void> | void;
+export type SignalMessageHandler<
+  TMessage extends IncomingSignalMessage = IncomingSignalMessage
+> = (message: TMessage) => Promise<void> | void;
 
 export class MessageRouter {
   private readonly handlers = new Map<string, Set<SignalMessageHandler>>();
@@ -44,7 +44,9 @@ export class MessageRouter {
 
   subscribe<TType extends IncomingSignalMessage["type"]>(
     type: TType,
-    handler: SignalMessageHandler<Extract<IncomingSignalMessage, { type: TType }>>
+    handler: SignalMessageHandler<
+      Extract<IncomingSignalMessage, { type: TType }>
+    >
   ) {
     const handlers = this.handlers.get(type) ?? new Set<SignalMessageHandler>();
     handlers.add(handler as SignalMessageHandler);
@@ -63,9 +65,9 @@ export class MessageRouter {
   }
 
   dispatch(message: IncomingSignalMessage) {
-    this.handlers.get(message.type)?.forEach((handler) =>
-      this.dispatchToHandler(handler, message)
-    );
+    this.handlers
+      .get(message.type)
+      ?.forEach((handler) => this.dispatchToHandler(handler, message));
     this.wildcardHandlers.forEach((handler) =>
       this.dispatchToHandler(handler, message)
     );
@@ -90,7 +92,11 @@ export class MessageRouter {
 export function parseSignalMessage(raw: string) {
   const parsed = JSON.parse(raw) as IncomingSignalMessage;
 
-  if (!parsed || typeof parsed !== "object" || typeof parsed.type !== "string") {
+  if (
+    !parsed ||
+    typeof parsed !== "object" ||
+    typeof parsed.type !== "string"
+  ) {
     throw new Error("Invalid WebSocket message");
   }
 

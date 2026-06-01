@@ -81,7 +81,11 @@ export function DeviceSetup() {
           onClick={() => setup.setAudioEnabled(!setup.audioEnabled)}
           type="button"
         >
-          {setup.audioEnabled ? <Mic className="size-4" /> : <MicOff className="size-4" />}
+          {setup.audioEnabled ? (
+            <Mic className="size-4" />
+          ) : (
+            <MicOff className="size-4" />
+          )}
           Mic
         </button>
         <button
@@ -89,7 +93,11 @@ export function DeviceSetup() {
           onClick={() => setup.setVideoEnabled(!setup.videoEnabled)}
           type="button"
         >
-          {setup.videoEnabled ? <Camera className="size-4" /> : <CameraOff className="size-4" />}
+          {setup.videoEnabled ? (
+            <Camera className="size-4" />
+          ) : (
+            <CameraOff className="size-4" />
+          )}
           Camera
         </button>
         <button
@@ -98,14 +106,18 @@ export function DeviceSetup() {
           onClick={setup.startPreview}
           type="button"
         >
-          {setup.permissionState === "prompting" ? "Checking..." : "Test camera/mic"}
+          {setup.permissionState === "prompting"
+            ? "Checking..."
+            : "Test camera/mic"}
         </button>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <select
           className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
-          onChange={(event) => setup.setSelectedAudioDeviceId(event.target.value)}
+          onChange={(event) =>
+            setup.setSelectedAudioDeviceId(event.target.value)
+          }
           value={setup.selectedAudioDeviceId}
         >
           <option value="">Default microphone</option>
@@ -117,7 +129,9 @@ export function DeviceSetup() {
         </select>
         <select
           className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
-          onChange={(event) => setup.setSelectedVideoDeviceId(event.target.value)}
+          onChange={(event) =>
+            setup.setSelectedVideoDeviceId(event.target.value)
+          }
           value={setup.selectedVideoDeviceId}
         >
           <option value="">Default camera</option>

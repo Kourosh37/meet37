@@ -1,24 +1,58 @@
-/.env
+# Local environment and secrets
+.env
+.env.*
+!.env.example
 backend/.env
-backend/data/*
-!backend/data/.gitkeep
-
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/coverage/
-frontend/playwright-report/
-frontend/test-results/
-frontend/tsconfig.tsbuildinfo
-frontend/dev-server-*.log
-frontend/package-lock.json
-frontend/npm-shrinkwrap.json
-frontend/.npmrc
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 
+# Runtime data and databases
+backend/data/*
+!backend/data/.gitkeep
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
+
+# Backend build/test outputs
+backend/bin/
+backend/tmp/
+backend/coverage.out
+*.test
 *.exe
+
+# Frontend dependencies and package-manager noise
+frontend/node_modules/
+frontend/.pnpm-store/
+frontend/package-lock.json
+frontend/npm-shrinkwrap.json
+frontend/yarn.lock
+frontend/.npmrc
+
+# Frontend build, cache, and test outputs
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/
+frontend/tsconfig.tsbuildinfo
+frontend/.turbo/
+frontend/.vercel/
+frontend/dev-server-*.log
+
+# Logs
+*.log
+logs/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

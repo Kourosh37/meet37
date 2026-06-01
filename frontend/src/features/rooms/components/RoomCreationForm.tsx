@@ -43,7 +43,10 @@ import { useEffect } from "react";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { usePublicSettings } from "@/features/rooms/hooks/useRoomMeta";
 import { ApiClientError } from "@/lib/api/client";
-import { roomCreationSchema, type RoomCreationFormValues } from "@/lib/utils/validators";
+import {
+  roomCreationSchema,
+  type RoomCreationFormValues
+} from "@/lib/utils/validators";
 import { useCreateRoom } from "@/features/rooms/hooks/useCreateRoom";
 
 export function RoomCreationForm() {
@@ -74,10 +77,7 @@ export function RoomCreationForm() {
   async function onSubmit(values: RoomCreationFormValues) {
     try {
       const latestSettings = await settings.refetch();
-      if (
-        latestSettings.data?.app_mode === "private" &&
-        !isAuthenticated
-      ) {
+      if (latestSettings.data?.app_mode === "private" && !isAuthenticated) {
         toast.error("Login is required to create rooms in private mode");
         router.push("/login");
         return;
@@ -97,7 +97,9 @@ export function RoomCreationForm() {
         return;
       }
 
-      toast.error(error instanceof Error ? error.message : "Could not create room");
+      toast.error(
+        error instanceof Error ? error.message : "Could not create room"
+      );
     }
   }
 
@@ -124,7 +126,10 @@ export function RoomCreationForm() {
   return (
     <form className="grid gap-4" onSubmit={handleSubmit(onSubmit)}>
       <div className="space-y-2">
-        <label className="text-sm font-medium text-surface-foreground" htmlFor="room-name">
+        <label
+          className="text-sm font-medium text-surface-foreground"
+          htmlFor="room-name"
+        >
           Room name
         </label>
         <input
@@ -133,12 +138,17 @@ export function RoomCreationForm() {
           type="text"
           {...register("name")}
         />
-        {errors.name ? <p className="text-sm text-danger">{errors.name.message}</p> : null}
+        {errors.name ? (
+          <p className="text-sm text-danger">{errors.name.message}</p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
-          <label className="text-sm font-medium text-surface-foreground" htmlFor="join-policy">
+          <label
+            className="text-sm font-medium text-surface-foreground"
+            htmlFor="join-policy"
+          >
             Join policy
           </label>
           <select
@@ -152,7 +162,10 @@ export function RoomCreationForm() {
         </div>
 
         <div className="space-y-2">
-          <label className="text-sm font-medium text-surface-foreground" htmlFor="max-peers">
+          <label
+            className="text-sm font-medium text-surface-foreground"
+            htmlFor="max-peers"
+          >
             Maximum peers
           </label>
           <input
@@ -170,7 +183,10 @@ export function RoomCreationForm() {
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-surface-foreground" htmlFor="password">
+        <label
+          className="text-sm font-medium text-surface-foreground"
+          htmlFor="password"
+        >
           Optional password
         </label>
         <input
@@ -179,7 +195,9 @@ export function RoomCreationForm() {
           type="password"
           {...register("password")}
         />
-        {errors.password ? <p className="text-sm text-danger">{errors.password.message}</p> : null}
+        {errors.password ? (
+          <p className="text-sm text-danger">{errors.password.message}</p>
+        ) : null}
       </div>
 
       <input type="hidden" {...register("expires_in")} />

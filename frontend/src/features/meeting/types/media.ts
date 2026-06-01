@@ -32,9 +32,17 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-import type { PeerMode, TurnServerConfig } from "@/features/meeting/types/signaling";
+import type {
+  PeerMode,
+  TurnServerConfig
+} from "@/features/meeting/types/signaling";
 
-export type LocalMediaPermissionState = "idle" | "prompting" | "granted" | "denied" | "error";
+export type LocalMediaPermissionState =
+  | "idle"
+  | "prompting"
+  | "granted"
+  | "denied"
+  | "error";
 
 export interface LocalMediaPreferences {
   audioEnabled: boolean;

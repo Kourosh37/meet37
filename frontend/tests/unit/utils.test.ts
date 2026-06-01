@@ -1,4 +1,8 @@
-import { chunkBlob, MAX_FILE_SIZE_BYTES, reassembleChunks } from "@/lib/utils/fileChunker";
+import {
+  chunkBlob,
+  MAX_FILE_SIZE_BYTES,
+  reassembleChunks
+} from "@/lib/utils/fileChunker";
 import { formatBytes, isUnixSecondsExpired } from "@/lib/utils/formatters";
 import { createLogger } from "@/lib/utils/logger";
 import {
@@ -25,10 +29,13 @@ describe("validators", () => {
   it("enforces auth, display name, and admin user constraints", () => {
     expect(displayNameSchema.safeParse("  Sara  ").success).toBe(true);
     expect(displayNameSchema.safeParse("   ").success).toBe(false);
-    expect(loginSchema.safeParse({ username: "admin", password: "secret" }).success).toBe(true);
-    expect(adminUserCreateSchema.safeParse({ username: "ab", password: "12345678" }).success).toBe(
-      false
-    );
+    expect(
+      loginSchema.safeParse({ username: "admin", password: "secret" }).success
+    ).toBe(true);
+    expect(
+      adminUserCreateSchema.safeParse({ username: "ab", password: "12345678" })
+        .success
+    ).toBe(false);
     expect(adminUserUpdateSchema.safeParse({}).success).toBe(false);
   });
 });
@@ -51,8 +58,14 @@ describe("fileChunker", () => {
     }
 
     expect(chunks).toHaveLength(3);
-    expect(chunks[0]).toMatchObject({ fileId: "file-1", index: 0, totalChunks: 3 });
-    expect(chunks.map((chunk) => new TextDecoder().decode(chunk.bytes)).join("")).toBe("abcdef");
+    expect(chunks[0]).toMatchObject({
+      fileId: "file-1",
+      index: 0,
+      totalChunks: 3
+    });
+    expect(
+      chunks.map((chunk) => new TextDecoder().decode(chunk.bytes)).join("")
+    ).toBe("abcdef");
 
     const reassembled = reassembleChunks(chunks.reverse(), "text/plain");
     expect(reassembled.size).toBe(6);
@@ -69,7 +82,9 @@ describe("fileChunker", () => {
 
 describe("logger", () => {
   it("redacts sensitive fields before writing context", () => {
-    const debugSpy = vi.spyOn(console, "debug").mockImplementation(() => undefined);
+    const debugSpy = vi
+      .spyOn(console, "debug")
+      .mockImplementation(() => undefined);
 
     createLogger("api").debug("request", {
       access_token: "secret",

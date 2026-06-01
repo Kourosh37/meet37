@@ -38,14 +38,11 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
-import { useSignalingMessages } from "@/features/meeting/hooks/useSignalingMessages";
-import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
-import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import { useMeetingRoom } from "@/features/meeting/hooks/useMeetingRoom";
 import { DeviceSetup } from "@/features/prejoin/components/DeviceSetup";
 import { DisplayNameInput } from "@/features/prejoin/components/DisplayNameInput";
 import { PasswordPrompt } from "@/features/prejoin/components/PasswordPrompt";
 import { useRoomMeta } from "@/features/rooms/hooks/useRoomMeta";
-import { getHostToken } from "@/lib/storage/tokenStorage";
 import { displayNameSchema } from "@/lib/utils/validators";
 import Link from "next/link";
 
@@ -53,9 +50,8 @@ const DISPLAY_NAME_KEY = "meet_display_name";
 
 export function PreJoinSetup({ roomId }: { roomId: string }) {
   const { data, error, isLoading } = useRoomMeta(roomId);
-  const meeting = useMeetingStore();
-  const websocket = useWebSocket();
-  useSignalingMessages();
+  const { cancelJoin, joinMeeting, meeting, websocket } =
+    useMeetingRoom(roomId);
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -85,34 +81,17 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     }
 
     window.localStorage.setItem(DISPLAY_NAME_KEY, displayNameResult.data);
-    const hostToken = getHostToken(roomId);
-
-    meeting.beginJoin(roomId);
-    websocket.connect();
-    websocket.send({
-      payload: {
-        display_name: displayNameResult.data,
-        host_token: hostToken ?? undefined,
-        password: password || undefined,
-        room_id: roomId
-      },
-      type: "join"
+    const { joinedAsHost } = joinMeeting({
+      displayName: displayNameResult.data,
+      password
     });
     toast.info("Joining meeting", {
-      description: hostToken ? "Joining as room host." : undefined
+      description: joinedAsHost ? "Joining as room host." : undefined
     });
   }
 
   if (meeting.phase === "waiting-approval") {
-    return (
-      <WaitingRoom
-        onCancel={() => {
-          websocket.close();
-          meeting.reset();
-        }}
-        roomName={data?.room.name}
-      />
-    );
+    return <WaitingRoom onCancel={cancelJoin} roomName={data?.room.name} />;
   }
 
   if (meeting.phase === "in-call") {
@@ -140,10 +119,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
         </p>
         <button
           className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-          onClick={() => {
-            websocket.close();
-            meeting.reset();
-          }}
+          onClick={cancelJoin}
           type="button"
         >
           Back to prejoin

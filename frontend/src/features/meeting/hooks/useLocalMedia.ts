@@ -57,71 +57,69 @@ export function useLocalMedia() {
   const [isStarting, setIsStarting] = useState(false);
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
 
-  const start = useCallback(async (overrides?: {
-    audioEnabled?: boolean;
-    videoEnabled?: boolean;
-  }) => {
-    if (!navigator.mediaDevices?.getUserMedia) {
-      setError("Media devices are not available in this browser.");
-      return null;
-    }
-
-    const mediaState = useMediaStore.getState();
-    const shouldUseAudio = overrides?.audioEnabled ?? mediaState.audioEnabled;
-    const shouldUseVideo = overrides?.videoEnabled ?? mediaState.videoEnabled;
-    const audioDeviceId = mediaState.selectedAudioDeviceId;
-    const videoDeviceId = mediaState.selectedVideoDeviceId;
-
-    if (!shouldUseAudio && !shouldUseVideo) {
-      setStream((current) => {
-        stopMediaStream(current);
+  const start = useCallback(
+    async (overrides?: { audioEnabled?: boolean; videoEnabled?: boolean }) => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setError("Media devices are not available in this browser.");
         return null;
-      });
-      setError(null);
-      return null;
-    }
+      }
 
-    try {
-      setIsStarting(true);
-      const nextStream = await navigator.mediaDevices.getUserMedia({
-        audio: shouldUseAudio
-          ? {
-              deviceId: audioDeviceId
-                ? { exact: audioDeviceId }
-                : undefined
-            }
-          : false,
-        video: shouldUseVideo
-          ? {
-              deviceId: videoDeviceId
-                ? { exact: videoDeviceId }
-                : undefined
-            }
-          : false
-      });
+      const mediaState = useMediaStore.getState();
+      const shouldUseAudio = overrides?.audioEnabled ?? mediaState.audioEnabled;
+      const shouldUseVideo = overrides?.videoEnabled ?? mediaState.videoEnabled;
+      const audioDeviceId = mediaState.selectedAudioDeviceId;
+      const videoDeviceId = mediaState.selectedVideoDeviceId;
 
-      setStream((current) => {
-        stopMediaStream(current);
+      if (!shouldUseAudio && !shouldUseVideo) {
+        setStream((current) => {
+          stopMediaStream(current);
+          return null;
+        });
+        setError(null);
+        return null;
+      }
+
+      try {
+        setIsStarting(true);
+        const nextStream = await navigator.mediaDevices.getUserMedia({
+          audio: shouldUseAudio
+            ? {
+                deviceId: audioDeviceId ? { exact: audioDeviceId } : undefined
+              }
+            : false,
+          video: shouldUseVideo
+            ? {
+                deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined
+              }
+            : false
+        });
+
+        setStream((current) => {
+          stopMediaStream(current);
+          return nextStream;
+        });
+        nextStream.getAudioTracks().forEach((track) => {
+          track.enabled = shouldUseAudio;
+        });
+        nextStream.getVideoTracks().forEach((track) => {
+          track.enabled = shouldUseVideo;
+        });
+
+        setError(null);
         return nextStream;
-      });
-      nextStream.getAudioTracks().forEach((track) => {
-        track.enabled = shouldUseAudio;
-      });
-      nextStream.getVideoTracks().forEach((track) => {
-        track.enabled = shouldUseVideo;
-      });
-
-      setError(null);
-      return nextStream;
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Could not start local media."
-      );
-      return null;
-    } finally {
-      setIsStarting(false);
-    }
-  }, [setError]);
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : "Could not start local media."
+        );
+        return null;
+      } finally {
+        setIsStarting(false);
+      }
+    },
+    [setError]
+  );
 
   const stop = useCallback(() => {
     screenTrackRef.current = null;
@@ -196,7 +194,9 @@ export function useLocalMedia() {
       });
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : "Could not start screen sharing."
+        error instanceof Error
+          ? error.message
+          : "Could not start screen sharing."
       );
     }
   }, [setError, setScreenSharing, stopScreenShare]);
@@ -237,7 +237,14 @@ export function useLocalMedia() {
     stream?.getVideoTracks().forEach((track) => {
       track.enabled = enabled;
     });
-  }, [screenSharing, setVideoEnabled, start, stopScreenShare, stream, videoEnabled]);
+  }, [
+    screenSharing,
+    setVideoEnabled,
+    start,
+    stopScreenShare,
+    stream,
+    videoEnabled
+  ]);
 
   useEffect(() => () => stopMediaStream(stream), [stream]);
 

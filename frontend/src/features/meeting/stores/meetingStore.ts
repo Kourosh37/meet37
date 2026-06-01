@@ -67,10 +67,7 @@ export interface MeetingState {
   addPeer: (payload: PeerJoinedPayload) => void;
   removePendingPeer: (peerId: string) => void;
   removePeer: (payload: PeerIdPayload) => void;
-  setPeerMedia: (
-    peerId: string,
-    media: Partial<MeetingPeer["media"]>
-  ) => void;
+  setPeerMedia: (peerId: string, media: Partial<MeetingPeer["media"]>) => void;
   setPeerMode: (
     peerId: string,
     mode: MeetingPeer["connection"]["mode"]

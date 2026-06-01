@@ -36,7 +36,12 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 import Link from "next/link";
 
-export default function MeetingError({ reset }: { error: Error; reset: () => void }) {
+export default function MeetingError({
+  reset
+}: {
+  error: Error;
+  reset: () => void;
+}) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10 text-foreground">
       <section className="w-full max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">

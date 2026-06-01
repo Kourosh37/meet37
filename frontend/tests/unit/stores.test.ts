@@ -1,12 +1,14 @@
 import { useChatStore } from "@/features/meeting/stores/chatStore";
 import { useFileTransferStore } from "@/features/meeting/stores/fileTransferStore";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import { useMeetingUiStore } from "@/features/meeting/stores/uiStore";
 import { describe, expect, it, beforeEach } from "vitest";
 
 beforeEach(() => {
   useChatStore.getState().reset();
   useFileTransferStore.getState().reset();
   useMeetingStore.getState().reset();
+  useMeetingUiStore.getState().reset();
 });
 
 describe("meetingStore", () => {
@@ -113,5 +115,21 @@ describe("fileTransferStore", () => {
     expect(transfer?.status).toBe("completed");
     expect(transfer?.objectUrl).toBe("blob:download");
     expect(transfer?.progress.percentage).toBe(100);
+  });
+});
+
+describe("meetingUiStore", () => {
+  it("toggles visual panels independently from meeting state", () => {
+    useMeetingUiStore.getState().togglePanel("chat");
+    expect(useMeetingUiStore.getState().chatOpen).toBe(true);
+    expect(useMeetingUiStore.getState().activePanel).toBe("chat");
+
+    useMeetingUiStore.getState().openPanel("settings");
+    expect(useMeetingUiStore.getState().settingsOpen).toBe(true);
+    expect(useMeetingUiStore.getState().activePanel).toBe("settings");
+
+    useMeetingUiStore.getState().closePanel("settings");
+    expect(useMeetingUiStore.getState().settingsOpen).toBe(false);
+    expect(useMeetingUiStore.getState().activePanel).toBeNull();
   });
 });

@@ -52,13 +52,19 @@ export function listRooms() {
   return apiRequest<Room[]>(endpoints.rooms.base);
 }
 
-export function createRoom(request: CreateRoomRequest, protectedRequest = false) {
-  return apiRequest<CreateRoomResponse, CreateRoomRequest>(endpoints.rooms.base, {
-    body: request,
-    method: "POST",
-    protected: protectedRequest,
-    retryOnUnauthorized: false
-  });
+export function createRoom(
+  request: CreateRoomRequest,
+  protectedRequest = false
+) {
+  return apiRequest<CreateRoomResponse, CreateRoomRequest>(
+    endpoints.rooms.base,
+    {
+      body: request,
+      method: "POST",
+      protected: protectedRequest,
+      retryOnUnauthorized: false
+    }
+  );
 }
 
 export function getRoom(roomId: string) {

@@ -64,8 +64,12 @@ export function RoomList() {
     return (
       <div className="py-10 text-center">
         <Video className="mx-auto size-8 text-muted-foreground" />
-        <p className="mt-3 text-sm font-medium text-surface-foreground">No active rooms</p>
-        <p className="mt-2 text-sm text-muted-foreground">Create a room to start the first meeting.</p>
+        <p className="mt-3 text-sm font-medium text-surface-foreground">
+          No active rooms
+        </p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Create a room to start the first meeting.
+        </p>
       </div>
     );
   }
@@ -80,13 +84,17 @@ export function RoomList() {
         >
           <div className="flex items-start justify-between gap-4 px-2">
             <div className="min-w-0">
-              <h3 className="truncate text-sm font-semibold text-surface-foreground">{room.name}</h3>
+              <h3 className="truncate text-sm font-semibold text-surface-foreground">
+                {room.name}
+              </h3>
               <p className="mt-1 text-xs text-muted-foreground">
                 Created {formatUnixSeconds(room.created_at)}
               </p>
             </div>
             <div className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-              {room.has_password ? <Lock className="size-4" aria-label="Password protected" /> : null}
+              {room.has_password ? (
+                <Lock className="size-4" aria-label="Password protected" />
+              ) : null}
               <Users className="size-4" />
               {room.max_peers}
             </div>

@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 
 	"meet-backend/internal/config"
 	"meet-backend/internal/db"
+	"meet-backend/internal/middleware"
 	"meet-backend/internal/sfu"
 	"meet-backend/internal/signaling"
 
@@ -29,6 +31,80 @@ func testConfig() *config.Config {
 		SFUFallbackThresholdKbps: 1500,
 		AccessTokenTTLMinutes:    15,
 		RefreshTokenTTLDays:      30,
+	}
+}
+
+func TestPrivateModeRoomCreationRequiresAuthenticatedCreator(t *testing.T) {
+	cfg := testConfig()
+	cfg.DefaultAppMode = "private"
+	database, err := db.Open(t.TempDir()+"/meet.db", "private")
+	if err != nil {
+		t.Fatalf("open database: %v", err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	hub := signaling.NewHub(cfg, database, sfu.NewManager(cfg), nil)
+	handler := NewRoomHandler(cfg, database, hub)
+
+	anonymousRecorder := httptest.NewRecorder()
+	handler.CreateRoom(
+		anonymousRecorder,
+		httptest.NewRequest(http.MethodPost, "/api/rooms", bytes.NewBufferString(`{"name":"Private room"}`)),
+	)
+	if anonymousRecorder.Code != http.StatusForbidden {
+		t.Fatalf("anonymous create status = %d body=%s", anonymousRecorder.Code, anonymousRecorder.Body.String())
+	}
+
+	authenticatedRequest := httptest.NewRequest(http.MethodPost, "/api/rooms", bytes.NewBufferString(`{"name":"Private room","join_policy":"approval","max_peers":3}`))
+	authenticatedRequest = authenticatedRequest.WithContext(context.WithValue(authenticatedRequest.Context(), middleware.CtxUserID, "user-1"))
+	authenticatedRecorder := httptest.NewRecorder()
+	handler.CreateRoom(authenticatedRecorder, authenticatedRequest)
+	if authenticatedRecorder.Code != http.StatusCreated {
+		t.Fatalf("authenticated create status = %d body=%s", authenticatedRecorder.Code, authenticatedRecorder.Body.String())
+	}
+
+	var response map[string]interface{}
+	if err := json.Unmarshal(authenticatedRecorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode create response: %v", err)
+	}
+	if response["host_token"] == "" {
+		t.Fatalf("expected host token in private room response")
+	}
+	room := response["room"].(map[string]interface{})
+	if room["join_policy"] != "approval" || room["host_id"] != "user-1" {
+		t.Fatalf("unexpected room response: %#v", room)
+	}
+}
+
+func TestRoomCreationValidatesInputsAndCapsMaxPeers(t *testing.T) {
+	cfg := testConfig()
+	database := testDatabase(t)
+	hub := signaling.NewHub(cfg, database, sfu.NewManager(cfg), nil)
+	handler := NewRoomHandler(cfg, database, hub)
+
+	badPolicyRecorder := httptest.NewRecorder()
+	handler.CreateRoom(
+		badPolicyRecorder,
+		httptest.NewRequest(http.MethodPost, "/api/rooms", bytes.NewBufferString(`{"name":"Room","join_policy":"bad"}`)),
+	)
+	if badPolicyRecorder.Code != http.StatusBadRequest {
+		t.Fatalf("bad join policy status = %d", badPolicyRecorder.Code)
+	}
+
+	cappedRecorder := httptest.NewRecorder()
+	handler.CreateRoom(
+		cappedRecorder,
+		httptest.NewRequest(http.MethodPost, "/api/rooms", bytes.NewBufferString(`{"name":"Room","max_peers":999}`)),
+	)
+	if cappedRecorder.Code != http.StatusCreated {
+		t.Fatalf("capped create status = %d body=%s", cappedRecorder.Code, cappedRecorder.Body.String())
+	}
+	var response map[string]interface{}
+	if err := json.Unmarshal(cappedRecorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode capped response: %v", err)
+	}
+	room := response["room"].(map[string]interface{})
+	if room["max_peers"].(float64) != 50 {
+		t.Fatalf("expected max_peers fallback to 50, got %#v", room["max_peers"])
 	}
 }
 

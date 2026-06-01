@@ -56,7 +56,10 @@ export function LoginForm() {
 
   async function onSubmit(values: LoginFormValues) {
     try {
-      const session = await loginWithCredentials(values.username, values.password);
+      const session = await loginWithCredentials(
+        values.username,
+        values.password
+      );
 
       toast.success("Signed in");
       router.push(session.isAdmin ? "/admin" : "/rooms/new");
@@ -68,7 +71,10 @@ export function LoginForm() {
   return (
     <form className="mt-6 grid gap-4" onSubmit={handleSubmit(onSubmit)}>
       <div className="space-y-2">
-        <label className="text-sm font-medium text-surface-foreground" htmlFor="username">
+        <label
+          className="text-sm font-medium text-surface-foreground"
+          htmlFor="username"
+        >
           Username
         </label>
         <input
@@ -84,7 +90,10 @@ export function LoginForm() {
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium text-surface-foreground" htmlFor="password">
+        <label
+          className="text-sm font-medium text-surface-foreground"
+          htmlFor="password"
+        >
           Password
         </label>
         <input

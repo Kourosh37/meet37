@@ -35,11 +35,16 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 export type PeerMode = "p2p" | "sfu";
 export type MediaKind = "audio" | "video" | string;
 
-export type SignalEnvelope<TType extends string = string, TPayload = unknown> = {
+export type SignalEnvelope<
+  TType extends string = string,
+  TPayload = unknown
+> = {
   type: TType;
   from?: string;
   to?: string;
-} & (TPayload extends undefined ? { payload?: undefined } : { payload: TPayload });
+} & (TPayload extends undefined
+  ? { payload?: undefined }
+  : { payload: TPayload });
 
 export interface SignalPeer {
   id: string;
@@ -185,6 +190,7 @@ export interface SignalErrorPayload {
 
 export type OutgoingSignalMessage =
   | SignalEnvelope<"join", JoinPayload>
+  | SignalEnvelope<"leave", undefined>
   | SignalEnvelope<"approve-peer", PeerIdPayload>
   | SignalEnvelope<"reject-peer", RejectPeerPayload>
   | SignalEnvelope<"offer", SessionDescriptionPayload>

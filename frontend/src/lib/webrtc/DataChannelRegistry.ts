@@ -46,7 +46,9 @@ export class DataChannelRegistry {
     const channel = this.channels.get(peerId);
 
     if (!channel) {
-      return Promise.reject(new Error("File transfer channel is not available"));
+      return Promise.reject(
+        new Error("File transfer channel is not available")
+      );
     }
 
     if (channel.readyState === "open") {

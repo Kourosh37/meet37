@@ -48,7 +48,9 @@ describe("tokenStorage", () => {
 
     expect(getAuthSession()).toEqual(session);
     expect(getAccessToken()).toBe("access");
-    expect(window.sessionStorage.getItem("meet_auth_session")).toContain("access");
+    expect(window.sessionStorage.getItem("meet_auth_session")).toContain(
+      "access"
+    );
   });
 
   it("stores host tokens by room without putting them in URLs", () => {

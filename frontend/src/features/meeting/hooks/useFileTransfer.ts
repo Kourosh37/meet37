@@ -275,7 +275,9 @@ export function useFileTransfer(roomId: string | null) {
       try {
         assertFilePolicy(file);
       } catch (error) {
-        toast.error(error instanceof Error ? error.message : "File is not allowed.");
+        toast.error(
+          error instanceof Error ? error.message : "File is not allowed."
+        );
         return;
       }
 

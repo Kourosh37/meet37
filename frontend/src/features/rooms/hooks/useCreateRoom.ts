@@ -42,7 +42,8 @@ export function useCreateRoom() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (request: CreateRoomRequest) => createRoom(request, getAuthSession() !== null),
+    mutationFn: (request: CreateRoomRequest) =>
+      createRoom(request, getAuthSession() !== null),
     onSuccess: (response) => {
       saveHostToken(response.room.id, response.host_token);
       void queryClient.invalidateQueries({ queryKey: roomQueryKeys.all });

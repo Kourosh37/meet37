@@ -32,7 +32,14 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
-type LogScope = "api" | "auth" | "file" | "meeting" | "storage" | "webrtc" | "websocket";
+type LogScope =
+  | "api"
+  | "auth"
+  | "file"
+  | "meeting"
+  | "storage"
+  | "webrtc"
+  | "websocket";
 type LogLevel = "debug" | "info" | "warn" | "error";
 
 const sensitiveKeys = new Set([
@@ -53,10 +60,12 @@ function redactValue(value: unknown): unknown {
 
   if (value && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([key, nestedValue]) => [
-        key,
-        sensitiveKeys.has(key) ? "[redacted]" : redactValue(nestedValue)
-      ])
+      Object.entries(value as Record<string, unknown>).map(
+        ([key, nestedValue]) => [
+          key,
+          sensitiveKeys.has(key) ? "[redacted]" : redactValue(nestedValue)
+        ]
+      )
     );
   }
 
@@ -78,10 +87,14 @@ export function createLogger(scope: LogScope) {
   }
 
   return {
-    debug: (message: string, context?: unknown) => write("debug", message, context),
-    error: (message: string, context?: unknown) => write("error", message, context),
-    info: (message: string, context?: unknown) => write("info", message, context),
-    warn: (message: string, context?: unknown) => write("warn", message, context)
+    debug: (message: string, context?: unknown) =>
+      write("debug", message, context),
+    error: (message: string, context?: unknown) =>
+      write("error", message, context),
+    info: (message: string, context?: unknown) =>
+      write("info", message, context),
+    warn: (message: string, context?: unknown) =>
+      write("warn", message, context)
   };
 }
 

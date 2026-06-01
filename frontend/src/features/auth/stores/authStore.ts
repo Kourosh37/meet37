@@ -33,7 +33,10 @@ Future tests: login success/failure, token persistence, refresh rotation, logout
 */
 
 import { login, logout, refresh } from "@/features/auth/api/authApi";
-import { setAccessTokenResolver, setUnauthorizedHandler } from "@/lib/api/client";
+import {
+  setAccessTokenResolver,
+  setUnauthorizedHandler
+} from "@/lib/api/client";
 import {
   clearAuthSession,
   getAccessToken,
@@ -45,7 +48,11 @@ import {
 } from "@/lib/storage/tokenStorage";
 import { create } from "zustand";
 
-type AuthStatus = "anonymous" | "authenticated" | "authenticating" | "refreshing";
+type AuthStatus =
+  | "anonymous"
+  | "authenticated"
+  | "authenticating"
+  | "refreshing";
 
 export interface AuthState {
   error: string | null;
@@ -55,7 +62,10 @@ export interface AuthState {
   isAdmin: boolean;
   isAuthenticated: boolean;
   hydrate: () => void;
-  loginWithCredentials: (username: string, password: string) => Promise<StoredAuthSession>;
+  loginWithCredentials: (
+    username: string,
+    password: string
+  ) => Promise<StoredAuthSession>;
   refreshSession: () => Promise<boolean>;
   logoutSession: () => Promise<void>;
 }

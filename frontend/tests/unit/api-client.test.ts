@@ -1,4 +1,8 @@
-import { apiRequest, setAccessTokenResolver, setUnauthorizedHandler } from "@/lib/api/client";
+import {
+  apiRequest,
+  setAccessTokenResolver,
+  setUnauthorizedHandler
+} from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -44,10 +48,14 @@ describe("apiRequest", () => {
       })
     );
 
-    await apiRequest<{ ok: boolean }>("/api/admin/settings", { protected: true });
+    await apiRequest<{ ok: boolean }>("/api/admin/settings", {
+      protected: true
+    });
 
     const [, init] = fetchMock.mock.calls[0];
-    expect((init?.headers as Headers).get("Authorization")).toBe("Bearer access-token");
+    expect((init?.headers as Headers).get("Authorization")).toBe(
+      "Bearer access-token"
+    );
   });
 
   it("refreshes once and retries safe unauthorized requests", async () => {
@@ -67,7 +75,9 @@ describe("apiRequest", () => {
         })
       );
 
-    await expect(apiRequest("/api/admin/settings", { protected: true })).resolves.toEqual({
+    await expect(
+      apiRequest("/api/admin/settings", { protected: true })
+    ).resolves.toEqual({
       app_mode: "public"
     });
     expect(fetchMock).toHaveBeenCalledTimes(2);

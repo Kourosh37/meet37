@@ -51,10 +51,15 @@ let memorySession: StoredAuthSession | null = null;
 const memoryHostTokens = new Map<string, string>();
 
 function canUseSessionStorage() {
-  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+  return (
+    typeof window !== "undefined" &&
+    typeof window.sessionStorage !== "undefined"
+  );
 }
 
-export function sessionFromAuthResponse(response: AuthResponse): StoredAuthSession {
+export function sessionFromAuthResponse(
+  response: AuthResponse
+): StoredAuthSession {
   return {
     accessToken: response.access_token,
     expiresAt: response.expires_at,
@@ -133,7 +138,9 @@ export function getHostToken(roomId: string) {
     return null;
   }
 
-  const storedToken = window.sessionStorage.getItem(`${HOST_TOKEN_PREFIX}${roomId}`);
+  const storedToken = window.sessionStorage.getItem(
+    `${HOST_TOKEN_PREFIX}${roomId}`
+  );
 
   if (storedToken) {
     memoryHostTokens.set(roomId, storedToken);

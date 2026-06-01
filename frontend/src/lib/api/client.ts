@@ -65,11 +65,15 @@ export class ApiClientError extends Error {
   }
 }
 
-export function setAccessTokenResolver(resolver: AccessTokenResolver | undefined) {
+export function setAccessTokenResolver(
+  resolver: AccessTokenResolver | undefined
+) {
   accessTokenResolver = resolver;
 }
 
-export function setUnauthorizedHandler(handler: UnauthorizedHandler | undefined) {
+export function setUnauthorizedHandler(
+  handler: UnauthorizedHandler | undefined
+) {
   unauthorizedHandler = handler;
 }
 
@@ -118,7 +122,10 @@ async function createHeaders(options: ApiRequestOptions) {
   return headers;
 }
 
-async function requestOnce<TResponse, TBody>(path: string, options: ApiRequestOptions<TBody>) {
+async function requestOnce<TResponse, TBody>(
+  path: string,
+  options: ApiRequestOptions<TBody>
+) {
   const response = await fetch(buildUrl(path), {
     body: options.body === undefined ? undefined : JSON.stringify(options.body),
     headers: await createHeaders(options),
@@ -130,7 +137,10 @@ async function requestOnce<TResponse, TBody>(path: string, options: ApiRequestOp
 
   if (!response.ok) {
     throw new ApiClientError(
-      errorMessageFromBody(parsed, `Request failed with status ${response.status}`),
+      errorMessageFromBody(
+        parsed,
+        `Request failed with status ${response.status}`
+      ),
       response.status,
       parsed
     );
@@ -139,7 +149,10 @@ async function requestOnce<TResponse, TBody>(path: string, options: ApiRequestOp
   return parsed as TResponse;
 }
 
-function shouldRetryUnauthorized(method: HttpMethod, enabled: boolean | undefined) {
+function shouldRetryUnauthorized(
+  method: HttpMethod,
+  enabled: boolean | undefined
+) {
   if (enabled !== undefined) {
     return enabled;
   }
@@ -165,7 +178,10 @@ export async function apiRequest<TResponse, TBody = unknown>(
       const refreshed = await unauthorizedHandler();
 
       if (refreshed) {
-        apiLogger.debug("Retrying request after unauthorized refresh", { method, path });
+        apiLogger.debug("Retrying request after unauthorized refresh", {
+          method,
+          path
+        });
         return requestOnce<TResponse, TBody>(path, { ...options, method });
       }
     }

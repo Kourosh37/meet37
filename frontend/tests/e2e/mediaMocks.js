@@ -1,43 +1,35 @@
-/* global EventTarget, crypto, module, window */
+/* global MediaStream, module, window */
 async function installMediaMocks(page) {
   await page.addInitScript(() => {
-    class MockMediaStreamTrack extends EventTarget {
-      enabled = true;
-      id = crypto.randomUUID();
-      muted = false;
-      readyState = "live";
+    function createMockMediaStream() {
+      const tracks = [];
+      const canvas = window.document.createElement("canvas");
+      canvas.width = 640;
+      canvas.height = 360;
+      const context = canvas.getContext("2d");
 
-      constructor(kind) {
-        super();
-        this.kind = kind;
-        this.label = `Mock ${kind}`;
+      if (context) {
+        context.fillStyle = "#0f766e";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.fillStyle = "#ffffff";
+        context.font = "32px sans-serif";
+        context.fillText("Mock camera", 32, 64);
       }
 
-      getSettings() {
-        return {};
+      if (typeof canvas.captureStream === "function") {
+        tracks.push(...canvas.captureStream(5).getVideoTracks());
       }
 
-      stop() {
-        this.readyState = "ended";
-      }
-    }
+      const AudioContextClass =
+        window.AudioContext || window.webkitAudioContext;
 
-    class MockMediaStream {
-      constructor(tracks = []) {
-        this.tracks = tracks;
-      }
-
-      getTracks() {
-        return this.tracks;
+      if (AudioContextClass) {
+        const audioContext = new AudioContextClass();
+        const destination = audioContext.createMediaStreamDestination();
+        tracks.push(...destination.stream.getAudioTracks());
       }
 
-      getAudioTracks() {
-        return this.tracks.filter((track) => track.kind === "audio");
-      }
-
-      getVideoTracks() {
-        return this.tracks.filter((track) => track.kind === "video");
-      }
+      return new MediaStream(tracks);
     }
 
     Object.defineProperty(window.navigator, "mediaDevices", {
@@ -47,11 +39,7 @@ async function installMediaMocks(page) {
           { deviceId: "audio-1", kind: "audioinput", label: "Mock microphone" },
           { deviceId: "video-1", kind: "videoinput", label: "Mock camera" }
         ],
-        getUserMedia: async () =>
-          new MockMediaStream([
-            new MockMediaStreamTrack("audio"),
-            new MockMediaStreamTrack("video")
-          ])
+        getUserMedia: async () => createMockMediaStream()
       }
     });
   });

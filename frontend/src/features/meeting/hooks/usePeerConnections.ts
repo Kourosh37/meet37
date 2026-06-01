@@ -279,7 +279,10 @@ export function usePeerConnections(localStream: MediaStream | null) {
       webSocketManager.subscribe("answer", async (message) => {
         if (message.from) {
           const connection = ensureConnection(message.from);
-          if (!isConnectionUsable(connection) || connection.signalingState === "stable") {
+          if (
+            !isConnectionUsable(connection) ||
+            connection.signalingState === "stable"
+          ) {
             return;
           }
           await connection.setRemoteDescription(
@@ -294,7 +297,10 @@ export function usePeerConnections(localStream: MediaStream | null) {
           }
 
           const connection = ensureConnection(message.from);
-          if (!isConnectionUsable(connection) || !connection.remoteDescription) {
+          if (
+            !isConnectionUsable(connection) ||
+            !connection.remoteDescription
+          ) {
             return;
           }
           await connection.addIceCandidate(

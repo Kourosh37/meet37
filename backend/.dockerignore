@@ -1,7 +1,29 @@
+# Repository metadata
+.git
+.gitignore
+.gitattributes
+
+# Local environment and secrets
 .env
+.env.*
+!.env.example
+
+# Runtime data and local databases
 data
 *.db
 *.db-shm
 *.db-wal
+*.sqlite
+*.sqlite3
+
+# Build and test outputs
+bin
+tmp
+coverage.out
+*.test
 *.exe
-.git
+
+# Logs and OS noise
+*.log
+.DS_Store
+Thumbs.db

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AdmissionModal } from "@/features/meeting/components/AdmissionModal";
@@ -17,7 +17,10 @@ import { useQualityStats } from "@/features/meeting/hooks/useQualityStats";
 import { useSFUConnection } from "@/features/meeting/hooks/useSFUConnection";
 import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import { useMeetingUiStore } from "@/features/meeting/stores/uiStore";
 import type { MeetingPeer } from "@/features/meeting/types/peer";
+import { useKeyboard } from "@/hooks/useKeyboard";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 interface MeetingRoomProps {
@@ -31,6 +34,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const websocket = useWebSocket();
   const localMedia = useLocalMedia();
   const moderation = useModeration();
+  const onlineStatus = useOnlineStatus();
+  const ui = useMeetingUiStore();
   const startLocalMedia = localMedia.start;
   const stopLocalMedia = localMedia.stop;
   const audioEnabled = localMedia.audioEnabled;
@@ -39,9 +44,6 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const { remoteStreams } = peerConnections;
   const sfu = useSFUConnection(localMedia.stream);
   useQualityStats(peerConnections.connections);
-  const [chatOpen, setChatOpen] = useState(false);
-  const [participantsOpen, setParticipantsOpen] = useState(true);
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const sfuActive =
     sfu.active ||
     Object.values(meeting.peers).some((peer) => peer.connection.mode === "sfu");
@@ -70,6 +72,23 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       meeting.localPeerId
     ]
   );
+  const shortcuts = useMemo(
+    () => [
+      { handler: localMedia.toggleAudio, key: "m" },
+      { handler: localMedia.toggleVideo, key: "v" },
+      { handler: localMedia.toggleScreenShare, key: "s" },
+      { handler: () => ui.togglePanel("chat"), key: "c" },
+      { handler: () => ui.togglePanel("participants"), key: "p" }
+    ],
+    [
+      localMedia.toggleAudio,
+      localMedia.toggleScreenShare,
+      localMedia.toggleVideo,
+      ui
+    ]
+  );
+
+  useKeyboard(shortcuts, meeting.phase === "in-call");
 
   useEffect(() => {
     void startLocalMedia();
@@ -112,6 +131,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     stopLocalMedia();
     websocket.close();
     meeting.reset();
+    ui.reset();
     router.push("/");
   }
 
@@ -146,6 +166,13 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         </div>
       ) : null}
 
+      {onlineStatus.isOffline ? (
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
+          You are offline. Signaling and media may reconnect when your network
+          returns.
+        </div>
+      ) : null}
+
       <SFUBanner active={sfuActive} />
 
       <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -162,7 +189,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
           remoteStreams={remoteStreams}
         />
 
-        {participantsOpen ? (
+        {ui.participantsOpen ? (
           <ParticipantsPanel
             canModerate={moderation.canModerate}
             localPeer={localPeer}
@@ -183,8 +210,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       />
       <SettingsDrawer
         audioEnabled={localMedia.audioEnabled}
-        isOpen={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
+        isOpen={ui.settingsOpen}
+        onClose={() => ui.closePanel("settings")}
         onToggleAudio={localMedia.toggleAudio}
         onToggleScreenShare={localMedia.toggleScreenShare}
         onToggleVideo={localMedia.toggleVideo}
@@ -192,21 +219,21 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         videoEnabled={localMedia.videoEnabled}
       />
       <ChatPanel
-        isOpen={chatOpen}
-        onClose={() => setChatOpen(false)}
+        isOpen={ui.chatOpen}
+        onClose={() => ui.closePanel("chat")}
         roomId={meeting.roomId}
       />
       <ControlBar
         audioEnabled={localMedia.audioEnabled}
         onCopyInvite={() => void handleCopyInvite()}
         onLeave={handleLeave}
-        onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSettings={() => ui.openPanel("settings")}
         onToggleAudio={localMedia.toggleAudio}
-        onToggleChat={() => setChatOpen((open) => !open)}
-        onToggleParticipants={() => setParticipantsOpen((open) => !open)}
+        onToggleChat={() => ui.togglePanel("chat")}
+        onToggleParticipants={() => ui.togglePanel("participants")}
         onToggleScreenShare={localMedia.toggleScreenShare}
         onToggleVideo={localMedia.toggleVideo}
-        participantsOpen={participantsOpen}
+        participantsOpen={ui.participantsOpen}
         screenSharing={localMedia.screenSharing}
         videoEnabled={localMedia.videoEnabled}
       />

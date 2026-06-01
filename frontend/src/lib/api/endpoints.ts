@@ -53,7 +53,8 @@ export const endpoints = {
     settings: "/api/admin/settings",
     users: "/api/admin/users",
     user: (userId: string) => `/api/admin/users/${encodePathSegment(userId)}`,
-    roomStats: (roomId: string) => `/api/admin/rooms/${encodePathSegment(roomId)}/stats`,
+    roomStats: (roomId: string) =>
+      `/api/admin/rooms/${encodePathSegment(roomId)}/stats`,
     sfuStats: "/api/admin/sfu/stats"
   }
 } as const;

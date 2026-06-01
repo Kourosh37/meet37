@@ -1,18 +1,34 @@
-# Local dependencies and build outputs should not be sent to Docker build context.
+# Repository metadata
+.git
+.gitignore
+.gitattributes
+
+# Local dependencies and package-manager stores
 node_modules
 .pnpm-store
+npm-shrinkwrap.json
+package-lock.json
+yarn.lock
+.npmrc
+
+# Build, cache, and test outputs
 .next
 out
+dist
 coverage
 playwright-report
 test-results
+tsconfig.tsbuildinfo
+.turbo
+.vercel
 
-# Local secrets and environment overrides must stay outside images.
+# Local secrets and environment overrides
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
 
-# Repository and OS noise.
-.git
+# Logs and OS noise
+*.log
+dev-server-*.log
 .DS_Store
 Thumbs.db

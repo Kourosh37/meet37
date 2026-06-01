@@ -39,7 +39,11 @@ import type {
 import { publicEnv } from "@/lib/env";
 import { getAccessToken } from "@/lib/storage/tokenStorage";
 import { createLogger } from "@/lib/utils/logger";
-import { MessageRouter, parseSignalMessage, type SignalMessageHandler } from "@/lib/websocket/messageRouter";
+import {
+  MessageRouter,
+  parseSignalMessage,
+  type SignalMessageHandler
+} from "@/lib/websocket/messageRouter";
 
 type ConnectionStatus = "closed" | "connecting" | "open" | "reconnecting";
 type StatusHandler = (status: ConnectionStatus) => void;
@@ -118,7 +122,9 @@ export class WebSocketManager {
 
   subscribe<TType extends IncomingSignalMessage["type"]>(
     type: TType,
-    handler: SignalMessageHandler<Extract<IncomingSignalMessage, { type: TType }>>
+    handler: SignalMessageHandler<
+      Extract<IncomingSignalMessage, { type: TType }>
+    >
   ) {
     return this.router.subscribe(type, handler);
   }

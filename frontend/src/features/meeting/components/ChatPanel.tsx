@@ -72,19 +72,17 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
             No messages yet.
           </p>
         ) : (
-          timeline.map((entry) => (
+          timeline.map((entry) =>
             entry.type === "message" ? (
               <ChatMessage key={entry.id} message={entry.value} />
             ) : (
               <FileTransferItem key={entry.id} transfer={entry.value} />
             )
-          ))
+          )
         )}
       </div>
 
-      <FileTransferPanel
-        onSendFile={files.sendFile}
-      />
+      <FileTransferPanel onSendFile={files.sendFile} />
 
       <form className="border-t border-border p-4" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="meeting-chat-message">

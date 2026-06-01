@@ -1,5 +1,8 @@
 import type { IncomingSignalMessage } from "@/features/meeting/types/signaling";
-import { MessageRouter, parseSignalMessage } from "@/lib/websocket/messageRouter";
+import {
+  MessageRouter,
+  parseSignalMessage
+} from "@/lib/websocket/messageRouter";
 import { describe, expect, it, vi } from "vitest";
 
 describe("MessageRouter", () => {
@@ -26,9 +29,11 @@ describe("MessageRouter", () => {
   });
 
   it("parses valid envelopes and rejects malformed data", () => {
-    expect(parseSignalMessage(JSON.stringify({ type: "room-closed" }))).toEqual({
-      type: "room-closed"
-    });
+    expect(parseSignalMessage(JSON.stringify({ type: "room-closed" }))).toEqual(
+      {
+        type: "room-closed"
+      }
+    );
     expect(() => parseSignalMessage("{}")).toThrow("Invalid WebSocket message");
   });
 });

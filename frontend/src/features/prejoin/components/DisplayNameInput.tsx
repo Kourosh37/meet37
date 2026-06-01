@@ -45,7 +45,10 @@ export function DisplayNameInput({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-surface-foreground" htmlFor="display-name">
+      <label
+        className="text-sm font-medium text-surface-foreground"
+        htmlFor="display-name"
+      >
         Display name
       </label>
       <input

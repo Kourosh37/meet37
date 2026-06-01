@@ -82,14 +82,20 @@ export function useDeviceSetup() {
     }
 
     const devices = await navigator.mediaDevices.enumerateDevices();
-    const audioInputs = devices.filter((device) => device.kind === "audioinput");
-    const videoInputs = devices.filter((device) => device.kind === "videoinput");
+    const audioInputs = devices.filter(
+      (device) => device.kind === "audioinput"
+    );
+    const videoInputs = devices.filter(
+      (device) => device.kind === "videoinput"
+    );
 
     setState((current) => ({
       ...current,
       audioInputs,
-      selectedAudioDeviceId: current.selectedAudioDeviceId || audioInputs[0]?.deviceId || "",
-      selectedVideoDeviceId: current.selectedVideoDeviceId || videoInputs[0]?.deviceId || "",
+      selectedAudioDeviceId:
+        current.selectedAudioDeviceId || audioInputs[0]?.deviceId || "",
+      selectedVideoDeviceId:
+        current.selectedVideoDeviceId || videoInputs[0]?.deviceId || "",
       videoInputs
     }));
   }, []);
@@ -117,7 +123,11 @@ export function useDeviceSetup() {
       return;
     }
 
-    setState((current) => ({ ...current, error: null, permissionState: "prompting" }));
+    setState((current) => ({
+      ...current,
+      error: null,
+      permissionState: "prompting"
+    }));
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -150,7 +160,10 @@ export function useDeviceSetup() {
     } catch (error) {
       setState((current) => ({
         ...current,
-        error: error instanceof Error ? error.message : "Could not start camera or microphone.",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Could not start camera or microphone.",
         permissionState: "denied"
       }));
     }
@@ -169,35 +182,47 @@ export function useDeviceSetup() {
     });
   }, []);
 
-  const setAudioEnabled = useCallback((audioEnabled: boolean) => {
-    mediaStore.setAudioEnabled(audioEnabled);
-    setState((current) => {
-      current.previewStream?.getAudioTracks().forEach((track) => {
-        track.enabled = audioEnabled;
+  const setAudioEnabled = useCallback(
+    (audioEnabled: boolean) => {
+      mediaStore.setAudioEnabled(audioEnabled);
+      setState((current) => {
+        current.previewStream?.getAudioTracks().forEach((track) => {
+          track.enabled = audioEnabled;
+        });
+        return { ...current, audioEnabled };
       });
-      return { ...current, audioEnabled };
-    });
-  }, [mediaStore]);
+    },
+    [mediaStore]
+  );
 
-  const setVideoEnabled = useCallback((videoEnabled: boolean) => {
-    mediaStore.setVideoEnabled(videoEnabled);
-    setState((current) => {
-      current.previewStream?.getVideoTracks().forEach((track) => {
-        track.enabled = videoEnabled;
+  const setVideoEnabled = useCallback(
+    (videoEnabled: boolean) => {
+      mediaStore.setVideoEnabled(videoEnabled);
+      setState((current) => {
+        current.previewStream?.getVideoTracks().forEach((track) => {
+          track.enabled = videoEnabled;
+        });
+        return { ...current, videoEnabled };
       });
-      return { ...current, videoEnabled };
-    });
-  }, [mediaStore]);
+    },
+    [mediaStore]
+  );
 
-  const setSelectedAudioDeviceId = useCallback((selectedAudioDeviceId: string) => {
-    mediaStore.setSelectedAudioDeviceId(selectedAudioDeviceId);
-    setState((current) => ({ ...current, selectedAudioDeviceId }));
-  }, [mediaStore]);
+  const setSelectedAudioDeviceId = useCallback(
+    (selectedAudioDeviceId: string) => {
+      mediaStore.setSelectedAudioDeviceId(selectedAudioDeviceId);
+      setState((current) => ({ ...current, selectedAudioDeviceId }));
+    },
+    [mediaStore]
+  );
 
-  const setSelectedVideoDeviceId = useCallback((selectedVideoDeviceId: string) => {
-    mediaStore.setSelectedVideoDeviceId(selectedVideoDeviceId);
-    setState((current) => ({ ...current, selectedVideoDeviceId }));
-  }, [mediaStore]);
+  const setSelectedVideoDeviceId = useCallback(
+    (selectedVideoDeviceId: string) => {
+      mediaStore.setSelectedVideoDeviceId(selectedVideoDeviceId);
+      setState((current) => ({ ...current, selectedVideoDeviceId }));
+    },
+    [mediaStore]
+  );
 
   useEffect(() => {
     void enumerateDevices();

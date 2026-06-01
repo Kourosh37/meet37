@@ -7,9 +7,7 @@ interface FileTransferPanelProps {
   onSendFile: (file: File) => void;
 }
 
-export function FileTransferPanel({
-  onSendFile
-}: FileTransferPanelProps) {
+export function FileTransferPanel({ onSendFile }: FileTransferPanelProps) {
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 

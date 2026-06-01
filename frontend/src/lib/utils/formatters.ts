@@ -58,7 +58,10 @@ export function formatRelativeUnixSeconds(value: number, now = Date.now()) {
   }
 
   if (abs < 86_400) {
-    return relativeTimeFormatter.format(Math.round(diffSeconds / 3_600), "hour");
+    return relativeTimeFormatter.format(
+      Math.round(diffSeconds / 3_600),
+      "hour"
+    );
   }
 
   return relativeTimeFormatter.format(Math.round(diffSeconds / 86_400), "day");

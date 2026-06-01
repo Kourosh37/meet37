@@ -41,7 +41,10 @@ export function PasswordPrompt({
 }) {
   return (
     <div className="space-y-2">
-      <label className="text-sm font-medium text-surface-foreground" htmlFor="room-password">
+      <label
+        className="text-sm font-medium text-surface-foreground"
+        htmlFor="room-password"
+      >
         Room password
       </label>
       <input

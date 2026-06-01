@@ -55,7 +55,8 @@ async function readBlobSlice(blob: Blob) {
   return new Promise<ArrayBuffer>((resolve, reject) => {
     const reader = new FileReader();
 
-    reader.onerror = () => reject(reader.error ?? new Error("Failed to read file chunk"));
+    reader.onerror = () =>
+      reject(reader.error ?? new Error("Failed to read file chunk"));
     reader.onload = () => {
       if (reader.result instanceof ArrayBuffer) {
         resolve(reader.result);
@@ -91,7 +92,10 @@ export async function* chunkBlob(
   }
 }
 
-export function reassembleChunks(chunks: FileChunk[], mime = "application/octet-stream") {
+export function reassembleChunks(
+  chunks: FileChunk[],
+  mime = "application/octet-stream"
+) {
   const sorted = [...chunks].sort((left, right) => left.index - right.index);
   return new Blob(
     sorted.map((chunk) => new Uint8Array(chunk.bytes)),

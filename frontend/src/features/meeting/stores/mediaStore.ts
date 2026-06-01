@@ -59,7 +59,9 @@ export const useMediaStore = create<MediaState>((set) => ({
   setAudioEnabled: (audioEnabled) => set({ audioEnabled }),
   setError: (error) => set({ error }),
   setScreenSharing: (screenSharing) => set({ screenSharing }),
-  setSelectedAudioDeviceId: (selectedAudioDeviceId) => set({ selectedAudioDeviceId }),
-  setSelectedVideoDeviceId: (selectedVideoDeviceId) => set({ selectedVideoDeviceId }),
+  setSelectedAudioDeviceId: (selectedAudioDeviceId) =>
+    set({ selectedAudioDeviceId }),
+  setSelectedVideoDeviceId: (selectedVideoDeviceId) =>
+    set({ selectedVideoDeviceId }),
   setVideoEnabled: (videoEnabled) => set({ videoEnabled })
 }));

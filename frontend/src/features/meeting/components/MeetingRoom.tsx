@@ -7,6 +7,7 @@ import { AdmissionModal } from "@/features/meeting/components/AdmissionModal";
 import { ChatPanel } from "@/features/meeting/components/ChatPanel";
 import { ControlBar } from "@/features/meeting/components/ControlBar";
 import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPanel";
+import { RemoteAudioPlayer } from "@/features/meeting/components/RemoteAudioPlayer";
 import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
 import { VideoGrid } from "@/features/meeting/components/VideoGrid";
 import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
@@ -48,6 +49,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   );
   const localAudioLevelRef = useRef(0);
   const lastSentAudioLevelRef = useRef(0);
+  const lastSentAudioLevelAtRef = useRef(0);
+  const remoteAudioLevelTimersRef = useRef(new Map<string, number>());
   const [remoteAudioLevels, setRemoteAudioLevels] = useState<
     Record<string, number>
   >({});
@@ -163,24 +166,24 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   }, [localAudioLevel]);
 
   const sendLiveAudioLevel = useCallback(() => {
+    const now = Date.now();
     const level =
       localMedia.audioEnabled && localMedia.audioStatus === "ready"
         ? Number(localAudioLevelRef.current.toFixed(3))
         : 0;
+    const lastLevel = lastSentAudioLevelRef.current;
+    const elapsed = now - lastSentAudioLevelAtRef.current;
+    const isAudible = level > 0.025;
+    const shouldSend =
+      (isAudible && (Math.abs(lastLevel - level) >= 0.015 || elapsed >= 180)) ||
+      (!isAudible && (lastLevel > 0.025 || elapsed >= 700));
 
-    if (
-      level < 0.03 &&
-      lastSentAudioLevelRef.current < 0.03 &&
-      lastSentAudioLevelRef.current === level
-    ) {
-      return;
-    }
-
-    if (Math.abs(lastSentAudioLevelRef.current - level) < 0.035) {
+    if (!shouldSend) {
       return;
     }
 
     lastSentAudioLevelRef.current = level;
+    lastSentAudioLevelAtRef.current = now;
     webSocketManager.send({
       payload: {
         level
@@ -217,6 +220,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     }
 
     lastSentAudioLevelRef.current = 0;
+    lastSentAudioLevelAtRef.current = Date.now();
     webSocketManager.send({
       payload: { level: 0 },
       type: "audio-level"
@@ -242,12 +246,37 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
           [peerId]: level
         };
       });
+
+      const existingTimer = remoteAudioLevelTimersRef.current.get(peerId);
+      if (existingTimer) {
+        window.clearTimeout(existingTimer);
+      }
+      remoteAudioLevelTimersRef.current.set(
+        peerId,
+        window.setTimeout(() => {
+          remoteAudioLevelTimersRef.current.delete(peerId);
+          setRemoteAudioLevels((current) =>
+            current[peerId]
+              ? {
+                  ...current,
+                  [peerId]: 0
+                }
+              : current
+          );
+        }, 650)
+      );
     });
   }, []);
 
   useEffect(() => {
     const activePeerIds = new Set(Object.keys(meeting.peers));
     setRemoteAudioLevels((current) => {
+      remoteAudioLevelTimersRef.current.forEach((timer, peerId) => {
+        if (!activePeerIds.has(peerId)) {
+          window.clearTimeout(timer);
+          remoteAudioLevelTimersRef.current.delete(peerId);
+        }
+      });
       const next = Object.fromEntries(
         Object.entries(current).filter(([peerId]) => activePeerIds.has(peerId))
       );
@@ -257,6 +286,16 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         : next;
     });
   }, [meeting.peers]);
+
+  useEffect(
+    () => () => {
+      remoteAudioLevelTimersRef.current.forEach((timer) => {
+        window.clearTimeout(timer);
+      });
+      remoteAudioLevelTimersRef.current.clear();
+    },
+    []
+  );
 
   function handleLeave() {
     stopLocalMedia();
@@ -337,6 +376,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
           />
         ) : null}
       </div>
+      <RemoteAudioPlayer streams={remoteStreams} />
 
       <AdmissionModal
         onApprove={moderation.approvePeer}

@@ -49,7 +49,6 @@ export function VideoTile({
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
   const [_trackVersion, setTrackVersion] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioTracks = useMemo(() => stream?.getAudioTracks() ?? [], [stream]);
   const videoTracks = useMemo(() => stream?.getVideoTracks() ?? [], [stream]);
@@ -87,7 +86,11 @@ export function VideoTile({
     0.74
   );
   const audioLevel = signaledAudioLevel ?? measuredAudioLevel;
-  const isSpeaking = audioEnabled && !hasMicrophoneError && audioLevel > 0.08;
+  const hasSignaledAudioLevel = signaledAudioLevel !== undefined;
+  const isSpeaking =
+    !hasMicrophoneError &&
+    audioLevel > 0.06 &&
+    (audioEnabled || hasSignaledAudioLevel);
   const speakingScale = 1 + Math.min(audioLevel, 1) * 0.25;
   const speakingOpacity = Math.min(0.95, 0.25 + audioLevel * 1.8);
   const initials = useMemo(
@@ -128,56 +131,19 @@ export function VideoTile({
     };
   }, [audioTracks, videoTracks]);
 
-  useEffect(() => {
-    if (!audioRef.current || isLocal) {
-      return;
-    }
-
-    const audio = audioRef.current;
-    const playAudio = () => {
-      if (!hasAudio) {
-        return;
-      }
-
-      audio.muted = false;
-      audio.volume = 1;
-      void audio.play().catch(() => undefined);
-    };
-
-    audio.srcObject = hasAudio ? audioStream : null;
-    playAudio();
-
-    window.addEventListener("click", playAudio);
-    window.addEventListener("keydown", playAudio);
-    window.addEventListener("pointerdown", playAudio);
-    audio.addEventListener("canplay", playAudio);
-    audio.addEventListener("loadedmetadata", playAudio);
-
-    return () => {
-      window.removeEventListener("click", playAudio);
-      window.removeEventListener("keydown", playAudio);
-      window.removeEventListener("pointerdown", playAudio);
-      audio.removeEventListener("canplay", playAudio);
-      audio.removeEventListener("loadedmetadata", playAudio);
-      audio.srcObject = null;
-    };
-  }, [audioStream, hasAudio, isLocal]);
-
   return (
     <article
       className={cn(
-        "relative grid aspect-video min-h-[clamp(150px,48vw,240px)] overflow-hidden rounded-lg border border-border bg-black shadow-sm transition-[border-color,box-shadow] sm:min-h-[180px]",
+        "relative grid aspect-video min-h-[clamp(150px,48vw,240px)] overflow-hidden rounded-lg border border-border bg-black shadow-sm transition-[border-color,box-shadow,transform] sm:min-h-[180px]",
         isSpeaking &&
-          "border-primary shadow-[0_0_0_2px_rgb(var(--primary)/0.35)]",
+          "border-primary shadow-[0_0_0_2px_rgb(var(--primary)/0.28),0_18px_50px_rgb(var(--primary)/0.16)]",
         className
       )}
     >
-      {!isLocal ? <audio ref={audioRef} autoPlay playsInline /> : null}
-
       {onMaximize ? (
         <button
           aria-label={`Maximize ${displayName}`}
-          className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-md border border-white/20 bg-black/55 text-white shadow-sm transition hover:bg-black/75"
+          className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-md border border-white/25 bg-primary/35 text-white shadow-sm backdrop-blur-md transition hover:bg-primary/50"
           onClick={onMaximize}
           title="Maximize"
           type="button"
@@ -187,10 +153,9 @@ export function VideoTile({
       ) : null}
 
       {!hasVideo && !loadingLabel ? (
-        <VideoOff
-          className="absolute left-3 top-3 z-10 h-5 w-5 text-white/80"
-          aria-hidden="true"
-        />
+        <span className="absolute left-3 top-3 z-10 grid size-9 place-items-center rounded-md border border-white/20 bg-danger/35 text-white shadow-sm backdrop-blur-md">
+          <VideoOff className="h-5 w-5" aria-hidden="true" />
+        </span>
       ) : null}
 
       {hasVideo ? (
@@ -221,27 +186,33 @@ export function VideoTile({
         </div>
       )}
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-14 items-end justify-between gap-3 bg-gradient-to-t from-black/75 via-black/35 to-transparent p-3 text-white">
-        <div className="min-w-0">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex min-h-16 items-end justify-between gap-3 bg-gradient-to-t from-black/55 via-black/20 to-transparent p-3 text-white">
+        <div className="min-w-0 rounded-lg border border-white/15 bg-black/35 px-3 py-2 shadow-sm backdrop-blur-md">
           <p className="truncate text-sm font-semibold">
             {displayName}
             {isLocal ? " (You)" : ""}
           </p>
-          <p className="text-xs text-white/75">{isHost ? "Host" : "Guest"}</p>
+          <p className="mt-0.5 text-xs text-white/75">
+            {isHost ? "Host" : "Guest"}
+          </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {screenSharing ? (
-            <MonitorUp className="h-4 w-4" aria-label="Screen sharing" />
+            <span className="grid size-7 place-items-center rounded-full border border-white/20 bg-primary/35 text-white shadow-sm backdrop-blur-md">
+              <MonitorUp className="h-4 w-4" aria-label="Screen sharing" />
+            </span>
           ) : null}
           {isOpeningMicrophone ? (
-            <Loader2
-              className="h-4 w-4 animate-spin"
-              aria-label="Opening microphone"
-            />
+            <span className="grid size-7 place-items-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm backdrop-blur-md">
+              <Loader2
+                className="h-4 w-4 animate-spin"
+                aria-label="Opening microphone"
+              />
+            </span>
           ) : audioEnabled && !hasMicrophoneError ? (
             <span
               className={cn(
-                "relative grid size-7 place-items-center rounded-full border border-white/15 bg-white/10 transition",
+                "relative grid size-7 place-items-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm backdrop-blur-md transition",
                 isSpeaking &&
                   "border-primary bg-primary text-primary-foreground"
               )}
@@ -260,12 +231,16 @@ export function VideoTile({
               />
             </span>
           ) : (
-            <MicOff
-              className="h-4 w-4 text-danger"
-              aria-label={
-                hasMicrophoneError ? "Microphone unavailable" : "Microphone off"
-              }
-            />
+            <span className="grid size-7 place-items-center rounded-full border border-white/20 bg-danger/35 text-white shadow-sm backdrop-blur-md">
+              <MicOff
+                className="h-4 w-4"
+                aria-label={
+                  hasMicrophoneError
+                    ? "Microphone unavailable"
+                    : "Microphone off"
+                }
+              />
+            </span>
           )}
         </div>
       </div>

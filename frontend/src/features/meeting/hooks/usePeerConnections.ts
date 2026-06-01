@@ -179,7 +179,10 @@ export function usePeerConnections(localStream: MediaStream | null) {
       }
 
       const publish = () => {
-        setRemoteStreams((current) => ({ ...current, [peerId]: nextStream }));
+        setRemoteStreams((current) => ({
+          ...current,
+          [peerId]: new MediaStream(nextStream.getTracks())
+        }));
       };
 
       event.track.addEventListener("ended", publish);

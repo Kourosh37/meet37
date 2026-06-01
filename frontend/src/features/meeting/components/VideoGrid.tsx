@@ -149,7 +149,7 @@ export function VideoGrid({
       </section>
 
       {maximizedTile ? (
-        <div className="fixed inset-0 z-50 grid bg-black/85 p-4 backdrop-blur-sm sm:p-6">
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-black/85 p-3 backdrop-blur-sm sm:p-6">
           <button
             aria-label="Minimize video"
             className="absolute right-4 top-4 z-10 grid size-10 place-items-center rounded-md border border-white/20 bg-black/60 text-white shadow-lg transition hover:bg-black/80"
@@ -159,12 +159,12 @@ export function VideoGrid({
           >
             <Minimize2 className="size-5" />
           </button>
-          <div className="m-auto w-full max-w-7xl">
+          <div className="grid h-full max-h-[calc(100svh-1.5rem)] w-full max-w-[min(calc(100vw-1.5rem),calc((100svh-1.5rem)*16/9))] place-items-center sm:max-h-[calc(100vh-3rem)] sm:max-w-[min(80rem,calc(100vw-3rem),calc((100vh-3rem)*16/9))]">
             <VideoTile
               audioEnabled={maximizedTile.audioEnabled}
               audioLevel={maximizedTile.audioLevel}
               audioStatus={maximizedTile.audioStatus}
-              className="min-h-[min(78vh,720px)] rounded-lg border border-white/15 bg-black shadow-2xl"
+              className="h-auto max-h-full min-h-0 w-full rounded-lg border border-white/15 bg-black shadow-2xl"
               displayName={maximizedTile.displayName}
               isHost={maximizedTile.isHost}
               isLocal={maximizedTile.isLocal}

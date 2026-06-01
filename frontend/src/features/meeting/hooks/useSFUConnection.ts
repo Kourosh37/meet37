@@ -48,18 +48,31 @@ export function useSFUConnection(localStream: MediaStream | null) {
                 ownerStream.addTrack(event.track);
               }
 
-              setRemoteStreams((current) => ({
-                ...current,
-                [ownerId]: ownerStream
-              }));
+              const publish = () => {
+                setRemoteStreams((current) => ({
+                  ...current,
+                  [ownerId]: new MediaStream(ownerStream.getTracks())
+                }));
+              };
+
+              event.track.addEventListener("ended", publish);
+              event.track.addEventListener("mute", publish);
+              event.track.addEventListener("unmute", publish);
+              publish();
               return;
             }
 
             if (stream) {
-              setRemoteStreams((current) => ({
-                ...current,
-                [stream.id]: stream
-              }));
+              const publish = () => {
+                setRemoteStreams((current) => ({
+                  ...current,
+                  [stream.id]: new MediaStream(stream.getTracks())
+                }));
+              };
+              event.track.addEventListener("ended", publish);
+              event.track.addEventListener("mute", publish);
+              event.track.addEventListener("unmute", publish);
+              publish();
             }
           }
         });

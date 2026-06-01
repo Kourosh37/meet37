@@ -23,6 +23,7 @@ export class SFUClient {
   constructor(
     private readonly options: {
       onIceCandidate: (payload: IceCandidatePayload) => void;
+      onOffer?: (payload: SessionDescriptionPayload) => void;
       onTrack?: (event: RTCTrackEvent) => void;
     }
   ) {}
@@ -37,6 +38,32 @@ export class SFUClient {
       onIceCandidate: this.options.onIceCandidate,
       onTrack: this.options.onTrack
     });
+    this.connection.oniceconnectionstatechange = () => {
+      if (
+        !this.connection ||
+        !["failed", "disconnected"].includes(
+          this.connection.iceConnectionState
+        )
+      ) {
+        return;
+      }
+
+      window.setTimeout(
+        () => {
+          if (!this.connection) {
+            return;
+          }
+
+          this.connection.restartIce();
+          void this.createOffer().then((offer) => {
+            if (offer) {
+              this.options.onOffer?.(offer);
+            }
+          });
+        },
+        this.connection.iceConnectionState === "failed" ? 0 : 800
+      );
+    };
     ensureRecvTransceivers(this.connection, { audio: 8, video: 12 });
 
     if (localStream) {

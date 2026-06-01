@@ -149,6 +149,10 @@ export interface MediaStatePayload {
   video_status?: MediaTrackStatus;
 }
 
+export interface AudioLevelPayload {
+  level: number;
+}
+
 export interface FileOfferPayload {
   file_id: string;
   name: string;
@@ -205,6 +209,7 @@ export type OutgoingSignalMessage =
   | SignalEnvelope<"sfu-ice-candidate", IceCandidatePayload>
   | SignalEnvelope<"chat", ChatPayload>
   | SignalEnvelope<"media-state", MediaStatePayload>
+  | SignalEnvelope<"audio-level", AudioLevelPayload>
   | SignalEnvelope<"file-offer", FileOfferPayload>
   | SignalEnvelope<"file-answer", FileAnswerPayload>
   | SignalEnvelope<"file-candidate", FileCandidatePayload>
@@ -230,6 +235,7 @@ export type IncomingSignalMessage =
   | SignalEnvelope<"peer-mode-changed", PeerModeChangedPayload>
   | SignalEnvelope<"chat", ChatPayload>
   | SignalEnvelope<"media-state", MediaStatePayload>
+  | SignalEnvelope<"audio-level", AudioLevelPayload>
   | SignalEnvelope<"file-offer", FileOfferPayload>
   | SignalEnvelope<"file-answer", FileAnswerPayload>
   | SignalEnvelope<"file-candidate", FileCandidatePayload>

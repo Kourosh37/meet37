@@ -35,6 +35,7 @@ describe("VideoGrid", () => {
       <VideoGrid
         local={{
           audioEnabled: false,
+          audioLevel: 0,
           audioStatus: "off",
           displayName: "Local Closed",
           isHost: true,
@@ -84,6 +85,7 @@ describe("VideoGrid", () => {
       <VideoGrid
         local={{
           audioEnabled: false,
+          audioLevel: 0,
           audioStatus: "off",
           displayName: "Local Closed",
           isHost: true,

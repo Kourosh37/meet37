@@ -210,6 +210,21 @@ export function usePeerConnections(localStream: MediaStream | null) {
       });
       ensureRecvTransceivers(connection, { audio: 1, video: 1 });
       connection.onnegotiationneeded = () => requestNegotiation(peerId);
+      connection.oniceconnectionstatechange = () => {
+        if (
+          connection.iceConnectionState === "failed" ||
+          connection.iceConnectionState === "disconnected"
+        ) {
+          window.setTimeout(() => {
+            if (!isConnectionUsable(connection)) {
+              return;
+            }
+
+            connection.restartIce();
+            requestNegotiation(peerId);
+          }, connection.iceConnectionState === "failed" ? 0 : 800);
+        }
+      };
 
       if (localStream) {
         void addLocalTracks(connection, localStream);

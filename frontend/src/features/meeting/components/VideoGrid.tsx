@@ -14,6 +14,7 @@ interface VideoGridProps {
   className?: string;
   local: {
     audioEnabled: boolean;
+    audioLevel: number;
     audioStatus: MediaTrackStatus;
     displayName: string;
     isHost: boolean;
@@ -24,11 +25,13 @@ interface VideoGridProps {
     videoStatus: MediaTrackStatus;
   };
   peers: Record<string, MeetingPeer>;
+  audioLevels?: Record<string, number>;
   remoteStreams: Record<string, MediaStream>;
 }
 
 type TileViewModel = {
   audioEnabled: boolean;
+  audioLevel: number;
   audioStatus: MediaTrackStatus;
   displayName: string;
   id: string;
@@ -59,6 +62,7 @@ function getTilePriority(tile: TileViewModel) {
 }
 
 export function VideoGrid({
+  audioLevels = {},
   className,
   local,
   peers,
@@ -68,6 +72,7 @@ export function VideoGrid({
     const unsortedTiles: TileViewModel[] = [
       {
         audioEnabled: local.audioEnabled,
+        audioLevel: local.audioLevel,
         audioStatus: local.audioStatus,
         displayName: local.displayName,
         id: "local",
@@ -82,6 +87,7 @@ export function VideoGrid({
       },
       ...Object.values(peers).map((peer) => ({
         audioEnabled: peer.media.audioEnabled,
+        audioLevel: audioLevels[peer.id] ?? 0,
         audioStatus: peer.media.audioStatus,
         displayName: peer.displayName,
         id: peer.id,
@@ -105,7 +111,7 @@ export function VideoGrid({
         return priorityDelta || first.index - second.index;
       })
       .map(({ tile }) => tile);
-  }, [local, peers, remoteStreams]);
+  }, [audioLevels, local, peers, remoteStreams]);
   const [maximizedTileId, setMaximizedTileId] = useState<string | null>(null);
   const participantCount = tiles.length;
   const maximizedTile = tiles.find((tile) => tile.id === maximizedTileId);
@@ -124,6 +130,7 @@ export function VideoGrid({
         {tiles.map((tile) => (
           <VideoTile
             audioEnabled={tile.audioEnabled}
+            audioLevel={tile.audioLevel}
             audioStatus={tile.audioStatus}
             displayName={tile.displayName}
             isHost={tile.isHost}
@@ -155,6 +162,7 @@ export function VideoGrid({
           <div className="m-auto w-full max-w-7xl">
             <VideoTile
               audioEnabled={maximizedTile.audioEnabled}
+              audioLevel={maximizedTile.audioLevel}
               audioStatus={maximizedTile.audioStatus}
               className="min-h-[min(78vh,720px)] rounded-lg border border-white/15 bg-black shadow-2xl"
               displayName={maximizedTile.displayName}

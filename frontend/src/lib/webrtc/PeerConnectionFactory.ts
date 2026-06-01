@@ -52,7 +52,7 @@ export function createPeerConnection(
   options: PeerConnectionFactoryOptions = {}
 ) {
   const connection = new RTCPeerConnection({
-    iceServers: options.iceServers ?? defaultIceServers
+    iceServers: mergeIceServers(options.iceServers)
   });
 
   connection.onicecandidate = (event) => {
@@ -72,6 +72,51 @@ export function createPeerConnection(
   }
 
   return connection;
+}
+
+function mergeIceServers(iceServers: RTCIceServer[] | undefined) {
+  if (!iceServers?.length) {
+    return defaultIceServers;
+  }
+
+  const seen = new Set<string>();
+  const merged = [...defaultIceServers, ...iceServers].flatMap((server) => {
+    const urls = Array.isArray(server.urls) ? server.urls : [server.urls];
+    const usableUrls = urls.filter((url) => {
+      if (!url) {
+        return false;
+      }
+
+      if (
+        typeof window !== "undefined" &&
+        !["localhost", "127.0.0.1", "::1"].includes(window.location.hostname) &&
+        /(?:^|:)(?:127\.0\.0\.1|localhost|\[::1\])(?::|$)/i.test(url)
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+    if (!usableUrls.length) {
+      return [];
+    }
+
+    const key = JSON.stringify({
+      credential: server.credential,
+      urls: usableUrls,
+      username: server.username
+    });
+
+    if (seen.has(key)) {
+      return [];
+    }
+
+    seen.add(key);
+    return [{ ...server, urls: usableUrls }];
+  });
+
+  return merged.length ? merged : defaultIceServers;
 }
 
 export function addLocalTracks(

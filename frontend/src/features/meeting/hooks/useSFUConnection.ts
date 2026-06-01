@@ -21,6 +21,9 @@ export function useSFUConnection(localStream: MediaStream | null) {
           onIceCandidate: (payload) => {
             webSocketManager.send({ payload, type: "sfu-ice-candidate" });
           },
+          onOffer: (payload) => {
+            webSocketManager.send({ payload, type: "sfu-offer" });
+          },
           onTrack: (event) => {
             const stream = event.streams[0];
             const ownerId =

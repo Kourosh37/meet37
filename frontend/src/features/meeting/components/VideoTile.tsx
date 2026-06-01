@@ -13,15 +13,12 @@ import type {
   MediaTrackStatus,
   PeerMode
 } from "@/features/meeting/types/signaling";
+import { useAudioLevel } from "@/features/meeting/hooks/useAudioLevel";
 import { cn } from "@/lib/utils/cn";
-
-type AudioWindow = Window &
-  typeof globalThis & {
-    webkitAudioContext?: typeof AudioContext;
-  };
 
 interface VideoTileProps {
   audioEnabled?: boolean;
+  audioLevel?: number;
   audioStatus?: MediaTrackStatus;
   className?: string;
   displayName: string;
@@ -38,6 +35,7 @@ interface VideoTileProps {
 
 export function VideoTile({
   audioEnabled = true,
+  audioLevel: signaledAudioLevel,
   audioStatus = audioEnabled ? "ready" : "off",
   className,
   displayName,
@@ -51,7 +49,6 @@ export function VideoTile({
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
   const [_trackVersion, setTrackVersion] = useState(0);
-  const [audioLevel, setAudioLevel] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioTracks = useMemo(() => stream?.getAudioTracks() ?? [], [stream]);
@@ -84,7 +81,13 @@ export function VideoTile({
       : null;
   const isOpeningMicrophone = audioEnabled && audioStatus === "starting";
   const hasMicrophoneError = audioEnabled && audioStatus === "error";
-  const isSpeaking = audioEnabled && hasAudio && audioLevel > 0.08;
+  const measuredAudioLevel = useAudioLevel(
+    signaledAudioLevel === undefined ? audioStream : null,
+    audioEnabled && hasAudio,
+    0.74
+  );
+  const audioLevel = signaledAudioLevel ?? measuredAudioLevel;
+  const isSpeaking = audioEnabled && !hasMicrophoneError && audioLevel > 0.08;
   const speakingScale = 1 + Math.min(audioLevel, 1) * 0.25;
   const speakingOpacity = Math.min(0.95, 0.25 + audioLevel * 1.8);
   const initials = useMemo(
@@ -130,70 +133,35 @@ export function VideoTile({
       return;
     }
 
-    audioRef.current.srcObject = hasAudio ? audioStream : null;
-    if (hasAudio) {
-      void audioRef.current.play().catch(() => undefined);
-    }
-  }, [audioStream, hasAudio, isLocal]);
-
-  useEffect(() => {
-    if (!audioEnabled || !hasAudio || !audioStream) {
-      setAudioLevel(0);
-      return;
-    }
-
-    const AudioContextConstructor =
-      window.AudioContext ?? (window as AudioWindow).webkitAudioContext;
-
-    if (!AudioContextConstructor) {
-      setAudioLevel(0);
-      return;
-    }
-
-    const context = new AudioContextConstructor();
-    const analyser = context.createAnalyser();
-    const source = context.createMediaStreamSource(audioStream);
-    let animationFrame = 0;
-    let closed = false;
-
-    analyser.fftSize = 256;
-    analyser.smoothingTimeConstant = 0.72;
-    const samples = new Uint8Array(analyser.fftSize);
-    source.connect(analyser);
-
-    const measure = () => {
-      if (closed) {
+    const audio = audioRef.current;
+    const playAudio = () => {
+      if (!hasAudio) {
         return;
       }
 
-      analyser.getByteTimeDomainData(samples);
-      let sum = 0;
-
-      for (const sample of samples) {
-        const centered = (sample - 128) / 128;
-        sum += centered * centered;
-      }
-
-      const rms = Math.sqrt(sum / samples.length);
-      const nextLevel = Math.min(1, Math.max(0, (rms - 0.015) * 5));
-      setAudioLevel((current) =>
-        Math.abs(current - nextLevel) > 0.015 ? nextLevel : current
-      );
-      animationFrame = window.requestAnimationFrame(measure);
+      audio.muted = false;
+      audio.volume = 1;
+      void audio.play().catch(() => undefined);
     };
 
-    void context.resume().catch(() => undefined);
-    measure();
+    audio.srcObject = hasAudio ? audioStream : null;
+    playAudio();
+
+    window.addEventListener("click", playAudio);
+    window.addEventListener("keydown", playAudio);
+    window.addEventListener("pointerdown", playAudio);
+    audio.addEventListener("canplay", playAudio);
+    audio.addEventListener("loadedmetadata", playAudio);
 
     return () => {
-      closed = true;
-      window.cancelAnimationFrame(animationFrame);
-      source.disconnect();
-      analyser.disconnect();
-      void context.close().catch(() => undefined);
-      setAudioLevel(0);
+      window.removeEventListener("click", playAudio);
+      window.removeEventListener("keydown", playAudio);
+      window.removeEventListener("pointerdown", playAudio);
+      audio.removeEventListener("canplay", playAudio);
+      audio.removeEventListener("loadedmetadata", playAudio);
+      audio.srcObject = null;
     };
-  }, [audioEnabled, audioStream, hasAudio]);
+  }, [audioStream, hasAudio, isLocal]);
 
   return (
     <article
@@ -273,15 +241,14 @@ export function VideoTile({
           ) : audioEnabled && !hasMicrophoneError ? (
             <span
               className={cn(
-                "relative grid size-6 place-items-center rounded-full transition",
-                isSpeaking && "bg-primary text-primary-foreground"
+                "relative grid size-7 place-items-center rounded-full border border-white/15 bg-white/10 transition",
+                isSpeaking &&
+                  "border-primary bg-primary text-primary-foreground"
               )}
               style={
                 isSpeaking
                   ? {
-                      boxShadow: `0 0 0 ${Math.round(
-                        3 + audioLevel * 8
-                      )}px rgb(var(--primary) / ${speakingOpacity * 0.22})`,
+                      boxShadow: `0 0 0 ${Math.round(4 + audioLevel * 12)}px rgb(var(--primary) / ${speakingOpacity * 0.2}), 0 0 ${Math.round(12 + audioLevel * 18)}px rgb(var(--primary) / ${speakingOpacity * 0.28})`,
                       transform: `scale(${speakingScale})`
                     }
                   : undefined

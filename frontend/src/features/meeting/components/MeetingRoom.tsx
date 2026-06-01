@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AdmissionModal } from "@/features/meeting/components/AdmissionModal";
@@ -11,6 +11,7 @@ import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
 import { VideoGrid } from "@/features/meeting/components/VideoGrid";
 import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
+import { useAudioLevel } from "@/features/meeting/hooks/useAudioLevel";
 import { useModeration } from "@/features/meeting/hooks/useModeration";
 import { usePeerConnections } from "@/features/meeting/hooks/usePeerConnections";
 import { useQualityStats } from "@/features/meeting/hooks/useQualityStats";
@@ -40,6 +41,16 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const stopLocalMedia = localMedia.stop;
   const audioEnabled = localMedia.audioEnabled;
   const toggleAudio = localMedia.toggleAudio;
+  const localAudioLevel = useAudioLevel(
+    localMedia.stream,
+    localMedia.audioEnabled && localMedia.audioStatus === "ready",
+    0.74
+  );
+  const localAudioLevelRef = useRef(0);
+  const lastSentAudioLevelRef = useRef(0);
+  const [remoteAudioLevels, setRemoteAudioLevels] = useState<
+    Record<string, number>
+  >({});
   const peerIds = useMemo(
     () => Object.keys(meeting.peers).sort().join(","),
     [meeting.peers]
@@ -147,6 +158,106 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     peerIds
   ]);
 
+  useEffect(() => {
+    localAudioLevelRef.current = localAudioLevel;
+  }, [localAudioLevel]);
+
+  const sendLiveAudioLevel = useCallback(() => {
+    const level =
+      localMedia.audioEnabled && localMedia.audioStatus === "ready"
+        ? Number(localAudioLevelRef.current.toFixed(3))
+        : 0;
+
+    if (
+      level < 0.03 &&
+      lastSentAudioLevelRef.current < 0.03 &&
+      lastSentAudioLevelRef.current === level
+    ) {
+      return;
+    }
+
+    if (Math.abs(lastSentAudioLevelRef.current - level) < 0.035) {
+      return;
+    }
+
+    lastSentAudioLevelRef.current = level;
+    webSocketManager.send({
+      payload: {
+        level
+      },
+      type: "audio-level"
+    });
+  }, [localMedia.audioEnabled, localMedia.audioStatus]);
+
+  useEffect(() => {
+    if (
+      meeting.phase !== "in-call" ||
+      !localMedia.audioEnabled ||
+      localMedia.audioStatus !== "ready"
+    ) {
+      return;
+    }
+
+    const interval = window.setInterval(sendLiveAudioLevel, 160);
+    return () => window.clearInterval(interval);
+  }, [
+    localMedia.audioEnabled,
+    localMedia.audioStatus,
+    meeting.phase,
+    sendLiveAudioLevel
+  ]);
+
+  useEffect(() => {
+    if (
+      meeting.phase !== "in-call" ||
+      localMedia.audioEnabled ||
+      localMedia.audioStatus !== "off"
+    ) {
+      return;
+    }
+
+    lastSentAudioLevelRef.current = 0;
+    webSocketManager.send({
+      payload: { level: 0 },
+      type: "audio-level"
+    });
+  }, [localMedia.audioEnabled, localMedia.audioStatus, meeting.phase]);
+
+  useEffect(() => {
+    return webSocketManager.subscribe("audio-level", (message) => {
+      const peerId = message.from;
+
+      if (!peerId) {
+        return;
+      }
+
+      const level = Math.min(1, Math.max(0, message.payload.level));
+      setRemoteAudioLevels((current) => {
+        if (Math.abs((current[peerId] ?? 0) - level) < 0.02) {
+          return current;
+        }
+
+        return {
+          ...current,
+          [peerId]: level
+        };
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    const activePeerIds = new Set(Object.keys(meeting.peers));
+    setRemoteAudioLevels((current) => {
+      const next = Object.fromEntries(
+        Object.entries(current).filter(([peerId]) => activePeerIds.has(peerId))
+      );
+
+      return Object.keys(next).length === Object.keys(current).length
+        ? current
+        : next;
+    });
+  }, [meeting.peers]);
+
   function handleLeave() {
     stopLocalMedia();
     websocket.close();
@@ -198,6 +309,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         <VideoGrid
           local={{
             audioEnabled: localMedia.audioEnabled,
+            audioLevel: localAudioLevel,
             audioStatus: localMedia.audioStatus,
             displayName,
             isHost: meeting.isHost,
@@ -207,6 +319,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
             videoStatus: localMedia.videoStatus,
             videoEnabled: localMedia.videoEnabled
           }}
+          audioLevels={remoteAudioLevels}
           peers={meeting.peers}
           remoteStreams={remoteStreams}
         />

@@ -184,7 +184,7 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.removePeer(p)
 	case "offer", "answer", "ice-candidate", "file-candidate":
 		h.relay(p, msg)
-	case "media-state":
+	case "media-state", "audio-level":
 		h.broadcast(p.roomID, msg, p.id)
 	case "chat":
 		h.broadcast(p.roomID, msg, p.id)

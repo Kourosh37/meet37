@@ -40,7 +40,7 @@ export default function PublicLayout({ children }: { children: ReactNode }) {
     <div className="min-h-screen bg-background text-foreground">
       <TopBar />
       <main
-        className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6"
+        className="mx-auto min-h-[calc(100vh-4rem)] w-full max-w-6xl border-x border-border px-4 py-8 sm:px-6"
         id="main-content"
       >
         {children}

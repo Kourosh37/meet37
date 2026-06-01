@@ -81,6 +81,27 @@ export function addLocalTracks(
   return syncLocalTracks(connection, stream);
 }
 
+export function ensureRecvTransceivers(
+  connection: RTCPeerConnection,
+  counts: { audio?: number; video?: number } = {}
+) {
+  const transceivers = connection.getTransceivers();
+  const ensureKind = (kind: "audio" | "video", desiredCount: number) => {
+    const currentCount = transceivers.filter(
+      (transceiver) =>
+        transceiver.receiver.track.kind === kind &&
+        transceiver.direction !== "inactive"
+    ).length;
+
+    for (let index = currentCount; index < desiredCount; index += 1) {
+      connection.addTransceiver(kind, { direction: "recvonly" });
+    }
+  };
+
+  ensureKind("audio", counts.audio ?? 4);
+  ensureKind("video", counts.video ?? 8);
+}
+
 async function attachOrReplaceTrack(
   connection: RTCPeerConnection,
   stream: MediaStream,
@@ -110,10 +131,10 @@ async function attachOrReplaceTrack(
 
 export async function syncLocalTracks(
   connection: RTCPeerConnection,
-  stream: MediaStream
+  stream: MediaStream | null
 ) {
   const tracksByKind = new Map(
-    stream.getTracks().map((track) => [track.kind, track])
+    stream?.getTracks().map((track) => [track.kind, track]) ?? []
   );
   const usedTrackIds = new Set<string>();
 
@@ -140,8 +161,11 @@ export async function syncLocalTracks(
     }
   }
 
-  for (const track of stream.getTracks()) {
+  for (const track of stream?.getTracks() ?? []) {
     if (!usedTrackIds.has(track.id)) {
+      if (!stream) {
+        continue;
+      }
       await attachOrReplaceTrack(connection, stream, track);
     }
   }

@@ -21,9 +21,9 @@ export function LocalVideoPreview({
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.srcObject = stream;
+      videoRef.current.srcObject = videoEnabled ? stream : null;
     }
-  }, [stream]);
+  }, [stream, videoEnabled]);
 
   const hasVideo = Boolean(stream?.getVideoTracks().length && videoEnabled);
 

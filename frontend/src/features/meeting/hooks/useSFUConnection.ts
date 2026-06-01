@@ -6,6 +6,7 @@ import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 export function useSFUConnection(localStream: MediaStream | null) {
   const clientRef = useRef<SFUClient | null>(null);
+  const streamOwnersRef = useRef(new Map<string, string>());
   const trackOwnersRef = useRef(new Map<string, string>());
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<
@@ -21,7 +22,9 @@ export function useSFUConnection(localStream: MediaStream | null) {
           },
           onTrack: (event) => {
             const stream = event.streams[0];
-            const ownerId = trackOwnersRef.current.get(event.track.id);
+            const ownerId =
+              trackOwnersRef.current.get(event.track.id) ??
+              (stream ? streamOwnersRef.current.get(stream.id) : undefined);
 
             if (stream && ownerId) {
               setRemoteStreams((current) => ({
@@ -73,6 +76,10 @@ export function useSFUConnection(localStream: MediaStream | null) {
           message.payload.track_id,
           message.payload.owner_id
         );
+        streamOwnersRef.current.set(
+          message.payload.stream_id,
+          message.payload.owner_id
+        );
         const offer = await getClient().createOffer();
         if (offer) {
           webSocketManager.send({ payload: offer, type: "sfu-offer" });
@@ -100,6 +107,8 @@ export function useSFUConnection(localStream: MediaStream | null) {
   useEffect(
     () => () => {
       clientRef.current?.close();
+      streamOwnersRef.current.clear();
+      trackOwnersRef.current.clear();
     },
     []
   );

@@ -65,6 +65,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
   const ignoredOfferPeerIds = useRef(new Set<string>());
   const makingOfferPeerIds = useRef(new Set<string>());
   const offeredPeerIds = useRef(new Set<string>());
+  const pendingIceCandidates = useRef(new Map<string, IceCandidatePayload[]>());
   const pendingNegotiationPeerIds = useRef(new Set<string>());
   const [remoteStreams, setRemoteStreams] = useState<
     Record<string, MediaStream>
@@ -143,6 +144,20 @@ export function usePeerConnections(localStream: MediaStream | null) {
     [flushNegotiation]
   );
 
+  const flushQueuedIceCandidates = useCallback(async (peerId: string) => {
+    const connection = connections.current.get(peerId);
+    const queued = pendingIceCandidates.current.get(peerId) ?? [];
+
+    if (!connection || !connection.remoteDescription || queued.length === 0) {
+      return;
+    }
+
+    pendingIceCandidates.current.delete(peerId);
+    for (const payload of queued) {
+      await connection.addIceCandidate(payloadToIceCandidate(payload));
+    }
+  }, []);
+
   const ensureConnection = useCallback(
     (peerId: string) => {
       const existing = connections.current.get(peerId);
@@ -183,6 +198,26 @@ export function usePeerConnections(localStream: MediaStream | null) {
     [localStream, requestNegotiation, sendIceCandidate]
   );
 
+  const addOrQueueIceCandidate = useCallback(
+    async (peerId: string, payload: IceCandidatePayload) => {
+      const connection = ensureConnection(peerId);
+
+      if (ignoredOfferPeerIds.current.has(peerId)) {
+        return;
+      }
+
+      if (!isConnectionUsable(connection) || !connection.remoteDescription) {
+        const queued = pendingIceCandidates.current.get(peerId) ?? [];
+        queued.push(payload);
+        pendingIceCandidates.current.set(peerId, queued);
+        return;
+      }
+
+      await connection.addIceCandidate(payloadToIceCandidate(payload));
+    },
+    [ensureConnection]
+  );
+
   useEffect(() => {
     Object.keys(peers).forEach((peerId) => {
       if (!localPeerId || localPeerId > peerId) {
@@ -200,10 +235,6 @@ export function usePeerConnections(localStream: MediaStream | null) {
   }, [ensureConnection, localPeerId, peers, requestNegotiation]);
 
   useEffect(() => {
-    if (!localStream) {
-      return;
-    }
-
     connections.current.forEach((connection, peerId) => {
       if (!isConnectionUsable(connection)) {
         return;
@@ -234,6 +265,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
         const { [peerId]: _removed, ...next } = current;
         return next;
       });
+      pendingIceCandidates.current.delete(peerId);
     });
   }, [peers]);
 
@@ -269,6 +301,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
         await connection.setRemoteDescription(
           payloadToSessionDescription("offer", message.payload)
         );
+        await flushQueuedIceCandidates(message.from);
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
         sendDescription(
@@ -289,24 +322,12 @@ export function usePeerConnections(localStream: MediaStream | null) {
           await connection.setRemoteDescription(
             payloadToSessionDescription("answer", message.payload)
           );
+          await flushQueuedIceCandidates(message.from);
         }
       }),
       webSocketManager.subscribe("ice-candidate", async (message) => {
         if (message.from) {
-          if (ignoredOfferPeerIds.current.has(message.from)) {
-            return;
-          }
-
-          const connection = ensureConnection(message.from);
-          if (
-            !isConnectionUsable(connection) ||
-            !connection.remoteDescription
-          ) {
-            return;
-          }
-          await connection.addIceCandidate(
-            payloadToIceCandidate(message.payload)
-          );
+          await addOrQueueIceCandidate(message.from, message.payload);
         }
       })
     ];
@@ -314,7 +335,13 @@ export function usePeerConnections(localStream: MediaStream | null) {
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [ensureConnection, localPeerId, sendDescription]);
+  }, [
+    addOrQueueIceCandidate,
+    ensureConnection,
+    flushQueuedIceCandidates,
+    localPeerId,
+    sendDescription
+  ]);
 
   useEffect(
     () => () => {

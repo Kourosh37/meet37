@@ -7,6 +7,7 @@ import {
   addLocalTracks,
   closePeerConnection,
   createPeerConnection,
+  ensureRecvTransceivers,
   payloadToIceCandidate,
   payloadToSessionDescription,
   sessionDescriptionToPayload,
@@ -17,6 +18,7 @@ export class SFUClient {
   private connection: RTCPeerConnection | null = null;
   private makingOffer = false;
   private pendingOffer = false;
+  private pendingIceCandidates: IceCandidatePayload[] = [];
 
   constructor(
     private readonly options: {
@@ -35,6 +37,7 @@ export class SFUClient {
       onIceCandidate: this.options.onIceCandidate,
       onTrack: this.options.onTrack
     });
+    ensureRecvTransceivers(this.connection, { audio: 8, video: 12 });
 
     if (localStream) {
       await addLocalTracks(this.connection, localStream);
@@ -68,6 +71,7 @@ export class SFUClient {
     await this.connection?.setRemoteDescription(
       payloadToSessionDescription("answer", payload)
     );
+    await this.flushPendingIceCandidates();
 
     if (this.pendingOffer) {
       this.pendingOffer = false;
@@ -78,11 +82,16 @@ export class SFUClient {
   }
 
   async addIceCandidate(payload: IceCandidatePayload) {
-    await this.connection?.addIceCandidate(payloadToIceCandidate(payload));
+    if (!this.connection?.remoteDescription) {
+      this.pendingIceCandidates.push(payload);
+      return;
+    }
+
+    await this.connection.addIceCandidate(payloadToIceCandidate(payload));
   }
 
   async syncLocalStream(localStream: MediaStream | null) {
-    if (!this.connection || !localStream) {
+    if (!this.connection) {
       return null;
     }
 
@@ -90,10 +99,23 @@ export class SFUClient {
     return this.createOffer();
   }
 
+  private async flushPendingIceCandidates() {
+    if (!this.connection?.remoteDescription) {
+      return;
+    }
+
+    const pending = [...this.pendingIceCandidates];
+    this.pendingIceCandidates = [];
+    for (const payload of pending) {
+      await this.connection.addIceCandidate(payloadToIceCandidate(payload));
+    }
+  }
+
   close() {
     closePeerConnection(this.connection);
     this.connection = null;
     this.makingOffer = false;
     this.pendingOffer = false;
+    this.pendingIceCandidates = [];
   }
 }

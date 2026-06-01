@@ -66,6 +66,17 @@ function stopStream(stream: MediaStream | null) {
   stream?.getTracks().forEach((track) => track.stop());
 }
 
+function hasLiveTrack(
+  stream: MediaStream | null,
+  kind: MediaStreamTrack["kind"]
+) {
+  return Boolean(
+    stream
+      ?.getTracks()
+      .some((track) => track.kind === kind && track.readyState === "live")
+  );
+}
+
 export function useDeviceSetup() {
   const mediaStore = useMediaStore();
   const [state, setState] = useState<DeviceSetupState>(() => ({
@@ -100,80 +111,94 @@ export function useDeviceSetup() {
     }));
   }, []);
 
-  const startPreview = useCallback(async () => {
-    if (!navigator.mediaDevices?.getUserMedia) {
+  const startPreview = useCallback(
+    async (
+      overrides?: Partial<
+        Pick<DeviceSetupState, "audioEnabled" | "videoEnabled">
+      >
+    ) => {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setState((current) => ({
+          ...current,
+          error: "Media devices are not available in this browser.",
+          permissionState: "error"
+        }));
+        return;
+      }
+
+      const audioEnabled = overrides?.audioEnabled ?? state.audioEnabled;
+      const videoEnabled = overrides?.videoEnabled ?? state.videoEnabled;
+
+      if (!audioEnabled && !videoEnabled) {
+        setState((current) => {
+          stopStream(current.previewStream);
+          return {
+            ...current,
+            audioEnabled,
+            error: null,
+            permissionState: "idle",
+            previewStream: null,
+            videoEnabled
+          };
+        });
+        return;
+      }
+
       setState((current) => ({
         ...current,
-        error: "Media devices are not available in this browser.",
-        permissionState: "error"
+        error: null,
+        permissionState: "prompting"
       }));
-      return;
-    }
 
-    if (!state.audioEnabled && !state.videoEnabled) {
-      setState((current) => {
-        stopStream(current.previewStream);
-        return {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: audioEnabled
+            ? {
+                deviceId: state.selectedAudioDeviceId
+                  ? { exact: state.selectedAudioDeviceId }
+                  : undefined
+              }
+            : false,
+          video: videoEnabled
+            ? {
+                deviceId: state.selectedVideoDeviceId
+                  ? { exact: state.selectedVideoDeviceId }
+                  : undefined
+              }
+            : false
+        });
+
+        setState((current) => {
+          stopStream(current.previewStream);
+          return {
+            ...current,
+            audioEnabled,
+            error: null,
+            permissionState: "granted",
+            previewStream: stream,
+            videoEnabled
+          };
+        });
+        await enumerateDevices();
+      } catch (error) {
+        setState((current) => ({
           ...current,
-          error: null,
-          permissionState: "idle",
-          previewStream: null
-        };
-      });
-      return;
-    }
-
-    setState((current) => ({
-      ...current,
-      error: null,
-      permissionState: "prompting"
-    }));
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: state.audioEnabled
-          ? {
-              deviceId: state.selectedAudioDeviceId
-                ? { exact: state.selectedAudioDeviceId }
-                : undefined
-            }
-          : false,
-        video: state.videoEnabled
-          ? {
-              deviceId: state.selectedVideoDeviceId
-                ? { exact: state.selectedVideoDeviceId }
-                : undefined
-            }
-          : false
-      });
-
-      setState((current) => {
-        stopStream(current.previewStream);
-        return {
-          ...current,
-          error: null,
-          permissionState: "granted",
-          previewStream: stream
-        };
-      });
-      await enumerateDevices();
-    } catch (error) {
-      setState((current) => ({
-        ...current,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Could not start camera or microphone.",
-        permissionState: "denied"
-      }));
-    }
-  }, [
-    enumerateDevices,
-    state.audioEnabled,
-    state.selectedAudioDeviceId,
-    state.selectedVideoDeviceId,
-    state.videoEnabled
-  ]);
+          error:
+            error instanceof Error
+              ? error.message
+              : "Could not start camera or microphone.",
+          permissionState: "denied"
+        }));
+      }
+    },
+    [
+      enumerateDevices,
+      state.audioEnabled,
+      state.selectedAudioDeviceId,
+      state.selectedVideoDeviceId,
+      state.videoEnabled
+    ]
+  );
 
   const stopPreview = useCallback(() => {
     setState((current) => {
@@ -198,14 +223,23 @@ export function useDeviceSetup() {
   const setVideoEnabled = useCallback(
     (videoEnabled: boolean) => {
       mediaStore.setVideoEnabled(videoEnabled);
+      const shouldRestartPreview =
+        videoEnabled && !hasLiveTrack(state.previewStream, "video");
+
       setState((current) => {
         current.previewStream?.getVideoTracks().forEach((track) => {
           track.enabled = videoEnabled;
         });
         return { ...current, videoEnabled };
       });
+
+      if (shouldRestartPreview) {
+        window.setTimeout(() => {
+          void startPreview({ videoEnabled: true });
+        }, 0);
+      }
     },
-    [mediaStore]
+    [mediaStore, startPreview, state.previewStream]
   );
 
   const setSelectedAudioDeviceId = useCallback(

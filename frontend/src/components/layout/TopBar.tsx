@@ -39,7 +39,7 @@ import Link from "next/link";
 export function TopBar() {
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
-      <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 border-x border-border px-4 sm:px-6">
         <Link
           className="text-lg font-semibold tracking-normal text-foreground"
           href="/"

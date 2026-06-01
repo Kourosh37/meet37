@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2,
   Maximize2,
@@ -38,7 +38,6 @@ export function VideoTile({
   displayName,
   isHost = false,
   isLocal = false,
-  mode = "p2p",
   onMaximize,
   screenSharing = false,
   screenShareStatus = screenSharing ? "starting" : "off",
@@ -46,9 +45,12 @@ export function VideoTile({
   videoEnabled = true,
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
+  const [_trackVersion, setTrackVersion] = useState(0);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoTracks = useMemo(() => stream?.getVideoTracks() ?? [], [stream]);
   const hasVideo = Boolean(
-    stream?.getVideoTracks().length && (videoEnabled || screenSharing)
+    videoTracks.some((track) => track.readyState === "live" && !track.muted) &&
+      (videoEnabled || screenSharing)
   );
   const isOpeningScreenShare = screenSharing && !hasVideo;
   const isCameraExpected = !screenSharing && videoEnabled && !hasVideo;
@@ -76,9 +78,27 @@ export function VideoTile({
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.srcObject = stream;
+      videoRef.current.srcObject = hasVideo ? stream : null;
     }
-  }, [stream]);
+  }, [hasVideo, stream]);
+
+  useEffect(() => {
+    const updateTrackState = () => setTrackVersion((version) => version + 1);
+
+    videoTracks.forEach((track) => {
+      track.addEventListener("ended", updateTrackState);
+      track.addEventListener("mute", updateTrackState);
+      track.addEventListener("unmute", updateTrackState);
+    });
+
+    return () => {
+      videoTracks.forEach((track) => {
+        track.removeEventListener("ended", updateTrackState);
+        track.removeEventListener("mute", updateTrackState);
+        track.removeEventListener("unmute", updateTrackState);
+      });
+    };
+  }, [videoTracks]);
 
   return (
     <article
@@ -97,6 +117,13 @@ export function VideoTile({
         >
           <Maximize2 className="size-4" />
         </button>
+      ) : null}
+
+      {!hasVideo && !loadingLabel ? (
+        <VideoOff
+          className="absolute left-3 top-3 z-10 h-5 w-5 text-white/80"
+          aria-hidden="true"
+        />
       ) : null}
 
       {hasVideo ? (
@@ -124,10 +151,6 @@ export function VideoTile({
           <div className="grid h-20 w-20 place-items-center rounded-full bg-surface text-2xl font-semibold text-surface-foreground shadow-sm">
             {initials}
           </div>
-          <VideoOff
-            className="absolute right-4 top-4 h-5 w-5"
-            aria-hidden="true"
-          />
         </div>
       )}
 
@@ -137,9 +160,7 @@ export function VideoTile({
             {displayName}
             {isLocal ? " (You)" : ""}
           </p>
-          <p className="text-xs text-white/75">
-            {isHost ? "Host" : "Guest"} · {mode.toUpperCase()}
-          </p>
+          <p className="text-xs text-white/75">{isHost ? "Host" : "Guest"}</p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {screenSharing ? (

@@ -44,9 +44,11 @@ export function DeviceSetup() {
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.srcObject = setup.previewStream;
+      videoRef.current.srcObject = setup.videoEnabled
+        ? setup.previewStream
+        : null;
     }
-  }, [setup.previewStream]);
+  }, [setup.previewStream, setup.videoEnabled]);
 
   return (
     <div className="space-y-4">
@@ -103,7 +105,7 @@ export function DeviceSetup() {
         <button
           className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:opacity-60"
           disabled={setup.permissionState === "prompting"}
-          onClick={setup.startPreview}
+          onClick={() => void setup.startPreview()}
           type="button"
         >
           {setup.permissionState === "prompting"

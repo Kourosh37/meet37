@@ -7,6 +7,42 @@ frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 
+# Build artifacts
+dist/
+build/
+*.log
+*.tmp
+*.cache
+*.bak
+*.backup
+*.swp
+*.swo
+*.out
+*.o
+*.obj
+*.dll
+*.so
+*.dylib
+*.exe
+*.class
+*.pyc
+*.pyo
+*.ipynb_checkpoints
+*.log
+*.pid
+*.seed
+*.pid.lock
+*.gz
+*.zip
+*.tar
+*.7z
+*.log
+*.log.*
+*.log.*.gz
+*.log.*.zip
+*.log.*.tar.gz
+*.log.*.7z
+
 # Runtime data and databases
 backend/data/*
 !backend/data/.gitkeep

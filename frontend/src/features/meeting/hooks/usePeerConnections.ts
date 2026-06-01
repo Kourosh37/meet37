@@ -44,6 +44,7 @@ import {
   addLocalTracks,
   closePeerConnection,
   createPeerConnection,
+  ensureRecvTransceivers,
   payloadToIceCandidate,
   payloadToSessionDescription,
   sessionDescriptionToPayload,
@@ -61,12 +62,14 @@ function isConnectionUsable(connection: RTCPeerConnection) {
 export function usePeerConnections(localStream: MediaStream | null) {
   const peers = useMeetingStore((state) => state.peers);
   const localPeerId = useMeetingStore((state) => state.localPeerId);
+  const turnServers = useMeetingStore((state) => state.turnServers);
   const connections = useRef(new Map<string, RTCPeerConnection>());
   const ignoredOfferPeerIds = useRef(new Set<string>());
   const makingOfferPeerIds = useRef(new Set<string>());
   const offeredPeerIds = useRef(new Set<string>());
   const pendingIceCandidates = useRef(new Map<string, IceCandidatePayload[]>());
   const pendingNegotiationPeerIds = useRef(new Set<string>());
+  const remoteStreamRefs = useRef(new Map<string, MediaStream>());
   const [remoteStreams, setRemoteStreams] = useState<
     Record<string, MediaStream>
   >({});
@@ -158,6 +161,35 @@ export function usePeerConnections(localStream: MediaStream | null) {
     }
   }, []);
 
+  const upsertRemoteTrack = useCallback(
+    (peerId: string, event: RTCTrackEvent) => {
+      const nextStream =
+        remoteStreamRefs.current.get(peerId) ??
+        event.streams[0] ??
+        new MediaStream();
+
+      if (!remoteStreamRefs.current.has(peerId)) {
+        remoteStreamRefs.current.set(peerId, nextStream);
+      }
+
+      if (
+        !nextStream.getTracks().some((track) => track.id === event.track.id)
+      ) {
+        nextStream.addTrack(event.track);
+      }
+
+      const publish = () => {
+        setRemoteStreams((current) => ({ ...current, [peerId]: nextStream }));
+      };
+
+      event.track.addEventListener("ended", publish);
+      event.track.addEventListener("mute", publish);
+      event.track.addEventListener("unmute", publish);
+      publish();
+    },
+    []
+  );
+
   const ensureConnection = useCallback(
     (peerId: string) => {
       const existing = connections.current.get(peerId);
@@ -167,20 +199,16 @@ export function usePeerConnections(localStream: MediaStream | null) {
       }
 
       const connection = createPeerConnection({
+        iceServers: turnServers?.length ? turnServers : undefined,
         onDataChannel: (event) => {
           if (event.channel.label === FILE_TRANSFER_CHANNEL) {
             dataChannelRegistry.register(peerId, event.channel);
           }
         },
         onIceCandidate: (candidate) => sendIceCandidate(peerId, candidate),
-        onTrack: (event) => {
-          const stream = event.streams[0];
-
-          if (stream) {
-            setRemoteStreams((current) => ({ ...current, [peerId]: stream }));
-          }
-        }
+        onTrack: (event) => upsertRemoteTrack(peerId, event)
       });
+      ensureRecvTransceivers(connection, { audio: 1, video: 1 });
       connection.onnegotiationneeded = () => requestNegotiation(peerId);
 
       if (localStream) {
@@ -195,7 +223,13 @@ export function usePeerConnections(localStream: MediaStream | null) {
       connections.current.set(peerId, connection);
       return connection;
     },
-    [localStream, requestNegotiation, sendIceCandidate]
+    [
+      localStream,
+      requestNegotiation,
+      sendIceCandidate,
+      turnServers,
+      upsertRemoteTrack
+    ]
   );
 
   const addOrQueueIceCandidate = useCallback(
@@ -261,6 +295,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
       makingOfferPeerIds.current.delete(peerId);
       offeredPeerIds.current.delete(peerId);
       pendingNegotiationPeerIds.current.delete(peerId);
+      remoteStreamRefs.current.delete(peerId);
       setRemoteStreams((current) => {
         const { [peerId]: _removed, ...next } = current;
         return next;

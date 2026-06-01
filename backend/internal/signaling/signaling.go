@@ -335,7 +335,7 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 	h.upsertClusterPeer(p)
 
 	go h.logEvent(req.RoomID, p.userID, "join")
-	p.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": p.id, "peers": h.getPeerList(req.RoomID, p.id), "mode": p.mode, "is_host": p.isHost}})
+	p.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": p.id, "peers": h.getPeerList(req.RoomID, p.id), "mode": p.mode, "is_host": p.isHost, "turn_servers": h.sfuMgr.GetTURNCredentials(p.id)}})
 	h.broadcast(req.RoomID, models.SignalMessage{Type: "peer-joined", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName, "is_host": p.isHost}}, p.id)
 }
 
@@ -382,7 +382,7 @@ func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
 	h.upsertClusterPeer(peer)
 
 	go h.logEvent(host.roomID, peer.userID, "join")
-	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(host.roomID, peer.id), "mode": peer.mode, "is_host": false}})
+	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(host.roomID, peer.id), "mode": peer.mode, "is_host": false, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
 	h.broadcast(host.roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false}}, peer.id)
 }
 
@@ -900,7 +900,7 @@ func (h *Hub) approvePendingPeer(roomID, peerID string) {
 	h.removeClusterPending(roomID, peerID)
 	h.upsertClusterPeer(peer)
 	go h.logEvent(roomID, peer.userID, "join")
-	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(roomID, peer.id), "mode": peer.mode, "is_host": false}})
+	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(roomID, peer.id), "mode": peer.mode, "is_host": false, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
 	h.broadcast(roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false}}, peer.id)
 }
 

@@ -15,6 +15,11 @@ import type {
 } from "@/features/meeting/types/signaling";
 import { cn } from "@/lib/utils/cn";
 
+type AudioWindow = Window &
+  typeof globalThis & {
+    webkitAudioContext?: typeof AudioContext;
+  };
+
 interface VideoTileProps {
   audioEnabled?: boolean;
   audioStatus?: MediaTrackStatus;
@@ -46,6 +51,7 @@ export function VideoTile({
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
   const [_trackVersion, setTrackVersion] = useState(0);
+  const [audioLevel, setAudioLevel] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioTracks = useMemo(() => stream?.getAudioTracks() ?? [], [stream]);
@@ -78,6 +84,9 @@ export function VideoTile({
       : null;
   const isOpeningMicrophone = audioEnabled && audioStatus === "starting";
   const hasMicrophoneError = audioEnabled && audioStatus === "error";
+  const isSpeaking = audioEnabled && hasAudio && audioLevel > 0.08;
+  const speakingScale = 1 + Math.min(audioLevel, 1) * 0.25;
+  const speakingOpacity = Math.min(0.95, 0.25 + audioLevel * 1.8);
   const initials = useMemo(
     () =>
       displayName
@@ -127,10 +136,71 @@ export function VideoTile({
     }
   }, [audioStream, hasAudio, isLocal]);
 
+  useEffect(() => {
+    if (!audioEnabled || !hasAudio || !audioStream) {
+      setAudioLevel(0);
+      return;
+    }
+
+    const AudioContextConstructor =
+      window.AudioContext ?? (window as AudioWindow).webkitAudioContext;
+
+    if (!AudioContextConstructor) {
+      setAudioLevel(0);
+      return;
+    }
+
+    const context = new AudioContextConstructor();
+    const analyser = context.createAnalyser();
+    const source = context.createMediaStreamSource(audioStream);
+    let animationFrame = 0;
+    let closed = false;
+
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.72;
+    const samples = new Uint8Array(analyser.fftSize);
+    source.connect(analyser);
+
+    const measure = () => {
+      if (closed) {
+        return;
+      }
+
+      analyser.getByteTimeDomainData(samples);
+      let sum = 0;
+
+      for (const sample of samples) {
+        const centered = (sample - 128) / 128;
+        sum += centered * centered;
+      }
+
+      const rms = Math.sqrt(sum / samples.length);
+      const nextLevel = Math.min(1, Math.max(0, (rms - 0.015) * 5));
+      setAudioLevel((current) =>
+        Math.abs(current - nextLevel) > 0.015 ? nextLevel : current
+      );
+      animationFrame = window.requestAnimationFrame(measure);
+    };
+
+    void context.resume().catch(() => undefined);
+    measure();
+
+    return () => {
+      closed = true;
+      window.cancelAnimationFrame(animationFrame);
+      source.disconnect();
+      analyser.disconnect();
+      void context.close().catch(() => undefined);
+      setAudioLevel(0);
+    };
+  }, [audioEnabled, audioStream, hasAudio]);
+
   return (
     <article
       className={cn(
-        "relative grid aspect-video min-h-[clamp(150px,48vw,240px)] overflow-hidden rounded-lg border border-border bg-black shadow-sm sm:min-h-[180px]",
+        "relative grid aspect-video min-h-[clamp(150px,48vw,240px)] overflow-hidden rounded-lg border border-border bg-black shadow-sm transition-[border-color,box-shadow] sm:min-h-[180px]",
+        isSpeaking &&
+          "border-primary shadow-[0_0_0_2px_rgb(var(--primary)/0.35)]",
         className
       )}
     >
@@ -201,7 +271,27 @@ export function VideoTile({
               aria-label="Opening microphone"
             />
           ) : audioEnabled && !hasMicrophoneError ? (
-            <Mic className="h-4 w-4" aria-label="Microphone on" />
+            <span
+              className={cn(
+                "relative grid size-6 place-items-center rounded-full transition",
+                isSpeaking && "bg-primary text-primary-foreground"
+              )}
+              style={
+                isSpeaking
+                  ? {
+                      boxShadow: `0 0 0 ${Math.round(
+                        3 + audioLevel * 8
+                      )}px rgb(var(--primary) / ${speakingOpacity * 0.22})`,
+                      transform: `scale(${speakingScale})`
+                    }
+                  : undefined
+              }
+            >
+              <Mic
+                className={cn("h-4 w-4", isSpeaking && "text-current")}
+                aria-label={isSpeaking ? "Speaking" : "Microphone on"}
+              />
+            </span>
           ) : (
             <MicOff
               className="h-4 w-4 text-danger"

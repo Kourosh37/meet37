@@ -43,6 +43,26 @@ function isLocalhost(hostname: string) {
   return ["localhost", "127.0.0.1", "::1"].includes(hostname);
 }
 
+function streamWithoutKind(
+  stream: MediaStream | null,
+  kind: MediaStreamTrack["kind"]
+) {
+  if (!stream) {
+    return null;
+  }
+
+  const retainedTracks = stream.getTracks().filter((track) => {
+    if (track.kind !== kind) {
+      return true;
+    }
+
+    track.stop();
+    return false;
+  });
+
+  return retainedTracks.length ? new MediaStream(retainedTracks) : null;
+}
+
 export function useLocalMedia() {
   const audioEnabled = useMediaStore((state) => state.audioEnabled);
   const videoEnabled = useMediaStore((state) => state.videoEnabled);
@@ -71,7 +91,18 @@ export function useLocalMedia() {
   const [screenShareSupported, setScreenShareSupported] = useState(false);
   const [screenShareUnavailableReason, setScreenShareUnavailableReason] =
     useState("Screen sharing is not available in this browser.");
+  const currentStreamRef = useRef<MediaStream | null>(null);
+  const mediaOperationRef = useRef(Promise.resolve());
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
+
+  const runMediaOperation = useCallback(<T>(operation: () => Promise<T>) => {
+    const nextOperation = mediaOperationRef.current.then(operation, operation);
+    mediaOperationRef.current = nextOperation.then(
+      () => undefined,
+      () => undefined
+    );
+    return nextOperation;
+  }, []);
 
   const updateScreenShareSupport = useCallback(() => {
     const hasDisplayMedia = Boolean(navigator.mediaDevices?.getDisplayMedia);
@@ -86,7 +117,7 @@ export function useLocalMedia() {
     );
   }, []);
 
-  const start = useCallback(
+  const startImmediately = useCallback(
     async (overrides?: { audioEnabled?: boolean; videoEnabled?: boolean }) => {
       if (!navigator.mediaDevices?.getUserMedia) {
         setError("Media devices are not available in this browser.");
@@ -162,7 +193,13 @@ export function useLocalMedia() {
     [setError]
   );
 
-  const startAudioTrack = useCallback(async () => {
+  const start = useCallback(
+    (overrides?: { audioEnabled?: boolean; videoEnabled?: boolean }) =>
+      runMediaOperation(() => startImmediately(overrides)),
+    [runMediaOperation, startImmediately]
+  );
+
+  const startAudioTrackImmediately = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
       setAudioStatus("error");
       setError("Media devices are not available in this browser.");
@@ -224,7 +261,7 @@ export function useLocalMedia() {
     });
   }, [setScreenSharing]);
 
-  const stopScreenShare = useCallback(() => {
+  const stopScreenShareImmediately = useCallback(async () => {
     const screenTrack = screenTrackRef.current;
     screenTrackRef.current = null;
     if (screenTrack) {
@@ -234,9 +271,9 @@ export function useLocalMedia() {
     setScreenSharing(false);
     setScreenShareStatus("off");
 
-    if (videoEnabled) {
+    if (useMediaStore.getState().videoEnabled) {
       setVideoStatus("starting");
-      void start({ videoEnabled: true });
+      await startImmediately({ videoEnabled: true });
       return;
     }
 
@@ -252,9 +289,14 @@ export function useLocalMedia() {
       setVideoStatus("off");
       return new MediaStream(current.getTracks());
     });
-  }, [setScreenSharing, start, videoEnabled]);
+  }, [setScreenSharing, startImmediately]);
 
-  const startScreenShare = useCallback(async () => {
+  const stopScreenShare = useCallback(
+    () => runMediaOperation(stopScreenShareImmediately),
+    [runMediaOperation, stopScreenShareImmediately]
+  );
+
+  const startScreenShareImmediately = useCallback(async () => {
     updateScreenShareSupport();
 
     if (!window.isSecureContext && !isLocalhost(window.location.hostname)) {
@@ -286,7 +328,10 @@ export function useLocalMedia() {
 
       screenTrackRef.current?.stop();
       screenTrackRef.current = screenTrack;
-      screenTrack.onended = () => stopScreenShare();
+      screenTrack.onended = () => {
+        void stopScreenShare();
+      };
+      setVideoEnabled(false);
       setScreenSharing(true);
       setScreenShareStatus("ready");
       setVideoStatus("ready");
@@ -310,11 +355,22 @@ export function useLocalMedia() {
           : "Could not start screen sharing."
       );
     }
-  }, [setError, setScreenSharing, stopScreenShare, updateScreenShareSupport]);
+  }, [
+    setError,
+    setScreenSharing,
+    setVideoEnabled,
+    stopScreenShare,
+    updateScreenShareSupport
+  ]);
+
+  const startScreenShare = useCallback(
+    () => runMediaOperation(startScreenShareImmediately),
+    [runMediaOperation, startScreenShareImmediately]
+  );
 
   const toggleScreenShare = useCallback(() => {
     if (screenSharing) {
-      stopScreenShare();
+      void stopScreenShare();
       return;
     }
 
@@ -322,45 +378,59 @@ export function useLocalMedia() {
   }, [screenSharing, startScreenShare, stopScreenShare]);
 
   const toggleAudio = useCallback(() => {
-    const enabled = !audioEnabled;
-    setAudioEnabled(enabled);
-    if (enabled && !stream?.getAudioTracks().length) {
-      void startAudioTrack();
-      return;
-    }
-    stream?.getAudioTracks().forEach((track) => {
-      track.enabled = enabled;
+    void runMediaOperation(async () => {
+      const enabled = !useMediaStore.getState().audioEnabled;
+      setAudioEnabled(enabled);
+
+      if (enabled) {
+        await startAudioTrackImmediately();
+        return;
+      }
+
+      setAudioStatus("off");
+      setStream((current) => streamWithoutKind(current, "audio"));
     });
-    setAudioStatus(enabled ? "ready" : "off");
-  }, [audioEnabled, setAudioEnabled, startAudioTrack, stream]);
+  }, [runMediaOperation, setAudioEnabled, startAudioTrackImmediately]);
 
   const toggleVideo = useCallback(() => {
     if (screenSharing) {
-      stopScreenShare();
+      setVideoEnabled(true);
+      setVideoStatus("starting");
+      void stopScreenShare();
       return;
     }
 
-    const enabled = !videoEnabled;
-    setVideoEnabled(enabled);
-    if (enabled && !stream?.getVideoTracks().length) {
-      setVideoStatus("starting");
-      void start({ videoEnabled: true });
-      return;
-    }
-    stream?.getVideoTracks().forEach((track) => {
-      track.enabled = enabled;
+    void runMediaOperation(async () => {
+      const enabled = !useMediaStore.getState().videoEnabled;
+      setVideoEnabled(enabled);
+
+      if (enabled) {
+        setVideoStatus("starting");
+        await startImmediately({ videoEnabled: true });
+        return;
+      }
+
+      setVideoStatus("off");
+      setStream((current) => streamWithoutKind(current, "video"));
     });
-    setVideoStatus(enabled ? "ready" : "off");
   }, [
+    runMediaOperation,
     screenSharing,
     setVideoEnabled,
-    start,
-    stopScreenShare,
-    stream,
-    videoEnabled
+    startImmediately,
+    stopScreenShare
   ]);
 
-  useEffect(() => () => stopMediaStream(stream), [stream]);
+  useEffect(() => {
+    currentStreamRef.current = stream;
+  }, [stream]);
+
+  useEffect(
+    () => () => {
+      stopMediaStream(currentStreamRef.current);
+    },
+    []
+  );
 
   useEffect(() => {
     updateScreenShareSupport();

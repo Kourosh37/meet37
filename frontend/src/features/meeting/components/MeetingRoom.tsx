@@ -9,6 +9,7 @@ import { ControlBar } from "@/features/meeting/components/ControlBar";
 import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPanel";
 import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
 import { VideoGrid } from "@/features/meeting/components/VideoGrid";
+import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
 import { useModeration } from "@/features/meeting/hooks/useModeration";
 import { usePeerConnections } from "@/features/meeting/hooks/usePeerConnections";
@@ -39,6 +40,10 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const stopLocalMedia = localMedia.stop;
   const audioEnabled = localMedia.audioEnabled;
   const toggleAudio = localMedia.toggleAudio;
+  const peerIds = useMemo(
+    () => Object.keys(meeting.peers).sort().join(","),
+    [meeting.peers]
+  );
   const peerConnections = usePeerConnections(localMedia.stream);
   const sfu = useSFUConnection(localMedia.stream);
   useQualityStats(peerConnections.connections);
@@ -138,7 +143,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     localMedia.screenShareStatus,
     localMedia.videoEnabled,
     localMedia.videoStatus,
-    meeting.phase
+    meeting.phase,
+    peerIds
   ]);
 
   function handleLeave() {
@@ -160,7 +166,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
 
   return (
     <main className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-7xl flex-col gap-4 border-x border-border px-4 py-4 sm:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 pr-14 shadow-sm sm:pr-4">
+      <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             {websocket.status === "open" ? "Connected" : websocket.status}
@@ -171,6 +177,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>{Object.keys(meeting.peers).length + 1} participants</span>
+          <ThemeSwitch />
         </div>
       </header>
 

@@ -67,6 +67,7 @@ export interface JoinedPayload {
   peers: SignalPeer[];
   mode: PeerMode;
   is_host: boolean;
+  turn_servers?: TurnServerConfig[];
 }
 
 export interface WaitingApprovalPayload {

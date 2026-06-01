@@ -40,7 +40,6 @@ export function ParticipantItem({
             {peer.isHost ? (
               <Crown className="size-3.5" aria-label="Host" />
             ) : null}
-            <span>{peer.connection.mode.toUpperCase()}</span>
             {peer.media.audioEnabled ? (
               <Mic className="size-3.5" />
             ) : (

@@ -60,6 +60,7 @@ export interface MeetingState {
   peers: Record<string, MeetingPeer>;
   phase: MeetingPhase;
   roomId: string | null;
+  turnServers: JoinedPayload["turn_servers"];
   beginJoin: (roomId: string) => void;
   failJoin: (message: string) => void;
   joined: (payload: JoinedPayload) => void;
@@ -88,12 +89,12 @@ function peerFromJoined(payload: JoinedPayload["peers"][number]): MeetingPeer {
     id: payload.id,
     isHost: payload.is_host,
     media: {
-      audioEnabled: true,
-      audioStatus: "ready",
+      audioEnabled: false,
+      audioStatus: "off",
       screenSharing: false,
       screenShareStatus: "off",
-      videoStatus: "ready",
-      videoEnabled: true
+      videoStatus: "off",
+      videoEnabled: false
     },
     userId: payload.user_id
   };
@@ -107,6 +108,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   peers: {},
   phase: "idle",
   roomId: null,
+  turnServers: [],
 
   beginJoin: (roomId) => set({ error: null, phase: "joining", roomId }),
 
@@ -129,7 +131,8 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       peers: Object.fromEntries(
         payload.peers.map((peer) => [peer.id, peerFromJoined(peer)])
       ),
-      phase: "in-call"
+      phase: "in-call",
+      turnServers: payload.turn_servers ?? []
     }),
 
   waitingApproval: (peerId) =>
@@ -163,12 +166,12 @@ export const useMeetingStore = create<MeetingState>((set) => ({
           id: payload.peer_id,
           isHost: payload.is_host,
           media: {
-            audioEnabled: true,
-            audioStatus: "ready",
+            audioEnabled: false,
+            audioStatus: "off",
             screenSharing: false,
             screenShareStatus: "off",
-            videoStatus: "ready",
-            videoEnabled: true
+            videoStatus: "off",
+            videoEnabled: false
           }
         }
       }
@@ -242,7 +245,8 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       pendingPeers: [],
       peers: {},
       phase: "idle",
-      roomId: null
+      roomId: null,
+      turnServers: []
     }),
 
   setError: (message) => set({ error: message }),

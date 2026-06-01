@@ -25,6 +25,7 @@ class FakeConnection {
     const sender = new FakeSender(track);
     this.senders.push(sender);
     this.transceivers.push({
+      direction: "sendrecv",
       receiver: { track: { kind: track.kind } },
       sender
     } as unknown as RTCRtpTransceiver);
@@ -109,5 +110,24 @@ describe("PeerConnectionFactory helpers", () => {
     expect(connection.senders[0]?.track).toBeNull();
     expect(connection.senders[1]?.track).toBeNull();
     expect(connection.getTransceivers()).toHaveLength(2);
+  });
+
+  it("enables a reused recvonly transceiver before sending a new local track", async () => {
+    const connection = new FakeConnection();
+    const sender = new FakeSender(null);
+    connection.senders.push(sender);
+    connection.transceivers.push({
+      direction: "recvonly",
+      receiver: { track: { kind: "video" } },
+      sender
+    } as unknown as RTCRtpTransceiver);
+
+    await syncLocalTracks(
+      connection as unknown as RTCPeerConnection,
+      fakeStream([fakeTrack("camera", "video")])
+    );
+
+    expect(sender.track?.id).toBe("camera");
+    expect(connection.transceivers[0]?.direction).toBe("sendrecv");
   });
 });

@@ -35,7 +35,6 @@ Future tests: success path, loading path, error path, accessibility expectations
 import { QueryProvider } from "@/providers/QueryProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
-import { FloatingThemeSwitch } from "@/components/layout/FloatingThemeSwitch";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
@@ -72,7 +71,6 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         </a>
         <ThemeProvider>
           <QueryProvider>{children}</QueryProvider>
-          <FloatingThemeSwitch />
           <ToastProvider />
         </ThemeProvider>
       </body>

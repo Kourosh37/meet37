@@ -119,6 +119,7 @@ async function attachOrReplaceTrack(
 
   if (reusableSender) {
     try {
+      enableSenderDirection(connection, reusableSender);
       await reusableSender.replaceTrack(track);
       return;
     } catch {
@@ -130,6 +131,55 @@ async function attachOrReplaceTrack(
     connection.addTrack(track, stream);
   } catch {
     // Browsers can briefly report stale sender state during renegotiation.
+  }
+}
+
+function transceiverForSender(
+  connection: RTCPeerConnection,
+  sender: RTCRtpSender
+) {
+  return connection
+    .getTransceivers()
+    .find((transceiver) => transceiver.sender === sender);
+}
+
+function enableSenderDirection(
+  connection: RTCPeerConnection,
+  sender: RTCRtpSender
+) {
+  const transceiver = transceiverForSender(connection, sender);
+
+  if (!transceiver) {
+    return;
+  }
+
+  if (transceiver.direction === "recvonly") {
+    transceiver.direction = "sendrecv";
+    return;
+  }
+
+  if (transceiver.direction === "inactive") {
+    transceiver.direction = "sendonly";
+  }
+}
+
+function disableSenderDirection(
+  connection: RTCPeerConnection,
+  sender: RTCRtpSender
+) {
+  const transceiver = transceiverForSender(connection, sender);
+
+  if (!transceiver) {
+    return;
+  }
+
+  if (transceiver.direction === "sendrecv") {
+    transceiver.direction = "recvonly";
+    return;
+  }
+
+  if (transceiver.direction === "sendonly") {
+    transceiver.direction = "inactive";
   }
 }
 
@@ -164,15 +214,18 @@ export async function syncLocalTracks(
       if (track) {
         await sender.replaceTrack(null).catch(() => undefined);
       }
+      disableSenderDirection(connection, sender);
       continue;
     }
 
     if (usedTrackIds.has(replacement.id)) {
       await sender.replaceTrack(null).catch(() => undefined);
+      disableSenderDirection(connection, sender);
       continue;
     }
 
     usedTrackIds.add(replacement.id);
+    enableSenderDirection(connection, sender);
     if (!track || replacement.id !== track.id) {
       await sender.replaceTrack(replacement);
     }

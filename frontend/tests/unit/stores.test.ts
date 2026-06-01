@@ -45,6 +45,21 @@ describe("meetingStore", () => {
     useMeetingStore.getState().removePendingPeer("peer-waiting");
     expect(useMeetingStore.getState().pendingPeers).toHaveLength(0);
   });
+
+  it("stops a failed join attempt and keeps the user on prejoin", () => {
+    useMeetingStore.getState().beginJoin("room-1");
+    useMeetingStore.getState().waitingApproval("pending-peer");
+
+    useMeetingStore
+      .getState()
+      .failJoin("That display name is already in this room.");
+
+    const state = useMeetingStore.getState();
+    expect(state.phase).toBe("idle");
+    expect(state.error).toBe("That display name is already in this room.");
+    expect(state.localPeerId).toBeNull();
+    expect(state.roomId).toBe("room-1");
+  });
 });
 
 describe("chatStore", () => {
@@ -115,6 +130,48 @@ describe("fileTransferStore", () => {
     expect(transfer?.status).toBe("completed");
     expect(transfer?.objectUrl).toBe("blob:download");
     expect(transfer?.progress.percentage).toBe(100);
+  });
+
+  it("keeps active runtime transfers when file history is refreshed", () => {
+    useFileTransferStore.getState().addOrUpdateTransfer({
+      createdAt: 2,
+      direction: "incoming",
+      fileId: "file-live",
+      mime: "text/plain",
+      name: "live.txt",
+      objectUrl: "blob:live",
+      progress: {
+        bytesTransferred: 100,
+        fileId: "file-live",
+        percentage: 100,
+        totalBytes: 100
+      },
+      senderPeerId: "peer-1",
+      size: 100,
+      status: "completed",
+      targetPeerId: "peer-2"
+    });
+
+    useFileTransferStore.getState().loadHistory([
+      {
+        file_id: "file-live",
+        id: 1,
+        mime: "text/plain",
+        name: "history.txt",
+        room_id: "room-1",
+        sender_peer_id: "peer-1",
+        size: 100,
+        reason: "",
+        status: "offered",
+        target_peer_id: "peer-2",
+        ts: 1
+      }
+    ]);
+
+    const transfer = useFileTransferStore.getState().transfers["file-live"];
+    expect(transfer?.name).toBe("live.txt");
+    expect(transfer?.objectUrl).toBe("blob:live");
+    expect(transfer?.status).toBe("completed");
   });
 });
 

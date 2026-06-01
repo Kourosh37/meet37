@@ -96,11 +96,14 @@ export const useFileTransferStore = create<FileTransferState>((set) => ({
     }),
 
   loadHistory: (items) =>
-    set({
-      transfers: Object.fromEntries(
-        items.map((item) => [item.file_id, fromHistory(item)])
-      )
-    }),
+    set((state) => ({
+      transfers: {
+        ...Object.fromEntries(
+          items.map((item) => [item.file_id, fromHistory(item)])
+        ),
+        ...state.transfers
+      }
+    })),
 
   reset: () => set({ transfers: {} }),
 

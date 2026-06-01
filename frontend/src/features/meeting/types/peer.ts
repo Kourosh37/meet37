@@ -32,7 +32,10 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 */
 
-import type { PeerMode } from "@/features/meeting/types/signaling";
+import type {
+  MediaTrackStatus,
+  PeerMode
+} from "@/features/meeting/types/signaling";
 
 export type ConnectionQuality = "unknown" | "good" | "warning" | "poor";
 
@@ -45,8 +48,11 @@ export interface PeerIdentity {
 
 export interface PeerMediaState {
   audioEnabled: boolean;
+  audioStatus: MediaTrackStatus;
   videoEnabled: boolean;
+  videoStatus: MediaTrackStatus;
   screenSharing: boolean;
+  screenShareStatus: MediaTrackStatus;
 }
 
 export interface PeerConnectionState {

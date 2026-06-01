@@ -48,10 +48,12 @@ interface PendingChunkMeta {
 
 interface ReceiveBuffer {
   chunks: FileChunk[];
+  completed: boolean;
   mime: string;
   name: string;
   receivedBytes: number;
   size: number;
+  totalChunks: number;
 }
 
 function parseChannelMessage(data: MessageEvent["data"]) {
@@ -164,6 +166,28 @@ export function useFileTransfer(roomId: string | null) {
     [completeTransfer, failTransfer, updateProgress]
   );
 
+  const completeReceivedFile = useCallback(
+    (fileId: string) => {
+      const buffer = receiveBuffers.current.get(fileId);
+
+      if (!buffer || buffer.completed) {
+        return;
+      }
+
+      buffer.completed = true;
+      const blob = reassembleChunks(buffer.chunks, buffer.mime);
+      const objectUrl = URL.createObjectURL(blob);
+      objectUrls.current.add(objectUrl);
+      completeTransfer(fileId, objectUrl);
+      receiveBuffers.current.delete(fileId);
+      window.setTimeout(() => {
+        URL.revokeObjectURL(objectUrl);
+        objectUrls.current.delete(objectUrl);
+      }, OBJECT_URL_TTL_MS);
+    },
+    [completeTransfer]
+  );
+
   useEffect(() => {
     const unsubscribers = [
       webSocketManager.subscribe("file-offer", (message) => {
@@ -199,10 +223,12 @@ export function useFileTransfer(roomId: string | null) {
       if (message?.type === "file-start") {
         receiveBuffers.current.set(message.fileId, {
           chunks: [],
+          completed: false,
           mime: message.mime,
           name: message.name,
           receivedBytes: 0,
-          size: message.size
+          size: message.size,
+          totalChunks: message.totalChunks
         });
         updateStatus(message.fileId, "transferring");
         return;
@@ -218,21 +244,7 @@ export function useFileTransfer(roomId: string | null) {
       }
 
       if (message?.type === "file-complete") {
-        const buffer = receiveBuffers.current.get(message.fileId);
-
-        if (!buffer) {
-          return;
-        }
-
-        const blob = reassembleChunks(buffer.chunks, buffer.mime);
-        const objectUrl = URL.createObjectURL(blob);
-        objectUrls.current.add(objectUrl);
-        completeTransfer(message.fileId, objectUrl);
-        receiveBuffers.current.delete(message.fileId);
-        window.setTimeout(() => {
-          URL.revokeObjectURL(objectUrl);
-          objectUrls.current.delete(objectUrl);
-        }, OBJECT_URL_TTL_MS);
+        completeReceivedFile(message.fileId);
         return;
       }
 
@@ -258,9 +270,16 @@ export function useFileTransfer(roomId: string | null) {
         });
         buffer.receivedBytes += data.byteLength;
         updateProgress(meta.fileId, buffer.receivedBytes);
+
+        if (
+          buffer.chunks.length >= buffer.totalChunks ||
+          buffer.receivedBytes >= buffer.size
+        ) {
+          completeReceivedFile(meta.fileId);
+        }
       }
     });
-  }, [completeTransfer, updateProgress, updateStatus]);
+  }, [completeReceivedFile, updateProgress, updateStatus]);
 
   useEffect(
     () => () => {

@@ -74,7 +74,16 @@ export function useSignalingMessages() {
 
         store.setPeerMedia(message.from, {
           audioEnabled: message.payload.audio_enabled,
+          audioStatus:
+            message.payload.audio_status ??
+            (message.payload.audio_enabled ? "ready" : "off"),
           screenSharing: message.payload.screen_sharing ?? false,
+          screenShareStatus:
+            message.payload.screen_share_status ??
+            (message.payload.screen_sharing ? "starting" : "off"),
+          videoStatus:
+            message.payload.video_status ??
+            (message.payload.video_enabled ? "ready" : "off"),
           videoEnabled: message.payload.video_enabled
         });
       }),
@@ -88,10 +97,18 @@ export function useSignalingMessages() {
         store.setPhase("kicked");
       }),
       webSocketManager.subscribe("error", (message) => {
-        store.setError(message.payload.message);
-        if (store.phase === "joining" || store.phase === "waiting-approval") {
-          store.setPhase("idle");
+        const currentState = useMeetingStore.getState();
+
+        if (
+          currentState.phase === "joining" ||
+          currentState.phase === "waiting-approval"
+        ) {
+          webSocketManager.close();
+          currentState.failJoin(message.payload.message);
+          return;
         }
+
+        currentState.setError(message.payload.message);
       })
     ];
 

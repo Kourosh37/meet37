@@ -34,6 +34,7 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 export type PeerMode = "p2p" | "sfu";
 export type MediaKind = "audio" | "video" | string;
+export type MediaTrackStatus = "off" | "starting" | "ready" | "error";
 
 export type SignalEnvelope<
   TType extends string = string,
@@ -140,8 +141,11 @@ export interface ChatPayload {
 
 export interface MediaStatePayload {
   audio_enabled: boolean;
+  audio_status?: MediaTrackStatus;
   screen_sharing?: boolean;
+  screen_share_status?: MediaTrackStatus;
   video_enabled: boolean;
+  video_status?: MediaTrackStatus;
 }
 
 export interface FileOfferPayload {

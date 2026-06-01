@@ -1,12 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { Maximize2, Mic, MicOff, MonitorUp, VideoOff } from "lucide-react";
-import type { PeerMode } from "@/features/meeting/types/signaling";
+import {
+  Loader2,
+  Maximize2,
+  Mic,
+  MicOff,
+  MonitorUp,
+  VideoOff
+} from "lucide-react";
+import type {
+  MediaTrackStatus,
+  PeerMode
+} from "@/features/meeting/types/signaling";
 import { cn } from "@/lib/utils/cn";
 
 interface VideoTileProps {
   audioEnabled?: boolean;
+  audioStatus?: MediaTrackStatus;
   className?: string;
   displayName: string;
   isHost?: boolean;
@@ -14,12 +25,15 @@ interface VideoTileProps {
   mode?: PeerMode;
   onMaximize?: () => void;
   screenSharing?: boolean;
+  screenShareStatus?: MediaTrackStatus;
   stream: MediaStream | null;
   videoEnabled?: boolean;
+  videoStatus?: MediaTrackStatus;
 }
 
 export function VideoTile({
   audioEnabled = true,
+  audioStatus = audioEnabled ? "ready" : "off",
   className,
   displayName,
   isHost = false,
@@ -27,13 +41,28 @@ export function VideoTile({
   mode = "p2p",
   onMaximize,
   screenSharing = false,
+  screenShareStatus = screenSharing ? "starting" : "off",
   stream,
-  videoEnabled = true
+  videoEnabled = true,
+  videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const hasVideo = Boolean(
     stream?.getVideoTracks().length && (videoEnabled || screenSharing)
   );
+  const isOpeningScreenShare = screenSharing && !hasVideo;
+  const isCameraExpected = !screenSharing && videoEnabled && !hasVideo;
+  const loadingLabel = isOpeningScreenShare
+    ? screenShareStatus === "error"
+      ? "Shared screen unavailable"
+      : "Opening shared screen"
+    : isCameraExpected
+      ? videoStatus === "error"
+        ? "Camera unavailable"
+        : "Opening camera"
+      : null;
+  const isOpeningMicrophone = audioEnabled && audioStatus === "starting";
+  const hasMicrophoneError = audioEnabled && audioStatus === "error";
   const initials = useMemo(
     () =>
       displayName
@@ -81,6 +110,15 @@ export function VideoTile({
           muted={isLocal}
           playsInline
         />
+      ) : loadingLabel ? (
+        <div className="grid place-items-center bg-muted text-muted-foreground">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Loader2 className="size-8 animate-spin text-primary" />
+            <p className="text-sm font-medium text-surface-foreground">
+              {loadingLabel}
+            </p>
+          </div>
+        </div>
       ) : (
         <div className="grid place-items-center bg-muted text-muted-foreground">
           <div className="grid h-20 w-20 place-items-center rounded-full bg-surface text-2xl font-semibold text-surface-foreground shadow-sm">
@@ -107,12 +145,19 @@ export function VideoTile({
           {screenSharing ? (
             <MonitorUp className="h-4 w-4" aria-label="Screen sharing" />
           ) : null}
-          {audioEnabled ? (
+          {isOpeningMicrophone ? (
+            <Loader2
+              className="h-4 w-4 animate-spin"
+              aria-label="Opening microphone"
+            />
+          ) : audioEnabled && !hasMicrophoneError ? (
             <Mic className="h-4 w-4" aria-label="Microphone on" />
           ) : (
             <MicOff
               className="h-4 w-4 text-danger"
-              aria-label="Microphone off"
+              aria-label={
+                hasMicrophoneError ? "Microphone unavailable" : "Microphone off"
+              }
             />
           )}
         </div>

@@ -61,6 +61,7 @@ export interface MeetingState {
   phase: MeetingPhase;
   roomId: string | null;
   beginJoin: (roomId: string) => void;
+  failJoin: (message: string) => void;
   joined: (payload: JoinedPayload) => void;
   waitingApproval: (peerId: string) => void;
   addJoinRequest: (payload: JoinRequestPayload) => void;
@@ -88,7 +89,10 @@ function peerFromJoined(payload: JoinedPayload["peers"][number]): MeetingPeer {
     isHost: payload.is_host,
     media: {
       audioEnabled: true,
+      audioStatus: "ready",
       screenSharing: false,
+      screenShareStatus: "off",
+      videoStatus: "ready",
       videoEnabled: true
     },
     userId: payload.user_id
@@ -105,6 +109,17 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   roomId: null,
 
   beginJoin: (roomId) => set({ error: null, phase: "joining", roomId }),
+
+  failJoin: (message) =>
+    set((state) => ({
+      error: message,
+      isHost: false,
+      localPeerId: null,
+      pendingPeers: [],
+      peers: {},
+      phase: "idle",
+      roomId: state.roomId
+    })),
 
   joined: (payload) =>
     set({
@@ -149,7 +164,10 @@ export const useMeetingStore = create<MeetingState>((set) => ({
           isHost: payload.is_host,
           media: {
             audioEnabled: true,
+            audioStatus: "ready",
             screenSharing: false,
+            screenShareStatus: "off",
+            videoStatus: "ready",
             videoEnabled: true
           }
         }

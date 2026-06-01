@@ -34,14 +34,6 @@ export function FileTransferItem({ transfer }: FileTransferItemProps) {
               </p>
             </div>
           ) : null}
-          {transfer.status === "completed" ? (
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full bg-primary"
-                style={{ width: "100%" }}
-              />
-            </div>
-          ) : null}
           {transfer.reason ? (
             <p className="mt-1 text-xs text-danger">{transfer.reason}</p>
           ) : null}

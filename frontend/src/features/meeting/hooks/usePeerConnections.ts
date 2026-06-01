@@ -169,7 +169,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
       connection.onnegotiationneeded = () => requestNegotiation(peerId);
 
       if (localStream) {
-        addLocalTracks(connection, localStream);
+        void addLocalTracks(connection, localStream);
       }
 
       const channel = connection.createDataChannel(FILE_TRANSFER_CHANNEL, {
@@ -209,8 +209,9 @@ export function usePeerConnections(localStream: MediaStream | null) {
         return;
       }
 
-      syncLocalTracks(connection, localStream);
-      requestNegotiation(peerId);
+      void syncLocalTracks(connection, localStream).then(() => {
+        requestNegotiation(peerId);
+      });
     });
   }, [localStream, requestNegotiation]);
 

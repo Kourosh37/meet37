@@ -6,7 +6,11 @@ import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 export function useSFUConnection(localStream: MediaStream | null) {
   const clientRef = useRef<SFUClient | null>(null);
+  const trackOwnersRef = useRef(new Map<string, string>());
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [remoteStreams, setRemoteStreams] = useState<
+    Record<string, MediaStream>
+  >({});
 
   useEffect(() => {
     const getClient = () => {
@@ -14,6 +18,25 @@ export function useSFUConnection(localStream: MediaStream | null) {
         clientRef.current = new SFUClient({
           onIceCandidate: (payload) => {
             webSocketManager.send({ payload, type: "sfu-ice-candidate" });
+          },
+          onTrack: (event) => {
+            const stream = event.streams[0];
+            const ownerId = trackOwnersRef.current.get(event.track.id);
+
+            if (stream && ownerId) {
+              setRemoteStreams((current) => ({
+                ...current,
+                [ownerId]: stream
+              }));
+              return;
+            }
+
+            if (stream) {
+              setRemoteStreams((current) => ({
+                ...current,
+                [stream.id]: stream
+              }));
+            }
           }
         });
       }
@@ -28,18 +51,32 @@ export function useSFUConnection(localStream: MediaStream | null) {
           localStream,
           message.payload.turn_servers
         );
-        webSocketManager.send({ payload: offer, type: "sfu-offer" });
+        if (offer) {
+          webSocketManager.send({ payload: offer, type: "sfu-offer" });
+        }
       }),
       webSocketManager.subscribe("sfu-answer", async (message) => {
         setSessionId(message.payload.session_id);
-        await getClient().applyAnswer({ sdp: message.payload.sdp });
+        const offer = await getClient().applyAnswer({
+          sdp: message.payload.sdp
+        });
+
+        if (offer) {
+          webSocketManager.send({ payload: offer, type: "sfu-offer" });
+        }
       }),
       webSocketManager.subscribe("sfu-ice-candidate", async (message) => {
         await getClient().addIceCandidate(message.payload);
       }),
-      webSocketManager.subscribe("sfu-renegotiate-needed", async () => {
+      webSocketManager.subscribe("sfu-renegotiate-needed", async (message) => {
+        trackOwnersRef.current.set(
+          message.payload.track_id,
+          message.payload.owner_id
+        );
         const offer = await getClient().createOffer();
-        webSocketManager.send({ payload: offer, type: "sfu-offer" });
+        if (offer) {
+          webSocketManager.send({ payload: offer, type: "sfu-offer" });
+        }
       })
     ];
 
@@ -47,6 +84,18 @@ export function useSFUConnection(localStream: MediaStream | null) {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
   }, [localStream]);
+
+  useEffect(() => {
+    if (!sessionId) {
+      return;
+    }
+
+    void clientRef.current?.syncLocalStream(localStream).then((offer) => {
+      if (offer) {
+        webSocketManager.send({ payload: offer, type: "sfu-offer" });
+      }
+    });
+  }, [localStream, sessionId]);
 
   useEffect(
     () => () => {
@@ -57,6 +106,7 @@ export function useSFUConnection(localStream: MediaStream | null) {
 
   return {
     active: Boolean(sessionId),
+    remoteStreams,
     sessionId
   };
 }

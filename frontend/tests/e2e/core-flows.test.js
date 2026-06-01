@@ -167,3 +167,61 @@ test("approval rooms place guests into the waiting room", async ({ page }) => {
     page.getByRole("heading", { name: "Waiting for approval" })
   ).toBeVisible();
 });
+
+test("duplicate display names stop the join attempt until corrected", async ({
+  page
+}) => {
+  let joinAttempts = 0;
+
+  await mockBackend(page);
+  await mockMeetingWebSocket(page, (ws, message) => {
+    if (message.type !== "join") {
+      return;
+    }
+
+    joinAttempts += 1;
+
+    if (message.payload.display_name === "Taken Name") {
+      ws.send(
+        JSON.stringify({
+          payload: {
+            message:
+              "That display name is already in this room. Choose another name."
+          },
+          type: "error"
+        })
+      );
+      return;
+    }
+
+    ws.send(
+      JSON.stringify({
+        payload: {
+          is_host: false,
+          mode: "p2p",
+          peers: [],
+          your_id: "peer-corrected"
+        },
+        type: "joined"
+      })
+    );
+  });
+
+  await page.goto("/meet/room-e2e");
+  await page.getByLabel("Display name").fill("Taken Name");
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await expect(
+    page.getByText("That display name is already in this room.")
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continue" })).toBeEnabled();
+  await expect(page.getByRole("heading", { name: "E2E room" })).toHaveCount(1);
+  await expect(page.getByText("1 participants")).toHaveCount(0);
+  await expect(page.getByLabel("Leave meeting")).toHaveCount(0);
+
+  await page.getByLabel("Display name").fill("Corrected Name");
+  await page.getByRole("button", { name: "Continue" }).click();
+
+  await expect(page.getByText("Connected")).toBeVisible();
+  await expect.poll(() => joinAttempts).toBe(2);
+});

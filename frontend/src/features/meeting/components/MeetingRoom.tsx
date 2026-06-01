@@ -8,7 +8,6 @@ import { ChatPanel } from "@/features/meeting/components/ChatPanel";
 import { ControlBar } from "@/features/meeting/components/ControlBar";
 import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPanel";
 import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
-import { SFUBanner } from "@/features/meeting/components/SFUBanner";
 import { VideoGrid } from "@/features/meeting/components/VideoGrid";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
 import { useModeration } from "@/features/meeting/hooks/useModeration";
@@ -41,12 +40,15 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const audioEnabled = localMedia.audioEnabled;
   const toggleAudio = localMedia.toggleAudio;
   const peerConnections = usePeerConnections(localMedia.stream);
-  const { remoteStreams } = peerConnections;
   const sfu = useSFUConnection(localMedia.stream);
   useQualityStats(peerConnections.connections);
-  const sfuActive =
-    sfu.active ||
-    Object.values(meeting.peers).some((peer) => peer.connection.mode === "sfu");
+  const remoteStreams = useMemo(
+    () => ({
+      ...peerConnections.remoteStreams,
+      ...sfu.remoteStreams
+    }),
+    [peerConnections.remoteStreams, sfu.remoteStreams]
+  );
   const localPeer = useMemo(
     () =>
       ({
@@ -59,15 +61,21 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         isHost: meeting.isHost,
         media: {
           audioEnabled: localMedia.audioEnabled,
+          audioStatus: localMedia.audioStatus,
           screenSharing: localMedia.screenSharing,
+          screenShareStatus: localMedia.screenShareStatus,
+          videoStatus: localMedia.videoStatus,
           videoEnabled: localMedia.videoEnabled
         }
       }) satisfies MeetingPeer,
     [
       displayName,
       localMedia.audioEnabled,
+      localMedia.audioStatus,
       localMedia.screenSharing,
+      localMedia.screenShareStatus,
       localMedia.videoEnabled,
+      localMedia.videoStatus,
       meeting.isHost,
       meeting.localPeerId
     ]
@@ -115,15 +123,21 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     webSocketManager.send({
       payload: {
         audio_enabled: localMedia.audioEnabled,
+        audio_status: localMedia.audioStatus,
         screen_sharing: localMedia.screenSharing,
-        video_enabled: localMedia.videoEnabled
+        screen_share_status: localMedia.screenShareStatus,
+        video_enabled: localMedia.videoEnabled,
+        video_status: localMedia.videoStatus
       },
       type: "media-state"
     });
   }, [
     localMedia.audioEnabled,
+    localMedia.audioStatus,
     localMedia.screenSharing,
+    localMedia.screenShareStatus,
     localMedia.videoEnabled,
+    localMedia.videoStatus,
     meeting.phase
   ]);
 
@@ -145,7 +159,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-7xl flex-col gap-4 px-4 py-4 sm:px-6">
+    <main className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-7xl flex-col gap-4 border-x border-border px-4 py-4 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm">
         <div className="min-w-0">
           <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -173,16 +187,17 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         </div>
       ) : null}
 
-      <SFUBanner active={sfuActive} />
-
-      <div className="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div className="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
         <VideoGrid
           local={{
             audioEnabled: localMedia.audioEnabled,
+            audioStatus: localMedia.audioStatus,
             displayName,
             isHost: meeting.isHost,
             screenSharing: localMedia.screenSharing,
+            screenShareStatus: localMedia.screenShareStatus,
             stream: localMedia.stream,
+            videoStatus: localMedia.videoStatus,
             videoEnabled: localMedia.videoEnabled
           }}
           peers={meeting.peers}

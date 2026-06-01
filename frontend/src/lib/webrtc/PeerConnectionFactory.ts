@@ -78,10 +78,10 @@ export function addLocalTracks(
   connection: RTCPeerConnection,
   stream: MediaStream
 ) {
-  syncLocalTracks(connection, stream);
+  return syncLocalTracks(connection, stream);
 }
 
-function attachOrReplaceTrack(
+async function attachOrReplaceTrack(
   connection: RTCPeerConnection,
   stream: MediaStream,
   track: MediaStreamTrack
@@ -97,7 +97,7 @@ function attachOrReplaceTrack(
   );
 
   if (reusableSender) {
-    void reusableSender.replaceTrack(track).catch(() => undefined);
+    await reusableSender.replaceTrack(track).catch(() => undefined);
     return;
   }
 
@@ -108,7 +108,7 @@ function attachOrReplaceTrack(
   }
 }
 
-export function syncLocalTracks(
+export async function syncLocalTracks(
   connection: RTCPeerConnection,
   stream: MediaStream
 ) {
@@ -117,7 +117,7 @@ export function syncLocalTracks(
   );
   const usedTrackIds = new Set<string>();
 
-  connection.getSenders().forEach((sender) => {
+  for (const sender of connection.getSenders()) {
     const track = sender.track;
     const kind = track?.kind ?? "";
     const replacement = kind ? tracksByKind.get(kind) : undefined;
@@ -126,25 +126,25 @@ export function syncLocalTracks(
       if (track) {
         connection.removeTrack(sender);
       }
-      return;
+      continue;
     }
 
     if (usedTrackIds.has(replacement.id)) {
       connection.removeTrack(sender);
-      return;
+      continue;
     }
 
     usedTrackIds.add(replacement.id);
     if (!track || replacement.id !== track.id) {
-      void sender.replaceTrack(replacement).catch(() => undefined);
+      await sender.replaceTrack(replacement).catch(() => undefined);
     }
-  });
+  }
 
-  stream.getTracks().forEach((track) => {
+  for (const track of stream.getTracks()) {
     if (!usedTrackIds.has(track.id)) {
-      attachOrReplaceTrack(connection, stream, track);
+      await attachOrReplaceTrack(connection, stream, track);
     }
-  });
+  }
 }
 
 export function stopMediaStream(stream: MediaStream | null | undefined) {

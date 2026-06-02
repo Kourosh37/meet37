@@ -19,7 +19,6 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_OUTPUT_DIR = ROOT / "dist"
 
 def run(command: list[str], *, cwd: Path = ROOT) -> None:
     print("+ " + " ".join(command), flush=True)
@@ -74,15 +73,36 @@ def save_image(image: str, output_dir: Path) -> Path:
 
 def build_images(args: argparse.Namespace) -> tuple[str, str]:
     env = {**parse_env_file(ROOT / ".env.example"), **parse_env_file(ROOT / ".env")}
-    version = args.version or get_git_version()
+    version = args.version or env.get("DOCKER_IMAGE_TAG") or get_git_version()
 
-    backend_image = f"{args.backend_image}:{version}"
-    frontend_image = f"{args.frontend_image}:{version}"
+    backend_image_name = args.backend_image or env.get("DOCKER_BACKEND_IMAGE")
+    frontend_image_name = args.frontend_image or env.get("DOCKER_FRONTEND_IMAGE")
 
-    public_api_base_url = args.api_base_url or env.get("NEXT_PUBLIC_API_BASE_URL") or "browser-origin"
-    public_ws_url = args.ws_url or env.get("NEXT_PUBLIC_WS_URL") or "browser-origin"
-    turn_public_ip = args.turn_public_ip or env.get("NEXT_PUBLIC_TURN_PUBLIC_IP") or "127.0.0.1"
-    backend_internal_url = args.backend_internal_url or "http://meet37-backend:8080"
+    if not backend_image_name or not frontend_image_name:
+        raise SystemExit("DOCKER_BACKEND_IMAGE and DOCKER_FRONTEND_IMAGE are required.")
+
+    backend_image = f"{backend_image_name}:{version}"
+    frontend_image = f"{frontend_image_name}:{version}"
+
+    public_api_base_url = args.api_base_url or env.get("NEXT_PUBLIC_API_BASE_URL")
+    public_ws_url = args.ws_url or env.get("NEXT_PUBLIC_WS_URL")
+    turn_public_ip = args.turn_public_ip or env.get("NEXT_PUBLIC_TURN_PUBLIC_IP")
+    backend_internal_url = args.backend_internal_url or env.get("BACKEND_INTERNAL_URL")
+    frontend_port = args.frontend_port or env.get("FRONTEND_PORT")
+
+    missing = [
+        key
+        for key, value in {
+            "NEXT_PUBLIC_API_BASE_URL": public_api_base_url,
+            "NEXT_PUBLIC_WS_URL": public_ws_url,
+            "NEXT_PUBLIC_TURN_PUBLIC_IP": turn_public_ip,
+            "BACKEND_INTERNAL_URL": backend_internal_url,
+            "FRONTEND_PORT": frontend_port,
+        }.items()
+        if not value
+    ]
+    if missing:
+        raise SystemExit(f"Missing required environment values: {', '.join(missing)}")
 
     run(["docker", "build", "-t", backend_image, "-f", "backend/Dockerfile", "backend"])
     run(
@@ -101,6 +121,8 @@ def build_images(args: argparse.Namespace) -> tuple[str, str]:
             f"NEXT_PUBLIC_TURN_PUBLIC_IP={turn_public_ip}",
             "--build-arg",
             f"BACKEND_INTERNAL_URL={backend_internal_url}",
+            "--build-arg",
+            f"FRONTEND_PORT={frontend_port}",
             "frontend",
         ]
     )
@@ -113,53 +135,62 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--output-dir",
-        default=str(DEFAULT_OUTPUT_DIR),
-        help="Directory for generated .tar.gz image archives.",
+        default="",
+        help="Directory for generated .tar.gz image archives. Defaults to DOCKER_IMAGE_OUTPUT_DIR.",
     )
     parser.add_argument(
         "--version",
         default="",
-        help="Docker image tag. Defaults to the current git short SHA.",
+        help="Docker image tag. Defaults to DOCKER_IMAGE_TAG or current git short SHA.",
     )
     parser.add_argument(
         "--backend-image",
-        default="meet37-backend",
-        help="Backend image repository/name without tag.",
+        default="",
+        help="Backend image repository/name without tag. Defaults to DOCKER_BACKEND_IMAGE.",
     )
     parser.add_argument(
         "--frontend-image",
-        default="meet37-frontend",
-        help="Frontend image repository/name without tag.",
+        default="",
+        help="Frontend image repository/name without tag. Defaults to DOCKER_FRONTEND_IMAGE.",
     )
     parser.add_argument(
         "--api-base-url",
         default="",
-        help="Frontend NEXT_PUBLIC_API_BASE_URL build arg. Defaults to .env or browser-origin.",
+        help="Frontend NEXT_PUBLIC_API_BASE_URL build arg. Defaults to .env.",
     )
     parser.add_argument(
         "--ws-url",
         default="",
-        help="Frontend NEXT_PUBLIC_WS_URL build arg. Defaults to .env or browser-origin.",
+        help="Frontend NEXT_PUBLIC_WS_URL build arg. Defaults to .env.",
     )
     parser.add_argument(
         "--turn-public-ip",
         default="",
-        help="Frontend NEXT_PUBLIC_TURN_PUBLIC_IP build arg. Defaults to .env or 127.0.0.1.",
+        help="Frontend NEXT_PUBLIC_TURN_PUBLIC_IP build arg. Defaults to .env.",
     )
     parser.add_argument(
         "--backend-internal-url",
         default="",
-        help="Frontend BACKEND_INTERNAL_URL build arg. Defaults to http://meet37-backend:8080.",
+        help="Frontend BACKEND_INTERNAL_URL build arg. Defaults to .env.",
+    )
+    parser.add_argument(
+        "--frontend-port",
+        default="",
+        help="Frontend PORT build arg. Defaults to FRONTEND_PORT from .env.",
     )
     return parser.parse_args()
 
 def main() -> int:
     args = parse_args()
     require_docker()
+    env = {**parse_env_file(ROOT / ".env.example"), **parse_env_file(ROOT / ".env")}
+    output_dir_value = args.output_dir or env.get("DOCKER_IMAGE_OUTPUT_DIR")
+    if not output_dir_value:
+        raise SystemExit("DOCKER_IMAGE_OUTPUT_DIR is required.")
 
     try:
         images = build_images(args)
-        output_dir = Path(args.output_dir).resolve()
+        output_dir = Path(output_dir_value).resolve()
         archives = [save_image(image, output_dir) for image in images]
     except subprocess.CalledProcessError as exc:
         print(f"Command failed with exit code {exc.returncode}.", file=sys.stderr)

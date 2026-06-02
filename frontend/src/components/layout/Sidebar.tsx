@@ -1,4 +1,3 @@
-import { BrandMark } from "@/components/layout/BrandMark";
 import { Activity, Gauge, Settings, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -17,8 +16,7 @@ export function Sidebar() {
           className="inline-flex items-center gap-2 font-semibold text-surface-foreground"
           href="/"
         >
-          <BrandMark className="h-8 w-8" />
-          meet37 Admin
+          Admin
         </Link>
       </div>
       <nav

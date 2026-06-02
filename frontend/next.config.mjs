@@ -3,9 +3,11 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 const projectRoot = dirname(fileURLToPath(import.meta.url));
-const backendInternalUrl = (
-  process.env.BACKEND_INTERNAL_URL || "http://localhost:8080"
-).replace(/\/$/, "");
+const backendInternalUrl = process.env.BACKEND_INTERNAL_URL?.replace(/\/$/, "");
+
+if (!backendInternalUrl) {
+  throw new Error("BACKEND_INTERNAL_URL is required");
+}
 
 const nextConfig = {
   outputFileTracingRoot: projectRoot,

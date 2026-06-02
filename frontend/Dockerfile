@@ -21,14 +21,16 @@ RUN ./node_modules/.bin/next build
 
 FROM node:22-alpine AS runner
 WORKDIR /app
+ARG BACKEND_INTERNAL_URL
+ARG FRONTEND_PORT
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
-ENV BACKEND_INTERNAL_URL=http://backend:8080
+ENV BACKEND_INTERNAL_URL=$BACKEND_INTERNAL_URL
+ENV PORT=$FRONTEND_PORT
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
-EXPOSE 3000
-HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=5 CMD wget -qO- http://127.0.0.1:${PORT:-3000}/ || exit 1
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=5 CMD wget -qO- "${FRONTEND_HEALTHCHECK_URL}" || exit 1
 CMD ["node", "server.js"]

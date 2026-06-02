@@ -1,4 +1,3 @@
-import { BrandMark } from "@/components/layout/BrandMark";
 import { ArrowRight, LogIn, Video } from "lucide-react";
 import Link from "next/link";
 
@@ -6,12 +5,6 @@ export default function HomePage() {
   return (
     <section className="mx-auto flex min-h-[calc(100vh-12rem)] max-w-4xl flex-col justify-center py-10">
       <div className="space-y-7">
-        <div className="inline-flex items-center gap-3 rounded-2xl border border-border bg-surface px-4 py-3 shadow-sm">
-          <BrandMark className="h-10 w-10" size={40} />
-          <span className="text-base font-semibold text-surface-foreground">
-            meet37
-          </span>
-        </div>
         <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-muted-foreground">
           <Video className="size-4 text-primary" />
           Browser meetings

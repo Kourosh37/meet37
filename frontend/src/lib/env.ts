@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 const envSchema = z.object({
-  NEXT_PUBLIC_API_BASE_URL: z.string().default("http://localhost:8080"),
-  NEXT_PUBLIC_WS_URL: z.string().default("ws://localhost:8080/ws"),
+  NEXT_PUBLIC_API_BASE_URL: z.string().default("browser-origin"),
+  NEXT_PUBLIC_WS_URL: z.string().default("browser-origin"),
   NEXT_PUBLIC_TURN_PUBLIC_IP: z.string().optional()
 });
 
@@ -14,7 +14,7 @@ const parsedEnv = envSchema.parse({
 
 function browserOrigin() {
   if (typeof window === "undefined") {
-    return "http://localhost:3000";
+    return "";
   }
 
   return window.location.origin;

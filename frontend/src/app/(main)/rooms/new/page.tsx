@@ -1,4 +1,3 @@
-import { BrandMark } from "@/components/layout/BrandMark";
 import Link from "next/link";
 import { RoomCreationForm } from "@/features/rooms/components/RoomCreationForm";
 
@@ -6,10 +5,7 @@ export default function CreateRoomPage() {
   return (
     <section className="mx-auto max-w-2xl space-y-6">
       <div>
-        <div className="mb-4 inline-flex items-center gap-3 rounded-xl border border-border bg-surface px-3 py-2 shadow-sm">
-          <BrandMark className="h-8 w-8" />
-          <p className="text-sm font-medium text-primary">Room setup</p>
-        </div>
+        <p className="text-sm font-medium text-primary">Room setup</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">
           Create a room
         </h1>

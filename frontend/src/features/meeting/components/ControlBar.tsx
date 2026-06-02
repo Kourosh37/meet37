@@ -53,7 +53,7 @@ export function ControlBar({
       : screenShareUnavailableReason;
 
   return (
-    <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-start gap-2 overflow-x-auto border-t border-border bg-surface/95 p-2 shadow-lg backdrop-blur sm:sticky sm:bottom-4 sm:w-fit sm:max-w-full sm:overflow-visible sm:rounded-lg sm:border">
+    <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-start gap-2 overflow-x-auto border-t border-border bg-surface/95 p-2 shadow-lg backdrop-blur sm:bottom-6 sm:w-fit sm:max-w-full sm:overflow-visible sm:rounded-lg sm:border md:bottom-8">
       <button
         aria-label={audioEnabled ? "Mute microphone" : "Unmute microphone"}
         className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"

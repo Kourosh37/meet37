@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { BrandMark } from "@/components/layout/BrandMark";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
 import { useMeetingRoom } from "@/features/meeting/hooks/useMeetingRoom";
@@ -159,9 +158,6 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   if (error || !data) {
     return (
       <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
-        <div className="mb-4 flex justify-center">
-          <BrandMark className="h-12 w-12" size={48} />
-        </div>
         <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
           Room unavailable
         </h1>
@@ -183,14 +179,11 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
       <DeviceSetup />
 
       <aside className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-        <div className="flex items-center gap-3">
-          <BrandMark className="h-9 w-9" size={36} />
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {data.room.join_policy === "approval"
-              ? "Host approval required"
-              : "Open meeting"}
-          </p>
-        </div>
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {data.room.join_policy === "approval"
+            ? "Host approval required"
+            : "Open meeting"}
+        </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-normal text-surface-foreground">
           {data.room.name}
         </h1>

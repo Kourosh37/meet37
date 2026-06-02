@@ -32,6 +32,7 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
+import { BrandMark } from "@/components/layout/BrandMark";
 import { Activity, Gauge, Settings, Users } from "lucide-react";
 import Link from "next/link";
 
@@ -46,8 +47,12 @@ export function Sidebar() {
   return (
     <aside className="border-b border-border bg-surface md:min-h-screen md:w-64 md:border-b-0 md:border-r">
       <div className="flex h-16 items-center border-b border-border px-4">
-        <Link className="font-semibold text-surface-foreground" href="/">
-          Meet Admin
+        <Link
+          className="inline-flex items-center gap-2 font-semibold text-surface-foreground"
+          href="/"
+        >
+          <BrandMark className="h-8 w-8" />
+          meet37 Admin
         </Link>
       </div>
       <nav

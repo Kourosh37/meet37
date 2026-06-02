@@ -10,6 +10,7 @@ import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPan
 import { RemoteAudioPlayer } from "@/features/meeting/components/RemoteAudioPlayer";
 import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
 import { VideoGrid } from "@/features/meeting/components/VideoGrid";
+import { BrandMark } from "@/components/layout/BrandMark";
 import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
 import { useAudioLevel } from "@/features/meeting/hooks/useAudioLevel";
@@ -317,13 +318,16 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   return (
     <main className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-7xl flex-col gap-4 border-x border-border px-4 py-4 sm:px-6">
       <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-            {websocket.status === "open" ? "Connected" : websocket.status}
-          </p>
-          <h1 className="truncate text-lg font-semibold tracking-normal text-surface-foreground">
-            {roomName ?? "Meeting room"}
-          </h1>
+        <div className="flex min-w-0 items-center gap-3">
+          <BrandMark className="h-9 w-9 shrink-0" size={36} />
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {websocket.status === "open" ? "Connected" : websocket.status}
+            </p>
+            <h1 className="truncate text-lg font-semibold tracking-normal text-surface-foreground">
+              {roomName ?? "Meeting room"}
+            </h1>
+          </div>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span>{Object.keys(meeting.peers).length + 1} participants</span>

@@ -41,12 +41,29 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Meet",
-    template: "%s | Meet"
+    default: "meet37",
+    template: "%s | meet37"
   },
   description:
     "Browser-based video meetings with room sharing, moderation, and P2P-first media.",
-  applicationName: "Meet"
+  applicationName: "meet37",
+  icons: {
+    apple: "/icons/meet37-logo-light.svg",
+    icon: [
+      { url: "/icons/meet37-favicon.svg", type: "image/svg+xml" },
+      {
+        media: "(prefers-color-scheme: light)",
+        url: "/icons/meet37-logo-light.svg",
+        type: "image/svg+xml"
+      },
+      {
+        media: "(prefers-color-scheme: dark)",
+        url: "/icons/meet37-logo-dark.svg",
+        type: "image/svg+xml"
+      }
+    ],
+    shortcut: "/icons/meet37-favicon.svg"
+  }
 };
 
 export const viewport: Viewport = {

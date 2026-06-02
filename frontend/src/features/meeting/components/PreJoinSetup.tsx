@@ -34,8 +34,9 @@ Future tests: WebSocket join flow, approval room flow, host approve/reject, kick
 
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import { BrandMark } from "@/components/layout/BrandMark";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
 import { useMeetingRoom } from "@/features/meeting/hooks/useMeetingRoom";
@@ -47,6 +48,7 @@ import { displayNameSchema } from "@/lib/utils/validators";
 import Link from "next/link";
 
 const DISPLAY_NAME_KEY = "meet_display_name";
+const JOIN_TOAST_ID = "meeting-join-status";
 
 export function PreJoinSetup({ roomId }: { roomId: string }) {
   const { data, error, isLoading } = useRoomMeta(roomId);
@@ -55,6 +57,8 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const hasShownWaitingToastRef = useRef(false);
+  const hasShownJoinedToastRef = useRef(false);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(DISPLAY_NAME_KEY);
@@ -85,10 +89,57 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
       displayName: displayNameResult.data,
       password
     });
-    toast.info("Joining meeting", {
-      description: joinedAsHost ? "Joining as room host." : undefined
+    hasShownWaitingToastRef.current = false;
+    hasShownJoinedToastRef.current = false;
+    toast.loading("Joining room", {
+      description: joinedAsHost ? "Joining as room host." : "Checking room access.",
+      id: JOIN_TOAST_ID
     });
   }
+
+  useEffect(() => {
+    if (meeting.phase !== "idle" || !meeting.error) {
+      return;
+    }
+
+    toast.error("Could not join room", {
+      description: meeting.error,
+      id: JOIN_TOAST_ID
+    });
+  }, [meeting.error, meeting.phase]);
+
+  useEffect(() => {
+    if (
+      meeting.phase !== "waiting-approval" ||
+      hasShownWaitingToastRef.current
+    ) {
+      return;
+    }
+
+    hasShownWaitingToastRef.current = true;
+    toast.info("Waiting for host approval", {
+      description: "The host has been notified.",
+      id: JOIN_TOAST_ID
+    });
+  }, [meeting.phase]);
+
+  useEffect(() => {
+    if (meeting.phase !== "in-call" || hasShownJoinedToastRef.current) {
+      return;
+    }
+
+    hasShownJoinedToastRef.current = true;
+    toast.success("Joined room", {
+      description: "Media and signaling are ready.",
+      id: JOIN_TOAST_ID
+    });
+  }, [meeting.phase]);
+
+  useEffect(() => {
+    if (["kicked", "rejected", "room-closed"].includes(meeting.phase)) {
+      toast.dismiss(JOIN_TOAST_ID);
+    }
+  }, [meeting.phase]);
 
   if (meeting.phase === "waiting-approval") {
     return <WaitingRoom onCancel={cancelJoin} roomName={data?.room.name} />;
@@ -140,6 +191,9 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   if (error || !data) {
     return (
       <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
+        <div className="mb-4 flex justify-center">
+          <BrandMark className="h-12 w-12" size={48} />
+        </div>
         <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
           Room unavailable
         </h1>
@@ -161,11 +215,14 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
       <DeviceSetup />
 
       <aside className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {data.room.join_policy === "approval"
-            ? "Host approval required"
-            : "Open meeting"}
-        </p>
+        <div className="flex items-center gap-3">
+          <BrandMark className="h-9 w-9" size={36} />
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            {data.room.join_policy === "approval"
+              ? "Host approval required"
+              : "Open meeting"}
+          </p>
+        </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-normal text-surface-foreground">
           {data.room.name}
         </h1>

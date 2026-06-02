@@ -32,6 +32,7 @@ Future tests: success path, loading path, error path, accessibility expectations
 
 */
 
+import { BrandMark } from "@/components/layout/BrandMark";
 import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { LogIn, Plus } from "lucide-react";
 import Link from "next/link";
@@ -41,10 +42,11 @@ export function TopBar() {
     <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
       <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 border-x border-border px-4 sm:px-6">
         <Link
-          className="text-lg font-semibold tracking-normal text-foreground"
+          className="inline-flex items-center gap-2 text-lg font-semibold tracking-normal text-foreground"
           href="/"
         >
-          Meet
+          <BrandMark className="h-8 w-8" />
+          meet37
         </Link>
         <nav
           aria-label="Primary navigation"

@@ -31,6 +31,7 @@ pip-wheel-metadata/
 # Build artifacts and generated bundles
 dist/
 build/
+backups/
 out/
 target/
 release/

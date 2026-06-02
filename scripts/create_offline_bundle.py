@@ -10,6 +10,16 @@ The generated zip contains one top-level directory with:
 Docker Compose cannot load image tarballs by itself. The bundle therefore also
 places small load helpers inside images/ so an offline server can import the
 saved images before running `docker compose up -d`.
+
+The generated compose follows the server layout used by the existing apps:
+  /opt/<app>/
+    images/
+    data/
+    .env
+    docker-compose.yml
+
+Caddy is intentionally not bundled. The frontend joins the external `proxy`
+network and Caddy can reverse-proxy to `<app>:3000`.
 """
 
 from __future__ import annotations
@@ -31,7 +41,9 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_BUNDLE_NAME = "meet37-offline"
+DEFAULT_BUNDLE_NAME = "meet37"
+DEFAULT_APP_NAME = "meet37"
+DEFAULT_PROXY_NETWORK = "proxy"
 
 
 def run(command: list[str], *, cwd: Path = ROOT) -> None:
@@ -86,11 +98,11 @@ def find_free_port(preferred: int, used: set[int]) -> int:
     raise SystemExit(f"Could not find a free port near {preferred}.")
 
 
-def public_host_for_urls(public_host: str) -> str:
-    public_host = public_host.strip()
-    if not public_host:
-        return "localhost"
-    return public_host.removeprefix("http://").removeprefix("https://")
+def normalize_domain(value: str) -> str:
+    value = value.strip()
+    if not value:
+        return "meet37.dev37.ir"
+    return value.removeprefix("http://").removeprefix("https://").strip("/")
 
 
 def build_env(args: argparse.Namespace) -> dict[str, str]:
@@ -99,12 +111,11 @@ def build_env(args: argparse.Namespace) -> dict[str, str]:
     env = {**example, **current}
     used_ports: set[int] = set()
 
-    backend_host_port = args.backend_port or find_free_port(8080, used_ports)
-    frontend_host_port = args.frontend_port or find_free_port(3000, used_ports)
     turn_host_port = args.turn_port or find_free_port(
         int(env.get("TURN_PORT", "3478")), used_ports
     )
-    public_host = public_host_for_urls(args.public_host)
+    public_host = normalize_domain(args.domain or args.public_host)
+    public_origin = f"https://{public_host}"
 
     env.update(
         {
@@ -131,9 +142,7 @@ def build_env(args: argparse.Namespace) -> dict[str, str]:
             "SFU_FALLBACK_THRESHOLD_KBPS": env.get(
                 "SFU_FALLBACK_THRESHOLD_KBPS", "1500"
             ),
-            "ALLOWED_ORIGINS": env.get("ALLOWED_ORIGINS")
-            if env.get("ALLOWED_ORIGINS") and env.get("ALLOWED_ORIGINS") != "*"
-            else f"http://{public_host}:{frontend_host_port}",
+            "ALLOWED_ORIGINS": public_origin,
             "ACCESS_TOKEN_TTL_MINUTES": env.get("ACCESS_TOKEN_TTL_MINUTES", "15"),
             "REFRESH_TOKEN_TTL_DAYS": env.get("REFRESH_TOKEN_TTL_DAYS", "30"),
             "RATE_LIMIT_RPS": env.get("RATE_LIMIT_RPS", "20"),
@@ -141,26 +150,35 @@ def build_env(args: argparse.Namespace) -> dict[str, str]:
             "MAX_BODY_BYTES": env.get("MAX_BODY_BYTES", "1048576"),
             "SFU_RECORDING_ENABLED": env.get("SFU_RECORDING_ENABLED", "false"),
             "SFU_RECORDING_PATH": "/data/recordings",
-            "WEBRTC_UDP_PORT_MIN": env.get("WEBRTC_UDP_PORT_MIN", "40000"),
-            "WEBRTC_UDP_PORT_MAX": env.get("WEBRTC_UDP_PORT_MAX", "40100"),
+            "WEBRTC_UDP_PORT_MIN": str(args.webrtc_udp_min),
+            "WEBRTC_UDP_PORT_MAX": str(args.webrtc_udp_max),
             "REDIS_URL": env.get("REDIS_URL", ""),
-            "INSTANCE_ID": env.get("INSTANCE_ID", ""),
-            "BACKEND_HOST_PORT": str(backend_host_port),
-            "FRONTEND_HOST_PORT": str(frontend_host_port),
+            "INSTANCE_ID": env.get("INSTANCE_ID") or args.app_name,
             "TURN_HOST_PORT": str(turn_host_port),
-            "NEXT_PUBLIC_API_BASE_URL": f"http://{public_host}:{backend_host_port}",
-            "NEXT_PUBLIC_WS_URL": f"ws://{public_host}:{backend_host_port}/ws",
+            "APP_NAME": args.app_name,
+            "PUBLIC_DOMAIN": public_host,
+            "PUBLIC_ORIGIN": public_origin,
+            "PROXY_NETWORK": args.proxy_network,
+            "NEXT_PUBLIC_API_BASE_URL": "browser-origin",
+            "NEXT_PUBLIC_WS_URL": "browser-origin",
             "NEXT_PUBLIC_TURN_PUBLIC_IP": public_host,
         }
+    )
+    env["ALLOWED_ORIGINS"] = (
+        env.get("ALLOWED_ORIGINS")
+        if env.get("ALLOWED_ORIGINS") and env.get("ALLOWED_ORIGINS") != "*"
+        else public_origin
     )
     return env
 
 
 def write_env(path: Path, env: dict[str, str]) -> None:
     ordered_keys = [
+        "APP_NAME",
+        "PUBLIC_DOMAIN",
+        "PUBLIC_ORIGIN",
+        "PROXY_NETWORK",
         "PORT",
-        "BACKEND_HOST_PORT",
-        "FRONTEND_HOST_PORT",
         "TURN_HOST_PORT",
         "ENV",
         "ADMIN_USERNAME",
@@ -193,31 +211,37 @@ def write_env(path: Path, env: dict[str, str]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def compose_yaml(backend_image: str, frontend_image: str) -> str:
+def compose_yaml(backend_image: str, frontend_image: str, app_name: str) -> str:
+    backend_name = f"{app_name}-backend"
+    frontend_name = app_name
+    internal_network = f"{app_name}_internal"
     return textwrap.dedent(
         f"""\
         services:
           backend:
             image: {backend_image}
+            container_name: {backend_name}
             pull_policy: never
             env_file:
               - ./.env
             ports:
-              - "${{BACKEND_HOST_PORT:-8080}}:${{PORT:-8080}}"
               - "${{TURN_HOST_PORT:-3478}}:${{TURN_PORT:-3478}}/udp"
               - "${{TURN_HOST_PORT:-3478}}:${{TURN_PORT:-3478}}/tcp"
               - "${{WEBRTC_UDP_PORT_MIN:-40000}}-${{WEBRTC_UDP_PORT_MAX:-40100}}:${{WEBRTC_UDP_PORT_MIN:-40000}}-${{WEBRTC_UDP_PORT_MAX:-40100}}/udp"
             volumes:
-              - ./data:/data
+              - ./data/backend:/data
             healthcheck:
               test: ["CMD-SHELL", "wget -qO- http://localhost:$${{PORT:-8080}}/health || exit 1"]
               interval: 30s
               timeout: 5s
               retries: 5
+            networks:
+              - internal
             restart: unless-stopped
 
           frontend:
             image: {frontend_image}
+            container_name: {frontend_name}
             pull_policy: never
             env_file:
               - ./.env
@@ -225,19 +249,46 @@ def compose_yaml(backend_image: str, frontend_image: str) -> str:
               NEXT_PUBLIC_API_BASE_URL: ${{NEXT_PUBLIC_API_BASE_URL}}
               NEXT_PUBLIC_WS_URL: ${{NEXT_PUBLIC_WS_URL}}
               NEXT_PUBLIC_TURN_PUBLIC_IP: ${{NEXT_PUBLIC_TURN_PUBLIC_IP}}
-            ports:
-              - "${{FRONTEND_HOST_PORT:-3000}}:3000"
+              BACKEND_INTERNAL_URL: http://{backend_name}:${{PORT:-8080}}
             depends_on:
               backend:
                 condition: service_healthy
+            networks:
+              - proxy
+              - internal
             restart: unless-stopped
+
+        networks:
+          proxy:
+            external: true
+            name: ${{PROXY_NETWORK:-proxy}}
+
+          internal:
+            name: {internal_network}
+            driver: bridge
+        """
+    )
+
+
+def caddy_snippet(domain: str, app_name: str) -> str:
+    return textwrap.dedent(
+        f"""\
+        # Add this block to /opt/caddy/Caddyfile, then run:
+        #   cd /opt/caddy && docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile
+
+        {domain} {{
+            tls /etc/caddy/certs/fullchain.pem /etc/caddy/certs/privkey.pem {{
+                protocols tls1.2
+            }}
+            reverse_proxy {app_name}:3000
+        }}
         """
     )
 
 
 def build_images(env: dict[str, str], version: str) -> tuple[str, str]:
-    backend_image = f"meet37/backend:{version}"
-    frontend_image = f"meet37/frontend:{version}"
+    backend_image = f"meet37-backend:{version}"
+    frontend_image = f"meet37-frontend:{version}"
 
     run(["docker", "build", "-t", backend_image, "-f", "backend/Dockerfile", "backend"])
     run(
@@ -254,6 +305,8 @@ def build_images(env: dict[str, str], version: str) -> tuple[str, str]:
             f"NEXT_PUBLIC_WS_URL={env['NEXT_PUBLIC_WS_URL']}",
             "--build-arg",
             f"NEXT_PUBLIC_TURN_PUBLIC_IP={env['NEXT_PUBLIC_TURN_PUBLIC_IP']}",
+            "--build-arg",
+            f"BACKEND_INTERNAL_URL=http://{env['APP_NAME']}-backend:{env['PORT']}",
             "frontend",
         ]
     )
@@ -372,6 +425,17 @@ def write_load_helpers(images_dir: Path) -> None:
                 subprocess.run(command, cwd=cwd, check=True)
 
 
+            def ensure_proxy_network(name: str) -> None:
+                result = subprocess.run(
+                    ["docker", "network", "inspect", name],
+                    cwd=ROOT,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                if result.returncode != 0:
+                    run(["docker", "network", "create", name])
+
+
             def load_images() -> None:
                 for image in sorted(IMAGES_DIR.glob("*.tar.gz")):
                     run(["docker", "load", "-i", str(image)])
@@ -380,25 +444,24 @@ def write_load_helpers(images_dir: Path) -> None:
             def main() -> int:
                 env = parse_env(ENV_PATH)
                 used: set[int] = set()
-                backend_port = find_free(int(env.get("BACKEND_HOST_PORT", "8080")), used)
-                frontend_port = find_free(int(env.get("FRONTEND_HOST_PORT", "3000")), used)
                 turn_port = find_free(int(env.get("TURN_HOST_PORT", "3478")), used)
 
-                env["BACKEND_HOST_PORT"] = str(backend_port)
-                env["FRONTEND_HOST_PORT"] = str(frontend_port)
                 env["TURN_HOST_PORT"] = str(turn_port)
                 env["TURN_PORT"] = str(turn_port)
 
-                host = env.get("NEXT_PUBLIC_TURN_PUBLIC_IP", "localhost")
-                env["NEXT_PUBLIC_API_BASE_URL"] = f"http://{host}:{backend_port}"
-                env["NEXT_PUBLIC_WS_URL"] = f"ws://{host}:{backend_port}/ws"
-                env["ALLOWED_ORIGINS"] = f"http://{host}:{frontend_port}"
+                host = env.get("PUBLIC_DOMAIN", env.get("NEXT_PUBLIC_TURN_PUBLIC_IP", "localhost"))
+                env["TURN_PUBLIC_IP"] = host
+                env["NEXT_PUBLIC_TURN_PUBLIC_IP"] = host
+                env["NEXT_PUBLIC_API_BASE_URL"] = "browser-origin"
+                env["NEXT_PUBLIC_WS_URL"] = "browser-origin"
+                env["ALLOWED_ORIGINS"] = env.get("PUBLIC_ORIGIN") or f"https://{host}"
                 write_env(ENV_PATH, env)
 
+                ensure_proxy_network(env.get("PROXY_NETWORK", "proxy"))
                 load_images()
                 run(["docker", "compose", "up", "-d"])
-                print(f"Frontend: http://{host}:{frontend_port}")
-                print(f"Backend:  http://{host}:{backend_port}")
+                print(f"App container is available to Caddy as: {env.get('APP_NAME', 'meet37')}:3000")
+                print(f"Add Caddy reverse_proxy target: {env.get('APP_NAME', 'meet37')}:3000")
                 return 0
 
 
@@ -423,9 +486,13 @@ def write_manifest(
         "version": version,
         "images": [backend_image, frontend_image],
         "ports": {
-            "backend": env["BACKEND_HOST_PORT"],
-            "frontend": env["FRONTEND_HOST_PORT"],
             "turn": env["TURN_HOST_PORT"],
+            "webrtc_udp": f"{env['WEBRTC_UDP_PORT_MIN']}-{env['WEBRTC_UDP_PORT_MAX']}",
+        },
+        "caddy": {
+            "domain": env["PUBLIC_DOMAIN"],
+            "reverse_proxy": f"{env['APP_NAME']}:3000",
+            "network": env["PROXY_NETWORK"],
         },
         "start": [
             "python images/run-offline.py",
@@ -462,16 +529,22 @@ def create_bundle(args: argparse.Namespace) -> Path:
         bundle_dir = temp_root / args.bundle_name
         images_dir = bundle_dir / "images"
         data_dir = bundle_dir / "data"
-        recordings_dir = data_dir / "recordings"
+        backend_data_dir = data_dir / "backend"
+        recordings_dir = backend_data_dir / "recordings"
 
         images_dir.mkdir(parents=True)
         recordings_dir.mkdir(parents=True)
         (data_dir / ".gitkeep").write_text("", encoding="utf-8")
+        (backend_data_dir / ".gitkeep").write_text("", encoding="utf-8")
         (recordings_dir / ".gitkeep").write_text("", encoding="utf-8")
 
         write_env(bundle_dir / ".env", env)
         (bundle_dir / "docker-compose.yml").write_text(
-            compose_yaml(backend_image, frontend_image), encoding="utf-8"
+            compose_yaml(backend_image, frontend_image, args.app_name), encoding="utf-8"
+        )
+        (bundle_dir / "Caddyfile.snippet").write_text(
+            caddy_snippet(env["PUBLIC_DOMAIN"], args.app_name),
+            encoding="utf-8",
         )
         save_image(backend_image, images_dir)
         save_image(frontend_image, images_dir)
@@ -511,25 +584,40 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--public-host",
         default=os.environ.get("OFFLINE_PUBLIC_HOST", "localhost"),
-        help="Host/IP clients will use to open the offline server.",
+        help="Deprecated alias for --domain.",
     )
     parser.add_argument(
-        "--backend-port",
-        type=int,
-        default=0,
-        help="Host port for backend HTTP/WebSocket. Defaults to a free port near 8080.",
+        "--domain",
+        default=os.environ.get("MEET37_DOMAIN", "meet37.dev37.ir"),
+        help="Public HTTPS domain served by the external Caddy instance.",
     )
     parser.add_argument(
-        "--frontend-port",
-        type=int,
-        default=0,
-        help="Host port for frontend. Defaults to a free port near 3000.",
+        "--app-name",
+        default=os.environ.get("MEET37_APP_NAME", DEFAULT_APP_NAME),
+        help="Compose service/container name exposed to Caddy on the proxy network.",
+    )
+    parser.add_argument(
+        "--proxy-network",
+        default=os.environ.get("MEET37_PROXY_NETWORK", DEFAULT_PROXY_NETWORK),
+        help="External Docker network used by Caddy.",
     )
     parser.add_argument(
         "--turn-port",
         type=int,
         default=0,
         help="Host port for TURN/SFU relay. Defaults to a free port near TURN_PORT.",
+    )
+    parser.add_argument(
+        "--webrtc-udp-min",
+        type=int,
+        default=int(os.environ.get("MEET37_WEBRTC_UDP_MIN", "42000")),
+        help="First UDP media relay port published on the host.",
+    )
+    parser.add_argument(
+        "--webrtc-udp-max",
+        type=int,
+        default=int(os.environ.get("MEET37_WEBRTC_UDP_MAX", "42100")),
+        help="Last UDP media relay port published on the host.",
     )
     return parser.parse_args()
 

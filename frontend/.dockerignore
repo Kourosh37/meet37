@@ -6,10 +6,21 @@
 # Local dependencies and package-manager stores
 node_modules
 .pnpm-store
+.yarn
+.yarnrc.yml
 npm-shrinkwrap.json
 package-lock.json
 yarn.lock
 .npmrc
+
+# Python/script caches
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
 
 # Build, cache, and test outputs
 .next
@@ -21,6 +32,8 @@ test-results
 tsconfig.tsbuildinfo
 .turbo
 .vercel
+.eslintcache
+.stylelintcache
 
 # Local secrets and environment overrides
 .env
@@ -32,3 +45,4 @@ tsconfig.tsbuildinfo
 dev-server-*.log
 .DS_Store
 Thumbs.db
+Desktop.ini

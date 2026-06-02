@@ -1,0 +1,46 @@
+services:
+  backend:
+    image: "${DOCKER_BACKEND_IMAGE:?DOCKER_BACKEND_IMAGE is required}:${DOCKER_IMAGE_TAG:?DOCKER_IMAGE_TAG is required}"
+    container_name: "${BACKEND_CONTAINER_NAME:?BACKEND_CONTAINER_NAME is required}"
+    env_file:
+      - ./.env
+    ports:
+      - "${TURN_HOST_PORT:?TURN_HOST_PORT is required}:${TURN_PORT:?TURN_PORT is required}/udp"
+      - "${TURN_HOST_PORT:?TURN_HOST_PORT is required}:${TURN_PORT:?TURN_PORT is required}/tcp"
+      - "${WEBRTC_UDP_HOST_PORT_MIN:?WEBRTC_UDP_HOST_PORT_MIN is required}-${WEBRTC_UDP_HOST_PORT_MAX:?WEBRTC_UDP_HOST_PORT_MAX is required}:${WEBRTC_UDP_PORT_MIN:?WEBRTC_UDP_PORT_MIN is required}-${WEBRTC_UDP_PORT_MAX:?WEBRTC_UDP_PORT_MAX is required}/udp"
+    volumes:
+      - ./data/backend:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- \"$${BACKEND_HEALTHCHECK_URL}\""]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - internal
+    restart: unless-stopped
+
+  frontend:
+    image: "${DOCKER_FRONTEND_IMAGE:?DOCKER_FRONTEND_IMAGE is required}:${DOCKER_IMAGE_TAG:?DOCKER_IMAGE_TAG is required}"
+    container_name: "${FRONTEND_CONTAINER_NAME:?FRONTEND_CONTAINER_NAME is required}"
+    environment:
+      BACKEND_INTERNAL_URL: ${BACKEND_INTERNAL_URL:?BACKEND_INTERNAL_URL is required}
+      FRONTEND_HEALTHCHECK_URL: ${FRONTEND_HEALTHCHECK_URL:?FRONTEND_HEALTHCHECK_URL is required}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
+      NEXT_PUBLIC_TURN_PUBLIC_IP: ${NEXT_PUBLIC_TURN_PUBLIC_IP:?NEXT_PUBLIC_TURN_PUBLIC_IP is required}
+      NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:?NEXT_PUBLIC_WS_URL is required}
+      PORT: ${FRONTEND_PORT:?FRONTEND_PORT is required}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - internal
+      - proxy
+    restart: unless-stopped
+
+networks:
+  internal:
+    name: "${DOCKER_INTERNAL_NETWORK:?DOCKER_INTERNAL_NETWORK is required}"
+    driver: bridge
+  proxy:
+    name: "${DOCKER_PROXY_NETWORK:?DOCKER_PROXY_NETWORK is required}"
+    external: true

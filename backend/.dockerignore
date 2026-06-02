@@ -8,6 +8,15 @@
 .env.*
 !.env.example
 
+# Python/script caches
+__pycache__
+**/__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
 # Runtime data and local databases
 data
 *.db
@@ -19,7 +28,10 @@ data
 # Build and test outputs
 bin
 tmp
+dist
+build
 coverage.out
+coverage
 *.test
 *.exe
 
@@ -27,3 +39,4 @@ coverage.out
 *.log
 .DS_Store
 Thumbs.db
+Desktop.ini

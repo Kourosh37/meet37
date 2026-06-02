@@ -1,0 +1,149 @@
+name: CD
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - production
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build-and-push:
+    name: Build and Push Images
+    runs-on: ubuntu-latest
+    outputs:
+      backend-image: ${{ steps.meta.outputs.backend-image }}
+      frontend-image: ${{ steps.meta.outputs.frontend-image }}
+      image-tag: ${{ steps.meta.outputs.image-tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare image metadata
+        id: meta
+        shell: bash
+        run: |
+          owner="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          tag="${GITHUB_SHA::7}"
+          echo "backend-image=${REGISTRY}/${owner}/meet37-backend" >> "$GITHUB_OUTPUT"
+          echo "frontend-image=${REGISTRY}/${owner}/meet37-frontend" >> "$GITHUB_OUTPUT"
+          echo "image-tag=${tag}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.backend-image }}:${{ steps.meta.outputs.image-tag }}
+            ${{ steps.meta.outputs.backend-image }}:latest
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Build and push frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: frontend
+          file: frontend/Dockerfile
+          push: true
+          build-args: |
+            NEXT_PUBLIC_API_BASE_URL=browser-origin
+            NEXT_PUBLIC_WS_URL=browser-origin
+            NEXT_PUBLIC_TURN_PUBLIC_IP=${{ vars.NEXT_PUBLIC_TURN_PUBLIC_IP || '127.0.0.1' }}
+            BACKEND_INTERNAL_URL=${{ vars.BACKEND_INTERNAL_URL || 'http://backend:8080' }}
+            FRONTEND_PORT=${{ vars.FRONTEND_PORT || '3000' }}
+          tags: |
+            ${{ steps.meta.outputs.frontend-image }}:${{ steps.meta.outputs.image-tag }}
+            ${{ steps.meta.outputs.frontend-image }}:latest
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: ${{ vars.ENABLE_SSH_DEPLOY == 'true' }}
+    env:
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_KEY: ${{ secrets.SSH_KEY }}
+      SSH_PORT: ${{ secrets.SSH_PORT }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      BACKEND_IMAGE: ${{ needs.build-and-push.outputs.backend-image }}
+      FRONTEND_IMAGE: ${{ needs.build-and-push.outputs.frontend-image }}
+      IMAGE_TAG: ${{ needs.build-and-push.outputs.image-tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate deploy secrets
+        shell: bash
+        run: |
+          test -n "$SSH_HOST"
+          test -n "$SSH_USER"
+          test -n "$SSH_KEY"
+          test -n "$DEPLOY_PATH"
+
+      - name: Copy deployment files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: ${{ env.SSH_PORT || '22' }}
+          source: "docker-compose.prod.yml,.env.example,scripts/check_server_requirements.py"
+          target: ${{ env.DEPLOY_PATH }}
+
+      - name: Deploy over SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ env.SSH_HOST }}
+          username: ${{ env.SSH_USER }}
+          key: ${{ env.SSH_KEY }}
+          port: ${{ env.SSH_PORT || '22' }}
+          envs: DEPLOY_PATH,GHCR_USERNAME,GHCR_TOKEN,BACKEND_IMAGE,FRONTEND_IMAGE,IMAGE_TAG
+          script: |
+            set -eu
+            cd "$DEPLOY_PATH"
+
+            set_env() {
+              key="$1"
+              value="$2"
+              if grep -q "^${key}=" .env; then
+                sed -i "s|^${key}=.*|${key}=${value}|" .env
+              else
+                printf "\n%s=%s\n" "$key" "$value" >> .env
+              fi
+            }
+
+            if [ -n "${GHCR_TOKEN:-}" ] && [ -n "${GHCR_USERNAME:-}" ]; then
+              printf "%s" "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+            fi
+
+            set_env DOCKER_BACKEND_IMAGE "$BACKEND_IMAGE"
+            set_env DOCKER_FRONTEND_IMAGE "$FRONTEND_IMAGE"
+            set_env DOCKER_IMAGE_TAG "$IMAGE_TAG"
+
+            python3 scripts/check_server_requirements.py --compose-file docker-compose.prod.yml
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.prod.yml ps

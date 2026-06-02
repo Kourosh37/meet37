@@ -7,9 +7,34 @@ frontend/.env
 frontend/.env.local
 frontend/.env.*.local
 
-# Build artifacts
+# Python caches, virtualenvs, and tooling
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.venv/
+venv/
+env/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+pip-wheel-metadata/
+
+# Build artifacts and generated bundles
 dist/
 build/
+out/
+target/
+release/
+debug/
 *.log
 *.tmp
 *.cache
@@ -25,8 +50,6 @@ build/
 *.dylib
 *.exe
 *.class
-*.pyc
-*.pyo
 *.ipynb_checkpoints
 *.log
 *.pid
@@ -44,6 +67,7 @@ build/
 *.log.*.7z
 
 # Runtime data and databases
+data/
 backend/data/*
 !backend/data/.gitkeep
 *.db
@@ -56,12 +80,15 @@ backend/data/*
 backend/bin/
 backend/tmp/
 backend/coverage.out
+backend/coverage/
 *.test
 *.exe
 
 # Frontend dependencies and package-manager noise
 frontend/node_modules/
 frontend/.pnpm-store/
+frontend/.yarn/
+frontend/.yarnrc.yml
 frontend/package-lock.json
 frontend/npm-shrinkwrap.json
 frontend/yarn.lock
@@ -78,17 +105,34 @@ frontend/tsconfig.tsbuildinfo
 frontend/.turbo/
 frontend/.vercel/
 frontend/dev-server-*.log
+frontend/.eslintcache
+frontend/.stylelintcache
 
 # Logs
 *.log
 logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
 # OS/editor noise
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
 *.swp
 *.swo
 .idea/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Docker and compose local overrides
+docker-compose.override.yml
+compose.override.yml
+
+# Temporary files
+tmp/
+temp/
+.tmp/

@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { getRoomFiles } from "@/features/rooms/api/roomsApi";
+import {
+  listPersistentSharedFiles,
+  savePersistentSharedFile
+} from "@/features/meeting/lib/persistentFileShares";
 import { useFileTransferStore } from "@/features/meeting/stores/fileTransferStore";
 import type {
   FileChunk,
@@ -18,6 +22,8 @@ import {
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 const OBJECT_URL_TTL_MS = 10 * 60 * 1000;
+const RECEIVE_IDLE_TIMEOUT_MS = 30_000;
+const RESEND_DELAY_MS = 5_000;
 
 type FileChannelMessage =
   | {
@@ -59,6 +65,7 @@ interface ReceiveBuffer {
 interface SharedFileEntry {
   file: File;
   sentPeerIds: Set<string>;
+  sendingPeerIds: Set<string>;
 }
 
 function parseChannelMessage(data: MessageEvent["data"]) {
@@ -93,8 +100,11 @@ export function useFileTransfer(roomId: string | null) {
   const peers = useMeetingStore((state) => state.peers);
   const pendingChunkMeta = useRef(new Map<string, PendingChunkMeta>());
   const receiveBuffers = useRef(new Map<string, ReceiveBuffer>());
+  const receiveTimeouts = useRef(new Map<string, number>());
   const sharedFiles = useRef(new Map<string, SharedFileEntry>());
+  const restoredPersistentFileIds = useRef(new Set<string>());
   const objectUrls = useRef(new Set<string>());
+  const [sharedFileVersion, setSharedFileVersion] = useState(0);
   const transfers = useMemo(
     () => Object.values(transfersById),
     [transfersById]
@@ -122,6 +132,16 @@ export function useFileTransfer(roomId: string | null) {
     async (fileId: string, peerId: string, file: File) => {
       try {
         await dataChannelRegistry.waitUntilOpen(peerId);
+        webSocketManager.send({
+          payload: {
+            file_id: fileId,
+            mime: file.type || "application/octet-stream",
+            name: file.name,
+            size: file.size
+          },
+          to: peerId,
+          type: "file-offer"
+        });
         dataChannelRegistry.send(
           peerId,
           JSON.stringify({
@@ -148,6 +168,7 @@ export function useFileTransfer(roomId: string | null) {
             } satisfies FileChannelMessage)
           );
           dataChannelRegistry.send(peerId, chunk.bytes);
+          await dataChannelRegistry.waitForBufferedAmount(peerId);
           bytesTransferred += chunk.bytes.byteLength;
           updateProgress(fileId, bytesTransferred);
         }
@@ -167,6 +188,7 @@ export function useFileTransfer(roomId: string | null) {
           fileId,
           error instanceof Error ? error.message : "File transfer failed"
         );
+        throw error;
       }
     },
     [completeTransfer, failTransfer, updateProgress]
@@ -176,11 +198,15 @@ export function useFileTransfer(roomId: string | null) {
     (sourceFileId: string, peerId: string) => {
       const sharedFile = sharedFiles.current.get(sourceFileId);
 
-      if (!sharedFile || sharedFile.sentPeerIds.has(peerId)) {
+      if (
+        !sharedFile ||
+        sharedFile.sentPeerIds.has(peerId) ||
+        sharedFile.sendingPeerIds.has(peerId)
+      ) {
         return;
       }
 
-      sharedFile.sentPeerIds.add(peerId);
+      sharedFile.sendingPeerIds.add(peerId);
       const file = sharedFile.file;
       const fileId = crypto.randomUUID();
       const transfer: FileTransferRecord = {
@@ -202,19 +228,44 @@ export function useFileTransfer(roomId: string | null) {
       };
 
       addOrUpdateTransfer(transfer);
-      webSocketManager.send({
-        payload: {
-          file_id: fileId,
-          mime: transfer.mime,
-          name: file.name,
-          size: file.size
-        },
-        to: peerId,
-        type: "file-offer"
-      });
-      void sendFileBytes(fileId, peerId, file);
+      void sendFileBytes(fileId, peerId, file)
+        .then(() => {
+          sharedFile.sentPeerIds.add(peerId);
+        })
+        .catch(() => {
+          window.setTimeout(() => {
+            sendSharedFileToPeer(sourceFileId, peerId);
+          }, RESEND_DELAY_MS);
+        })
+        .finally(() => {
+          sharedFile.sendingPeerIds.delete(peerId);
+        });
     },
     [addOrUpdateTransfer, localPeerId, sendFileBytes]
+  );
+
+  const clearReceiveTimeout = useCallback((fileId: string) => {
+    const timeout = receiveTimeouts.current.get(fileId);
+
+    if (timeout) {
+      window.clearTimeout(timeout);
+      receiveTimeouts.current.delete(fileId);
+    }
+  }, []);
+
+  const refreshReceiveTimeout = useCallback(
+    (fileId: string) => {
+      clearReceiveTimeout(fileId);
+      receiveTimeouts.current.set(
+        fileId,
+        window.setTimeout(() => {
+          receiveTimeouts.current.delete(fileId);
+          receiveBuffers.current.delete(fileId);
+          failTransfer(fileId, "File transfer timed out.");
+        }, RECEIVE_IDLE_TIMEOUT_MS)
+      );
+    },
+    [clearReceiveTimeout, failTransfer]
   );
 
   const completeReceivedFile = useCallback(
@@ -226,9 +277,20 @@ export function useFileTransfer(roomId: string | null) {
       }
 
       buffer.completed = true;
+      clearReceiveTimeout(fileId);
       const blob = reassembleChunks(buffer.chunks, buffer.mime);
       const objectUrl = URL.createObjectURL(blob);
       objectUrls.current.add(objectUrl);
+      if (roomId) {
+        void savePersistentSharedFile(
+          roomId,
+          fileId,
+          blob,
+          buffer.name,
+          buffer.mime,
+          "incoming"
+        );
+      }
       completeTransfer(fileId, objectUrl);
       receiveBuffers.current.delete(fileId);
       window.setTimeout(() => {
@@ -236,12 +298,19 @@ export function useFileTransfer(roomId: string | null) {
         objectUrls.current.delete(objectUrl);
       }, OBJECT_URL_TTL_MS);
     },
-    [completeTransfer]
+    [clearReceiveTimeout, completeTransfer, roomId]
   );
 
   useEffect(() => {
     const unsubscribers = [
       webSocketManager.subscribe("file-offer", (message) => {
+        const existing =
+          useFileTransferStore.getState().transfers[message.payload.file_id];
+
+        if (existing) {
+          return;
+        }
+
         addOrUpdateTransfer({
           createdAt: Date.now(),
           direction: "incoming",
@@ -259,19 +328,43 @@ export function useFileTransfer(roomId: string | null) {
           status: "transferring",
           targetPeerId: localPeerId ?? ""
         });
+        refreshReceiveTimeout(message.payload.file_id);
       })
     ];
 
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [addOrUpdateTransfer, localPeerId]);
+  }, [addOrUpdateTransfer, localPeerId, refreshReceiveTimeout]);
 
   useEffect(() => {
     return dataChannelRegistry.subscribe(({ data, peerId }) => {
       const message = parseChannelMessage(data);
 
       if (message?.type === "file-start") {
+        const existing =
+          useFileTransferStore.getState().transfers[message.fileId];
+
+        if (!existing) {
+          addOrUpdateTransfer({
+            createdAt: Date.now(),
+            direction: "incoming",
+            fileId: message.fileId,
+            mime: message.mime,
+            name: message.name,
+            progress: {
+              bytesTransferred: 0,
+              fileId: message.fileId,
+              percentage: 0,
+              totalBytes: message.size
+            },
+            senderPeerId: peerId,
+            size: message.size,
+            status: "transferring",
+            targetPeerId: localPeerId ?? ""
+          });
+        }
+
         receiveBuffers.current.set(message.fileId, {
           chunks: [],
           completed: false,
@@ -282,6 +375,7 @@ export function useFileTransfer(roomId: string | null) {
           totalChunks: message.totalChunks
         });
         updateStatus(message.fileId, "transferring");
+        refreshReceiveTimeout(message.fileId);
         return;
       }
 
@@ -291,6 +385,7 @@ export function useFileTransfer(roomId: string | null) {
           index: message.index,
           totalChunks: message.totalChunks
         });
+        refreshReceiveTimeout(message.fileId);
         return;
       }
 
@@ -321,6 +416,7 @@ export function useFileTransfer(roomId: string | null) {
         });
         buffer.receivedBytes += data.byteLength;
         updateProgress(meta.fileId, buffer.receivedBytes);
+        refreshReceiveTimeout(meta.fileId);
 
         if (
           buffer.chunks.length >= buffer.totalChunks ||
@@ -330,12 +426,23 @@ export function useFileTransfer(roomId: string | null) {
         }
       }
     });
-  }, [completeReceivedFile, updateProgress, updateStatus]);
+  }, [
+    addOrUpdateTransfer,
+    completeReceivedFile,
+    localPeerId,
+    refreshReceiveTimeout,
+    updateProgress,
+    updateStatus
+  ]);
 
   useEffect(
     () => () => {
       objectUrls.current.forEach((objectUrl) => URL.revokeObjectURL(objectUrl));
       objectUrls.current.clear();
+      receiveTimeouts.current.forEach((timeout) =>
+        window.clearTimeout(timeout)
+      );
+      receiveTimeouts.current.clear();
     },
     []
   );
@@ -350,7 +457,75 @@ export function useFileTransfer(roomId: string | null) {
     sharedFiles.current.forEach((_sharedFile, sourceFileId) => {
       peerIds.forEach((peerId) => sendSharedFileToPeer(sourceFileId, peerId));
     });
-  }, [peers, sendSharedFileToPeer]);
+  }, [peers, sendSharedFileToPeer, sharedFileVersion]);
+
+  useEffect(() => {
+    if (!roomId) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void listPersistentSharedFiles(roomId).then((files) => {
+      if (cancelled) {
+        return;
+      }
+
+      let restoredOutgoingCount = 0;
+
+      files.forEach((file) => {
+        if (restoredPersistentFileIds.current.has(file.fileId)) {
+          return;
+        }
+
+        restoredPersistentFileIds.current.add(file.fileId);
+        const objectUrl = URL.createObjectURL(file.blob);
+        objectUrls.current.add(objectUrl);
+
+        if (file.direction === "outgoing") {
+          const restoredFile = new File([file.blob], file.name, {
+            lastModified: file.createdAt,
+            type: file.mime
+          });
+          sharedFiles.current.set(file.fileId, {
+            file: restoredFile,
+            sendingPeerIds: new Set(),
+            sentPeerIds: new Set()
+          });
+          restoredOutgoingCount += 1;
+        }
+
+        addOrUpdateTransfer({
+          completedAt: file.createdAt,
+          createdAt: file.createdAt,
+          direction: file.direction,
+          fileId: file.fileId,
+          mime: file.mime,
+          name: file.name,
+          objectUrl,
+          progress: {
+            bytesTransferred: file.size,
+            fileId: file.fileId,
+            percentage: 100,
+            totalBytes: file.size
+          },
+          senderPeerId:
+            file.direction === "outgoing" ? (localPeerId ?? "") : "",
+          size: file.size,
+          status: "completed",
+          targetPeerId: ""
+        });
+      });
+
+      if (restoredOutgoingCount > 0) {
+        setSharedFileVersion((version) => version + 1);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [addOrUpdateTransfer, localPeerId, roomId]);
 
   const sendFile = useCallback(
     (file: File) => {
@@ -366,10 +541,22 @@ export function useFileTransfer(roomId: string | null) {
       const sourceFileId = crypto.randomUUID();
       const objectUrl = URL.createObjectURL(file);
       objectUrls.current.add(objectUrl);
+      if (roomId) {
+        void savePersistentSharedFile(
+          roomId,
+          sourceFileId,
+          file,
+          file.name,
+          file.type || "application/octet-stream",
+          "outgoing"
+        );
+      }
       sharedFiles.current.set(sourceFileId, {
         file,
+        sendingPeerIds: new Set(),
         sentPeerIds: new Set()
       });
+      setSharedFileVersion((version) => version + 1);
 
       addOrUpdateTransfer({
         completedAt: Date.now(),
@@ -400,7 +587,7 @@ export function useFileTransfer(roomId: string | null) {
 
       peerIds.forEach((peerId) => sendSharedFileToPeer(sourceFileId, peerId));
     },
-    [addOrUpdateTransfer, localPeerId, peers, sendSharedFileToPeer]
+    [addOrUpdateTransfer, localPeerId, peers, roomId, sendSharedFileToPeer]
   );
 
   return {

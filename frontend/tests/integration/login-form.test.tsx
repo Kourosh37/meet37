@@ -59,7 +59,7 @@ describe("LoginForm", () => {
     await waitFor(() => expect(push).toHaveBeenCalledWith("/admin"));
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:8080/api/auth/login",
+      "http://localhost:3000/api/auth/login",
       expect.objectContaining({
         body: JSON.stringify({ password: "admin-pass", username: "admin" }),
         method: "POST"

@@ -159,15 +159,16 @@ export function VideoGrid({
           >
             <Minimize2 className="size-5" />
           </button>
-          <div className="grid h-full max-h-[calc(100svh-1.5rem)] w-full max-w-[min(calc(100vw-1.5rem),calc((100svh-1.5rem)*16/9))] place-items-center sm:max-h-[calc(100vh-3rem)] sm:max-w-[min(80rem,calc(100vw-3rem),calc((100vh-3rem)*16/9))]">
+          <div className="grid h-[calc(100svh-1.5rem)] w-[calc(100vw-1.5rem)] max-w-[80rem] place-items-center [--meet-tile-max-h:calc(100svh-1.5rem)] sm:h-[calc(100vh-3rem)] sm:w-[calc(100vw-3rem)] sm:[--meet-tile-max-h:calc(100vh-3rem)]">
             <VideoTile
               audioEnabled={maximizedTile.audioEnabled}
               audioLevel={maximizedTile.audioLevel}
               audioStatus={maximizedTile.audioStatus}
-              className="h-auto max-h-full min-h-0 w-full rounded-lg border border-white/15 bg-black shadow-2xl"
+              className="rounded-lg border border-white/15 bg-black shadow-2xl"
               displayName={maximizedTile.displayName}
               isHost={maximizedTile.isHost}
               isLocal={maximizedTile.isLocal}
+              isMaximized
               mode={maximizedTile.mode}
               screenSharing={maximizedTile.screenSharing}
               screenShareStatus={maximizedTile.screenShareStatus}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AdmissionModal } from "@/features/meeting/components/AdmissionModal";
 import { ChatPanel } from "@/features/meeting/components/ChatPanel";
+import { ConnectionQualityIndicator } from "@/features/meeting/components/ConnectionQualityIndicator";
 import { ControlBar } from "@/features/meeting/components/ControlBar";
 import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPanel";
 import { RemoteAudioPlayer } from "@/features/meeting/components/RemoteAudioPlayer";
@@ -61,7 +62,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   );
   const peerConnections = usePeerConnections(localMedia.stream);
   const sfu = useSFUConnection(localMedia.stream);
-  useQualityStats(peerConnections.connections);
+  const connectionQuality = useQualityStats(peerConnections.connections);
   const remoteStreams = useMemo(
     () => ({
       ...peerConnections.remoteStreams,
@@ -316,14 +317,20 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   }
 
   return (
-    <main className="mx-auto flex min-h-[calc(100vh-9rem)] w-full max-w-7xl flex-col gap-4 border-x border-border px-4 py-4 sm:px-6">
-      <header className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border bg-surface px-4 py-3 shadow-sm">
+    <main className="mx-auto flex h-[100svh] w-full max-w-7xl flex-col overflow-hidden border-x border-border px-4 sm:min-h-[calc(100vh-9rem)] sm:px-6">
+      <header className="fixed inset-x-0 top-0 z-30 mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 py-3 shadow-sm backdrop-blur sm:static sm:mt-4 sm:rounded-lg sm:border sm:bg-surface sm:backdrop-blur-none">
         <div className="flex min-w-0 items-center gap-3">
           <BrandMark className="h-9 w-9 shrink-0" size={36} />
           <div className="min-w-0">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {websocket.status === "open" ? "Connected" : websocket.status}
-            </p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {websocket.status === "open" ? "Connected" : websocket.status}
+              </p>
+              <ConnectionQualityIndicator
+                isConnected={websocket.status === "open"}
+                quality={connectionQuality}
+              />
+            </div>
             <h1 className="truncate text-lg font-semibold tracking-normal text-surface-foreground">
               {roomName ?? "Meeting room"}
             </h1>
@@ -335,50 +342,54 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         </div>
       </header>
 
-      {localMedia.error ? (
-        <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {localMedia.error}
+      <div className="min-h-0 flex-1 overflow-y-auto pb-28 pt-24 sm:overflow-visible sm:pb-0 sm:pt-4">
+        <div className="flex min-h-full flex-col gap-4">
+          {localMedia.error ? (
+            <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+              {localMedia.error}
+            </div>
+          ) : null}
+
+          {onlineStatus.isOffline ? (
+            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
+              You are offline. Signaling and media may reconnect when your
+              network returns.
+            </div>
+          ) : null}
+
+          <div className="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+            <VideoGrid
+              local={{
+                audioEnabled: localMedia.audioEnabled,
+                audioLevel: localAudioLevel,
+                audioStatus: localMedia.audioStatus,
+                displayName,
+                isHost: meeting.isHost,
+                screenSharing: localMedia.screenSharing,
+                screenShareStatus: localMedia.screenShareStatus,
+                stream: localMedia.stream,
+                videoStatus: localMedia.videoStatus,
+                videoEnabled: localMedia.videoEnabled
+              }}
+              audioLevels={remoteAudioLevels}
+              peers={meeting.peers}
+              remoteStreams={remoteStreams}
+            />
+
+            {ui.participantsOpen ? (
+              <ParticipantsPanel
+                canModerate={moderation.canModerate}
+                localPeer={localPeer}
+                onApprove={moderation.approvePeer}
+                onKick={moderation.kickPeer}
+                onMute={moderation.mutePeer}
+                onReject={moderation.rejectPeer}
+                peers={meeting.peers}
+                pendingPeers={moderation.pendingPeers}
+              />
+            ) : null}
+          </div>
         </div>
-      ) : null}
-
-      {onlineStatus.isOffline ? (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
-          You are offline. Signaling and media may reconnect when your network
-          returns.
-        </div>
-      ) : null}
-
-      <div className="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <VideoGrid
-          local={{
-            audioEnabled: localMedia.audioEnabled,
-            audioLevel: localAudioLevel,
-            audioStatus: localMedia.audioStatus,
-            displayName,
-            isHost: meeting.isHost,
-            screenSharing: localMedia.screenSharing,
-            screenShareStatus: localMedia.screenShareStatus,
-            stream: localMedia.stream,
-            videoStatus: localMedia.videoStatus,
-            videoEnabled: localMedia.videoEnabled
-          }}
-          audioLevels={remoteAudioLevels}
-          peers={meeting.peers}
-          remoteStreams={remoteStreams}
-        />
-
-        {ui.participantsOpen ? (
-          <ParticipantsPanel
-            canModerate={moderation.canModerate}
-            localPeer={localPeer}
-            onApprove={moderation.approvePeer}
-            onKick={moderation.kickPeer}
-            onMute={moderation.mutePeer}
-            onReject={moderation.rejectPeer}
-            peers={meeting.peers}
-            pendingPeers={moderation.pendingPeers}
-          />
-        ) : null}
       </div>
       <RemoteAudioPlayer streams={remoteStreams} />
 

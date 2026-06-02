@@ -168,7 +168,7 @@ describe("DeviceSetup", () => {
 
     await waitFor(() => {
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
-        audio: { deviceId: { exact: "audio-2" } },
+        audio: expect.objectContaining({ deviceId: { exact: "audio-2" } }),
         video: { deviceId: { exact: "video-1" } }
       });
     });
@@ -179,7 +179,7 @@ describe("DeviceSetup", () => {
 
     await waitFor(() => {
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
-        audio: { deviceId: { exact: "audio-2" } },
+        audio: expect.objectContaining({ deviceId: { exact: "audio-2" } }),
         video: { deviceId: { exact: "video-2" } }
       });
     });

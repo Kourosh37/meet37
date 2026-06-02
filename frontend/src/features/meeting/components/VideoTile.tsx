@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from "react";
 import {
   Loader2,
   Maximize2,
@@ -24,6 +30,7 @@ interface VideoTileProps {
   displayName: string;
   isHost?: boolean;
   isLocal?: boolean;
+  isMaximized?: boolean;
   mode?: PeerMode;
   onMaximize?: () => void;
   screenSharing?: boolean;
@@ -41,6 +48,7 @@ export function VideoTile({
   displayName,
   isHost = false,
   isLocal = false,
+  isMaximized = false,
   onMaximize,
   screenSharing = false,
   screenShareStatus = screenSharing ? "starting" : "off",
@@ -49,6 +57,7 @@ export function VideoTile({
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
   const [_trackVersion, setTrackVersion] = useState(0);
+  const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioTracks = useMemo(() => stream?.getAudioTracks() ?? [], [stream]);
   const videoTracks = useMemo(() => stream?.getVideoTracks() ?? [], [stream]);
@@ -67,6 +76,20 @@ export function VideoTile({
     videoTracks.some((track) => track.readyState === "live" && !track.muted) &&
       (videoEnabled || screenSharing)
   );
+  const trackAspectRatio = useMemo(() => {
+    const settings = videoTracks[0]?.getSettings();
+    const width = settings?.width;
+    const height = settings?.height;
+
+    return width && height ? width / height : null;
+  }, [videoTracks]);
+  const activeAspectRatio = videoAspectRatio ?? trackAspectRatio ?? 16 / 9;
+  const tileStyle = isMaximized
+    ? ({
+        "--meet-tile-ratio": String(activeAspectRatio),
+        aspectRatio: activeAspectRatio
+      } as CSSProperties)
+    : undefined;
   const isOpeningScreenShare = screenSharing && !hasVideo;
   const isCameraExpected = !screenSharing && videoEnabled && !hasVideo;
   const loadingLabel = isOpeningScreenShare
@@ -109,6 +132,8 @@ export function VideoTile({
       videoRef.current.srcObject = hasVideo ? videoStream : null;
       if (hasVideo) {
         void videoRef.current.play().catch(() => undefined);
+      } else {
+        setVideoAspectRatio(null);
       }
     }
   }, [hasVideo, videoStream]);
@@ -133,8 +158,12 @@ export function VideoTile({
 
   return (
     <article
+      style={tileStyle}
       className={cn(
-        "relative grid aspect-video min-h-[clamp(150px,48vw,240px)] overflow-hidden rounded-lg border border-border bg-black shadow-sm transition-[border-color,box-shadow,transform] sm:min-h-[180px]",
+        "relative grid overflow-hidden rounded-lg border border-border bg-black shadow-sm transition-[border-color,box-shadow,transform]",
+        isMaximized
+          ? "max-h-[var(--meet-tile-max-h)] w-full max-w-[min(100%,calc(var(--meet-tile-max-h)*var(--meet-tile-ratio)))] min-h-0"
+          : "aspect-video min-h-[clamp(150px,48vw,240px)] sm:min-h-[180px]",
         isSpeaking &&
           "border-primary shadow-[0_0_0_2px_rgb(var(--primary)/0.28),0_18px_50px_rgb(var(--primary)/0.16)]",
         className
@@ -164,9 +193,15 @@ export function VideoTile({
           autoPlay
           className={cn(
             "h-full w-full object-contain",
-            isLocal && "scale-x-[-1]"
+            isLocal && !screenSharing && "scale-x-[-1]"
           )}
           muted
+          onLoadedMetadata={() => {
+            const video = videoRef.current;
+            if (video?.videoWidth && video.videoHeight) {
+              setVideoAspectRatio(video.videoWidth / video.videoHeight);
+            }
+          }}
           playsInline
         />
       ) : loadingLabel ? (

@@ -46,7 +46,6 @@ export function ControlBar({
   screenShareUnavailableReason = "Screen sharing is not available in this browser.",
   videoEnabled
 }: ControlBarProps) {
-  const canToggleScreenShare = screenSharing || screenShareSupported;
   const screenShareTitle = screenSharing
     ? "Stop screen sharing"
     : screenShareSupported
@@ -54,7 +53,7 @@ export function ControlBar({
       : screenShareUnavailableReason;
 
   return (
-    <footer className="sticky bottom-4 z-10 mx-auto flex w-fit max-w-full items-center gap-2 rounded-lg border border-border bg-surface/95 p-2 shadow-lg backdrop-blur">
+    <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-start gap-2 overflow-x-auto border-t border-border bg-surface/95 p-2 shadow-lg backdrop-blur sm:sticky sm:bottom-4 sm:w-fit sm:max-w-full sm:overflow-visible sm:rounded-lg sm:border">
       <button
         aria-label={audioEnabled ? "Mute microphone" : "Unmute microphone"}
         className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
@@ -75,7 +74,6 @@ export function ControlBar({
             ? "grid size-11 place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90"
             : "grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
         }
-        disabled={!canToggleScreenShare}
         onClick={onToggleScreenShare}
         title={screenShareTitle}
         type="button"

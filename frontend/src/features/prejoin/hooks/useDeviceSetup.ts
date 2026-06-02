@@ -3,6 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LocalMediaPermissionState } from "@/features/meeting/types/media";
 import { useMediaStore } from "@/features/meeting/stores/mediaStore";
+import {
+  applyAudioTrackConstraints,
+  buildAudioConstraints
+} from "@/lib/webrtc/audioQuality";
 
 export interface DeviceSetupState {
   audioEnabled: boolean;
@@ -150,11 +154,7 @@ export function useDeviceSetup() {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: audioEnabled
-            ? {
-                deviceId: selectedAudioDeviceId
-                  ? { exact: selectedAudioDeviceId }
-                  : undefined
-              }
+            ? buildAudioConstraints(selectedAudioDeviceId)
             : false,
           video: videoEnabled
             ? {
@@ -164,6 +164,11 @@ export function useDeviceSetup() {
               }
             : false
         });
+        await Promise.all(
+          stream
+            .getAudioTracks()
+            .map((track) => applyAudioTrackConstraints(track))
+        );
 
         setState((current) => {
           stopStream(current.previewStream);

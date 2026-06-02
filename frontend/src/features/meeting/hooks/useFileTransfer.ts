@@ -56,6 +56,11 @@ interface ReceiveBuffer {
   totalChunks: number;
 }
 
+interface SharedFileEntry {
+  file: File;
+  sentPeerIds: Set<string>;
+}
+
 function parseChannelMessage(data: MessageEvent["data"]) {
   if (typeof data !== "string") {
     return null;
@@ -88,6 +93,7 @@ export function useFileTransfer(roomId: string | null) {
   const peers = useMeetingStore((state) => state.peers);
   const pendingChunkMeta = useRef(new Map<string, PendingChunkMeta>());
   const receiveBuffers = useRef(new Map<string, ReceiveBuffer>());
+  const sharedFiles = useRef(new Map<string, SharedFileEntry>());
   const objectUrls = useRef(new Set<string>());
   const transfers = useMemo(
     () => Object.values(transfersById),
@@ -164,6 +170,51 @@ export function useFileTransfer(roomId: string | null) {
       }
     },
     [completeTransfer, failTransfer, updateProgress]
+  );
+
+  const sendSharedFileToPeer = useCallback(
+    (sourceFileId: string, peerId: string) => {
+      const sharedFile = sharedFiles.current.get(sourceFileId);
+
+      if (!sharedFile || sharedFile.sentPeerIds.has(peerId)) {
+        return;
+      }
+
+      sharedFile.sentPeerIds.add(peerId);
+      const file = sharedFile.file;
+      const fileId = crypto.randomUUID();
+      const transfer: FileTransferRecord = {
+        createdAt: Date.now(),
+        direction: "outgoing",
+        fileId,
+        mime: file.type || "application/octet-stream",
+        name: file.name,
+        progress: {
+          bytesTransferred: 0,
+          fileId,
+          percentage: 0,
+          totalBytes: file.size
+        },
+        senderPeerId: localPeerId ?? "",
+        size: file.size,
+        status: "transferring",
+        targetPeerId: peerId
+      };
+
+      addOrUpdateTransfer(transfer);
+      webSocketManager.send({
+        payload: {
+          file_id: fileId,
+          mime: transfer.mime,
+          name: file.name,
+          size: file.size
+        },
+        to: peerId,
+        type: "file-offer"
+      });
+      void sendFileBytes(fileId, peerId, file);
+    },
+    [addOrUpdateTransfer, localPeerId, sendFileBytes]
   );
 
   const completeReceivedFile = useCallback(
@@ -289,6 +340,18 @@ export function useFileTransfer(roomId: string | null) {
     []
   );
 
+  useEffect(() => {
+    const peerIds = Object.keys(peers);
+
+    if (peerIds.length === 0 || sharedFiles.current.size === 0) {
+      return;
+    }
+
+    sharedFiles.current.forEach((_sharedFile, sourceFileId) => {
+      peerIds.forEach((peerId) => sendSharedFileToPeer(sourceFileId, peerId));
+    });
+  }, [peers, sendSharedFileToPeer]);
+
   const sendFile = useCallback(
     (file: File) => {
       try {
@@ -300,48 +363,44 @@ export function useFileTransfer(roomId: string | null) {
         return;
       }
 
+      const sourceFileId = crypto.randomUUID();
+      const objectUrl = URL.createObjectURL(file);
+      objectUrls.current.add(objectUrl);
+      sharedFiles.current.set(sourceFileId, {
+        file,
+        sentPeerIds: new Set()
+      });
+
+      addOrUpdateTransfer({
+        completedAt: Date.now(),
+        createdAt: Date.now(),
+        direction: "outgoing",
+        fileId: sourceFileId,
+        mime: file.type || "application/octet-stream",
+        name: file.name,
+        objectUrl,
+        progress: {
+          bytesTransferred: file.size,
+          fileId: sourceFileId,
+          percentage: 100,
+          totalBytes: file.size
+        },
+        senderPeerId: localPeerId ?? "",
+        size: file.size,
+        status: "completed",
+        targetPeerId: ""
+      });
+
       const peerIds = Object.keys(peers);
 
       if (peerIds.length === 0) {
-        toast.error("No participants available for file transfer.");
+        toast.success("File is ready and will be sent to new participants.");
         return;
       }
 
-      peerIds.forEach((peerId) => {
-        const fileId = crypto.randomUUID();
-        const transfer: FileTransferRecord = {
-          createdAt: Date.now(),
-          direction: "outgoing",
-          fileId,
-          mime: file.type || "application/octet-stream",
-          name: file.name,
-          progress: {
-            bytesTransferred: 0,
-            fileId,
-            percentage: 0,
-            totalBytes: file.size
-          },
-          senderPeerId: localPeerId ?? "",
-          size: file.size,
-          status: "transferring",
-          targetPeerId: peerId
-        };
-
-        addOrUpdateTransfer(transfer);
-        webSocketManager.send({
-          payload: {
-            file_id: fileId,
-            mime: transfer.mime,
-            name: file.name,
-            size: file.size
-          },
-          to: peerId,
-          type: "file-offer"
-        });
-        void sendFileBytes(fileId, peerId, file);
-      });
+      peerIds.forEach((peerId) => sendSharedFileToPeer(sourceFileId, peerId));
     },
-    [addOrUpdateTransfer, localPeerId, peers, sendFileBytes]
+    [addOrUpdateTransfer, localPeerId, peers, sendSharedFileToPeer]
   );
 
   return {

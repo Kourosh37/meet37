@@ -64,8 +64,7 @@ export function SettingsDrawer({
           <span>{videoEnabled ? "On" : "Off"}</span>
         </button>
         <button
-          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={!screenSharing && !screenShareSupported}
+          className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground"
           onClick={onToggleScreenShare}
           title={
             screenSharing || screenShareSupported

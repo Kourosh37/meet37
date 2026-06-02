@@ -2,6 +2,7 @@ import type {
   IceCandidatePayload,
   SessionDescriptionPayload
 } from "@/features/meeting/types/signaling";
+import { applyAudioSenderParameters } from "@/lib/webrtc/audioQuality";
 
 const defaultIceServers: RTCIceServer[] = [
   { urls: ["stun:stun.l.google.com:19302"] }
@@ -132,6 +133,7 @@ async function attachOrReplaceTrack(
     try {
       enableSenderDirection(connection, reusableSender);
       await reusableSender.replaceTrack(track);
+      await applyAudioSenderParameters(reusableSender);
       return;
     } catch (error) {
       void error;
@@ -139,7 +141,8 @@ async function attachOrReplaceTrack(
   }
 
   try {
-    connection.addTrack(track, stream);
+    const sender = connection.addTrack(track, stream);
+    await applyAudioSenderParameters(sender);
   } catch (error) {
     void error;
   }
@@ -239,6 +242,9 @@ export async function syncLocalTracks(
     enableSenderDirection(connection, sender);
     if (!track || replacement.id !== track.id) {
       await sender.replaceTrack(replacement);
+      await applyAudioSenderParameters(sender);
+    } else {
+      await applyAudioSenderParameters(sender);
     }
   }
 

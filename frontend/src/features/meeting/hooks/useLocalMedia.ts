@@ -3,10 +3,34 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMediaStore } from "@/features/meeting/stores/mediaStore";
 import type { MediaTrackStatus } from "@/features/meeting/types/signaling";
+import {
+  applyAudioTrackConstraints,
+  buildAudioConstraints
+} from "@/lib/webrtc/audioQuality";
 import { stopMediaStream } from "@/lib/webrtc/PeerConnectionFactory";
 
 function isLocalhost(hostname: string) {
   return ["localhost", "127.0.0.1", "::1"].includes(hostname);
+}
+
+function isMobileBrowser() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+function getScreenShareUnavailableReason() {
+  if (!window.isSecureContext && !isLocalhost(window.location.hostname)) {
+    return "Screen sharing requires HTTPS on this browser.";
+  }
+
+  if (!navigator.mediaDevices?.getDisplayMedia && isMobileBrowser()) {
+    return "Screen sharing is not supported by this mobile browser.";
+  }
+
+  if (!navigator.mediaDevices?.getDisplayMedia) {
+    return "Screen sharing is not supported by this browser or device.";
+  }
+
+  return "";
 }
 
 function streamWithoutKind(
@@ -76,11 +100,7 @@ export function useLocalMedia() {
     const isLocal = isLocalhost(window.location.hostname);
 
     setScreenShareSupported(hasDisplayMedia && (isSecure || isLocal));
-    setScreenShareUnavailableReason(
-      !isSecure && !isLocal
-        ? "Screen sharing requires HTTPS on this browser."
-        : "Screen sharing is not supported by this browser or device."
-    );
+    setScreenShareUnavailableReason(getScreenShareUnavailableReason());
   }, []);
 
   const startImmediately = useCallback(
@@ -112,11 +132,7 @@ export function useLocalMedia() {
         setAudioStatus(shouldUseAudio ? "starting" : "off");
         setVideoStatus(shouldUseVideo ? "starting" : "off");
         const nextStream = await navigator.mediaDevices.getUserMedia({
-          audio: shouldUseAudio
-            ? {
-                deviceId: audioDeviceId ? { exact: audioDeviceId } : undefined
-              }
-            : false,
+          audio: shouldUseAudio ? buildAudioConstraints(audioDeviceId) : false,
           video: shouldUseVideo
             ? {
                 deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined
@@ -128,6 +144,11 @@ export function useLocalMedia() {
           stopMediaStream(current);
           return nextStream;
         });
+        await Promise.all(
+          nextStream
+            .getAudioTracks()
+            .map((track) => applyAudioTrackConstraints(track))
+        );
         nextStream.getAudioTracks().forEach((track) => {
           track.enabled = shouldUseAudio;
         });
@@ -176,9 +197,7 @@ export function useLocalMedia() {
       setAudioStatus("starting");
       const audioDeviceId = useMediaStore.getState().selectedAudioDeviceId;
       const audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          deviceId: audioDeviceId ? { exact: audioDeviceId } : undefined
-        },
+        audio: buildAudioConstraints(audioDeviceId),
         video: false
       });
       const audioTracks = audioStream.getAudioTracks();
@@ -190,6 +209,9 @@ export function useLocalMedia() {
         return;
       }
 
+      await Promise.all(
+        audioTracks.map((track) => applyAudioTrackConstraints(track))
+      );
       audioTracks.forEach((track) => {
         track.enabled = true;
       });
@@ -267,13 +289,13 @@ export function useLocalMedia() {
 
     if (!window.isSecureContext && !isLocalhost(window.location.hostname)) {
       setScreenShareStatus("error");
-      setError("Screen sharing requires HTTPS on this browser.");
+      setError(getScreenShareUnavailableReason());
       return;
     }
 
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setScreenShareStatus("error");
-      setError("Screen sharing is not supported by this browser or device.");
+      setError(getScreenShareUnavailableReason());
       return;
     }
 
@@ -281,7 +303,9 @@ export function useLocalMedia() {
       setScreenShareStatus("starting");
       const displayStream = await navigator.mediaDevices.getDisplayMedia({
         audio: false,
-        video: true
+        video: {
+          displaySurface: "monitor"
+        } as MediaTrackConstraints
       });
       const screenTrack = displayStream.getVideoTracks()[0];
 

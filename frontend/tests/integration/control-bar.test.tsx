@@ -23,7 +23,7 @@ function renderControlBar(overrides = {}) {
 }
 
 describe("ControlBar", () => {
-  it("disables screen sharing when the browser does not support it", () => {
+  it("keeps unsupported screen sharing clickable so the media hook can report the reason", () => {
     const onToggleScreenShare = vi.fn();
     renderControlBar({
       onToggleScreenShare,
@@ -32,9 +32,12 @@ describe("ControlBar", () => {
     });
 
     const button = screen.getByRole("button", { name: "Share screen" });
-    expect(button).toHaveProperty("disabled", true);
+    expect(button).toHaveProperty("disabled", false);
+    expect(button.getAttribute("title")).toBe(
+      "Screen sharing is not supported."
+    );
 
     fireEvent.click(button);
-    expect(onToggleScreenShare).not.toHaveBeenCalled();
+    expect(onToggleScreenShare).toHaveBeenCalledTimes(1);
   });
 });

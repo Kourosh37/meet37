@@ -1,4 +1,3 @@
-/* global require */
 const { expect, test } = require("@playwright/test");
 const { installMediaMocks } = require("./mediaMocks");
 

@@ -1,5 +1,3 @@
-# Multi-stage Dockerfile for the production Next.js frontend runtime.
-
 FROM node:22-alpine AS deps
 WORKDIR /app
 RUN corepack enable

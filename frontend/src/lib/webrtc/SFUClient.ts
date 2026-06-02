@@ -41,9 +41,7 @@ export class SFUClient {
     this.connection.oniceconnectionstatechange = () => {
       if (
         !this.connection ||
-        !["failed", "disconnected"].includes(
-          this.connection.iceConnectionState
-        )
+        !["failed", "disconnected"].includes(this.connection.iceConnectionState)
       ) {
         return;
       }

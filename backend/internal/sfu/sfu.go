@@ -273,7 +273,7 @@ func (s *Session) handleRemoteTrack(ownerID string, remote *webrtc.TrackRemote, 
 			pkt, _, err := remote.ReadRTP()
 			if err != nil {
 				if err != io.EOF {
-					// Track ended or peer disconnected; cleanup is handled by peer lifecycle.
+
 				}
 				return
 			}
@@ -382,8 +382,7 @@ func (s *Session) Stats() SessionStats {
 }
 
 func (s *Session) openRecording(ownerID string, remote *webrtc.TrackRemote) *os.File {
-	// RTP recording is deliberately raw and append-only. It is useful for
-	// diagnostics and later processing, but it is not a playable media file.
+
 	if remote == nil || remote.Kind() == webrtc.RTPCodecTypeUnknown {
 		return nil
 	}

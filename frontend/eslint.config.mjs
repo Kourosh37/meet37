@@ -83,6 +83,19 @@ const config = [
         rootDir: ["frontend/"]
       }
     }
+  },
+  {
+    files: ["tests/e2e/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      globals: {
+        MediaStream: "readonly",
+        module: "readonly",
+        require: "readonly",
+        window: "readonly"
+      },
+      sourceType: "commonjs"
+    }
   }
 ];
 

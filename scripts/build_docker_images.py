@@ -18,19 +18,15 @@ import sys
 import time
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT_DIR = ROOT / "dist"
-
 
 def run(command: list[str], *, cwd: Path = ROOT) -> None:
     print("+ " + " ".join(command), flush=True)
     subprocess.run(command, cwd=cwd, check=True)
 
-
 def capture(command: list[str], *, cwd: Path = ROOT) -> str:
     return subprocess.check_output(command, cwd=cwd, text=True).strip()
-
 
 def require_docker() -> None:
     try:
@@ -38,13 +34,11 @@ def require_docker() -> None:
     except (FileNotFoundError, subprocess.CalledProcessError) as exc:
         raise SystemExit("Docker is required and must be running.") from exc
 
-
 def get_git_version() -> str:
     try:
         return capture(["git", "rev-parse", "--short", "HEAD"])
     except (FileNotFoundError, subprocess.CalledProcessError):
         return time.strftime("%Y%m%d%H%M%S")
-
 
 def parse_env_file(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
@@ -59,10 +53,8 @@ def parse_env_file(path: Path) -> dict[str, str]:
         values[key.strip()] = value.strip().strip('"').strip("'")
     return values
 
-
 def image_archive_name(image: str) -> str:
     return image.replace("/", "_").replace(":", "_") + ".tar.gz"
-
 
 def save_image(image: str, output_dir: Path) -> Path:
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -79,7 +71,6 @@ def save_image(image: str, output_dir: Path) -> Path:
         shutil.copyfileobj(source, target)
     tar_path.unlink()
     return gz_path
-
 
 def build_images(args: argparse.Namespace) -> tuple[str, str]:
     env = {**parse_env_file(ROOT / ".env.example"), **parse_env_file(ROOT / ".env")}
@@ -115,7 +106,6 @@ def build_images(args: argparse.Namespace) -> tuple[str, str]:
     )
 
     return backend_image, frontend_image
-
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -163,7 +153,6 @@ def parse_args() -> argparse.Namespace:
     )
     return parser.parse_args()
 
-
 def main() -> int:
     args = parse_args()
     require_docker()
@@ -180,7 +169,6 @@ def main() -> int:
     for archive in archives:
         print(f"  {archive}")
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

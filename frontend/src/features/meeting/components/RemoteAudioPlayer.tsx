@@ -32,7 +32,10 @@ function RemoteAudioElement({ stream }: { stream: MediaStream }) {
     };
 
     const retryPlayback = () => {
-      if (audio.paused || audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) {
+      if (
+        audio.paused ||
+        audio.readyState < HTMLMediaElement.HAVE_CURRENT_DATA
+      ) {
         play();
       }
     };

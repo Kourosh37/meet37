@@ -1,4 +1,3 @@
-/* global MediaStream, module, window */
 async function installMediaMocks(page) {
   await page.addInitScript(() => {
     function createMockMediaStream() {

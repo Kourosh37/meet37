@@ -847,8 +847,7 @@ func (h *Hub) removeClusterRoom(roomID string) {
 }
 
 func (h *Hub) upsertClusterPending(p *Peer) {
-	// Pending participants are stored in the shared bus so a host on another
-	// instance can approve or reject the join request without sticky routing.
+
 	if h.bus == nil || !h.bus.Enabled() || p.roomID == "" {
 		return
 	}
@@ -871,8 +870,7 @@ func (h *Hub) removeClusterPending(roomID, peerID string) {
 }
 
 func (h *Hub) approvePendingPeer(roomID, peerID string) {
-	// This is invoked from the cluster bus when the approving host is connected
-	// to a different process than the pending participant.
+
 	h.mu.RLock()
 	room := h.rooms[roomID]
 	h.mu.RUnlock()
@@ -927,8 +925,7 @@ func (h *Hub) closePendingPeer(roomID, peerID string, signal models.SignalMessag
 }
 
 func (h *Hub) persistChat(p *Peer, msg models.SignalMessage) {
-	// Chat remains real-time over WebSocket, while this append-only table gives
-	// the frontend a short room history after reconnects or page refreshes.
+
 	if p.roomID == "" {
 		return
 	}
@@ -945,8 +942,7 @@ func (h *Hub) persistChat(p *Peer, msg models.SignalMessage) {
 }
 
 func (h *Hub) persistFileTransfer(p *Peer, msg models.SignalMessage, status string) {
-	// File bytes are still browser-to-browser over RTCDataChannel; the backend
-	// only records transfer metadata for audit/history and reconnect recovery.
+
 	if p.roomID == "" {
 		return
 	}

@@ -1,11 +1,3 @@
-// Next.js configuration placeholder.
-//
-// Planned responsibilities:
-// - Enable strict production checks.
-// - Configure image domains if avatars or room thumbnails use remote sources.
-// - Add security headers for frame protection and content policy.
-// - Optionally enable standalone output for Docker production images.
-
 import { dirname } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  type CSSProperties,
-  useEffect,
-  useMemo,
-  useRef,
-  useState
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Loader2,
   Maximize2,
@@ -57,7 +51,10 @@ export function VideoTile({
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
   const [_trackVersion, setTrackVersion] = useState(0);
-  const [videoAspectRatio, setVideoAspectRatio] = useState<number | null>(null);
+  const [videoFitMode, setVideoFitMode] = useState<"height" | "width">(
+    "width"
+  );
+  const videoFrameRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioTracks = useMemo(() => stream?.getAudioTracks() ?? [], [stream]);
   const videoTracks = useMemo(() => stream?.getVideoTracks() ?? [], [stream]);
@@ -79,20 +76,6 @@ export function VideoTile({
     hasLiveVideoTrack && (videoEnabled || screenSharing)
   );
   const shouldRenderVideo = hasLiveVideoTrack && (videoEnabled || screenSharing);
-  const trackAspectRatio = useMemo(() => {
-    const settings = videoTracks[0]?.getSettings();
-    const width = settings?.width;
-    const height = settings?.height;
-
-    return width && height ? width / height : null;
-  }, [videoTracks]);
-  const activeAspectRatio = videoAspectRatio ?? trackAspectRatio ?? 16 / 9;
-  const tileStyle = isMaximized
-    ? ({
-        "--meet-tile-ratio": String(activeAspectRatio),
-        aspectRatio: activeAspectRatio
-      } as CSSProperties)
-    : undefined;
   const isOpeningScreenShare = screenSharing && !hasVideo;
   const isCameraExpected = !screenSharing && videoEnabled && !hasVideo;
   const loadingLabel = isOpeningScreenShare
@@ -135,10 +118,62 @@ export function VideoTile({
       videoRef.current.srcObject = shouldRenderVideo ? videoStream : null;
       if (shouldRenderVideo) {
         void videoRef.current.play().catch(() => undefined);
-      } else {
-        setVideoAspectRatio(null);
       }
     }
+  }, [shouldRenderVideo, videoStream]);
+
+  useEffect(() => {
+    if (!shouldRenderVideo) {
+      setVideoFitMode("width");
+      return;
+    }
+
+    const updateVideoFit = () => {
+      const frame = videoFrameRef.current;
+      const video = videoRef.current;
+
+      if (
+        !frame ||
+        !video ||
+        frame.clientWidth <= 0 ||
+        frame.clientHeight <= 0 ||
+        video.videoWidth <= 0 ||
+        video.videoHeight <= 0
+      ) {
+        return;
+      }
+
+      const videoHeightAtFullWidth =
+        frame.clientWidth * (video.videoHeight / video.videoWidth);
+      setVideoFitMode(
+        videoHeightAtFullWidth > frame.clientHeight ? "height" : "width"
+      );
+    };
+
+    updateVideoFit();
+    const frame = videoFrameRef.current;
+    const video = videoRef.current;
+
+    video?.addEventListener("loadedmetadata", updateVideoFit);
+    video?.addEventListener("resize", updateVideoFit);
+
+    if (typeof ResizeObserver === "undefined" || !frame) {
+      window.addEventListener("resize", updateVideoFit);
+      return () => {
+        window.removeEventListener("resize", updateVideoFit);
+        video?.removeEventListener("loadedmetadata", updateVideoFit);
+        video?.removeEventListener("resize", updateVideoFit);
+      };
+    }
+
+    const observer = new ResizeObserver(updateVideoFit);
+    observer.observe(frame);
+
+    return () => {
+      observer.disconnect();
+      video?.removeEventListener("loadedmetadata", updateVideoFit);
+      video?.removeEventListener("resize", updateVideoFit);
+    };
   }, [shouldRenderVideo, videoStream]);
 
   useEffect(() => {
@@ -161,11 +196,10 @@ export function VideoTile({
 
   return (
     <article
-      style={tileStyle}
       className={cn(
         "relative grid overflow-hidden rounded-lg border border-border bg-black shadow-sm transition-[border-color,box-shadow,transform]",
         isMaximized
-          ? "max-h-[var(--meet-tile-max-h)] w-full max-w-[min(100%,calc(var(--meet-tile-max-h)*var(--meet-tile-ratio)))] min-h-0"
+          ? "h-full max-h-full min-h-0 w-full max-w-full"
           : "aspect-video min-h-[clamp(150px,48vw,240px)] sm:min-h-[180px]",
         isSpeaking &&
           "border-primary shadow-[0_0_0_2px_rgb(var(--primary)/0.28),0_18px_50px_rgb(var(--primary)/0.16)]",
@@ -192,22 +226,44 @@ export function VideoTile({
 
       {shouldRenderVideo ? (
         <>
-          <video
-            ref={videoRef}
-            autoPlay
-            className={cn(
-              "h-full w-full bg-black object-contain",
-              isLocal && !screenSharing && "scale-x-[-1]"
-            )}
-            muted
-            onLoadedMetadata={() => {
-              const video = videoRef.current;
-              if (video?.videoWidth && video.videoHeight) {
-                setVideoAspectRatio(video.videoWidth / video.videoHeight);
-              }
-            }}
-            playsInline
-          />
+          <div
+            ref={videoFrameRef}
+            className="absolute inset-0 grid place-items-center bg-black"
+          >
+            <video
+              ref={videoRef}
+              autoPlay
+              className={cn(
+                "block max-h-full max-w-full bg-black object-contain",
+                videoFitMode === "height" ? "h-full w-auto" : "h-auto w-full",
+                isLocal && !screenSharing && "scale-x-[-1]"
+              )}
+              muted
+              onLoadedMetadata={() => {
+                const video = videoRef.current;
+                const frame = videoFrameRef.current;
+
+                if (
+                  !video ||
+                  !frame ||
+                  video.videoWidth <= 0 ||
+                  video.videoHeight <= 0 ||
+                  frame.clientHeight <= 0
+                ) {
+                  return;
+                }
+
+                const videoHeightAtFullWidth =
+                  frame.clientWidth * (video.videoHeight / video.videoWidth);
+                setVideoFitMode(
+                  videoHeightAtFullWidth > frame.clientHeight
+                    ? "height"
+                    : "width"
+                );
+              }}
+              playsInline
+            />
+          </div>
           {!hasVideo && loadingLabel ? (
             <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35 text-white backdrop-blur-[1px]">
               <div className="flex flex-col items-center gap-3 text-center">

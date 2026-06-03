@@ -50,14 +50,20 @@ export function VideoTile({
   videoEnabled = true,
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
-  const [_trackVersion, setTrackVersion] = useState(0);
+  const [trackVersion, setTrackVersion] = useState(0);
   const [videoFitMode, setVideoFitMode] = useState<"height" | "width">(
     "width"
   );
   const videoFrameRef = useRef<HTMLDivElement | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const audioTracks = useMemo(() => stream?.getAudioTracks() ?? [], [stream]);
-  const videoTracks = useMemo(() => stream?.getVideoTracks() ?? [], [stream]);
+  const audioTracks = useMemo(() => {
+    void trackVersion;
+    return stream?.getAudioTracks() ?? [];
+  }, [stream, trackVersion]);
+  const videoTracks = useMemo(() => {
+    void trackVersion;
+    return stream?.getVideoTracks() ?? [];
+  }, [stream, trackVersion]);
   const audioStream = useMemo(
     () => (audioTracks.length ? new MediaStream(audioTracks) : null),
     [audioTracks]

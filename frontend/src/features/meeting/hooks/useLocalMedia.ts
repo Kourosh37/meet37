@@ -345,7 +345,6 @@ export function useLocalMedia() {
       screenTrackRef.current?.stop();
       screenTrackRef.current = screenTrack;
       setVideoContentHint(screenTrack, "detail");
-      await applyVideoTrackConstraints(screenTrack, true);
       screenTrack.onended = () => {
         void stopScreenShare();
       };

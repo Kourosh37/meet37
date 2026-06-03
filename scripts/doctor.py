@@ -65,6 +65,12 @@ def port_check(name: str, port: int, udp: bool = False) -> bool:
     return check(name, True, f"port {port} is available")
 
 
+def port_range_check(name: str, start: int, end: int) -> bool:
+    sample = sorted({start, end, start + max(0, (end - start) // 2)})
+    results = [port_check(f"{name} {port}/udp", port, True) for port in sample]
+    return all(results)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Diagnose meet37 requirements.")
     parser.add_argument("--env-file", default=str(DEFAULT_ENV_FILE))
@@ -99,6 +105,14 @@ def main() -> int:
     ]:
         if values.get(key, "").isdigit():
             results.append(port_check(f"{key}/{proto}", int(values[key]), proto == "udp"))
+
+    for prefix in ["TURN_RELAY_PORT", "WEBRTC_UDP_HOST_PORT"]:
+        min_key = f"{prefix}_MIN"
+        max_key = f"{prefix}_MAX"
+        if values.get(min_key, "").isdigit() and values.get(max_key, "").isdigit():
+            results.append(
+                port_range_check(prefix, int(values[min_key]), int(values[max_key]))
+            )
 
     if args.base_url:
         result = run(["python", "scripts/smoke_test.py", "--base-url", args.base_url])

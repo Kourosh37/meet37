@@ -52,8 +52,9 @@ Expected:
 
 - Frontend container is running.
 - Backend container is healthy.
+- Coturn container is running.
 - `/api/settings` returns JSON.
-- No repeated WebSocket, database, or healthcheck failures in logs.
+- No repeated WebSocket, database, coturn allocation, or healthcheck failures in logs.
 
 ## Restart
 
@@ -105,7 +106,7 @@ Check published ports:
 
 ```bash
 docker ps
-ss -lunpt | grep -E '(:3478|:40000|:40100)' || true
+ss -lunpt | grep -E '(:3478|:43000|:43100|:40000|:40100)' || true
 ufw status verbose || true
 ```
 
@@ -116,6 +117,7 @@ Adjust the grep ports to match `.env`.
 ```bash
 docker compose -f docker-compose.prod.yml logs -f backend
 docker compose -f docker-compose.prod.yml logs -f frontend
+docker compose -f docker-compose.prod.yml logs -f coturn
 ```
 
 For Caddy:
@@ -133,4 +135,5 @@ docker logs caddy --tail=200
 - Does `/api/settings` work?
 - Does `/ws` connect from the browser?
 - Are TURN/media UDP ports published and allowed?
+- Are coturn relay UDP ports published and allowed?
 - Is `TURN_PUBLIC_IP` reachable by clients?

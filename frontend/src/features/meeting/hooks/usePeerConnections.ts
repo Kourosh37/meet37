@@ -8,6 +8,7 @@ import type {
 } from "@/features/meeting/types/signaling";
 import {
   addLocalTracks,
+  buildIceServers,
   closePeerConnection,
   createPeerConnection,
   ensureRecvTransceivers,
@@ -20,9 +21,42 @@ import { dataChannelRegistry } from "@/lib/webrtc/DataChannelRegistry";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 const FILE_TRANSFER_CHANNEL = "file-transfer";
+const ICE_RECOVERY_DELAY_MS = 900;
+const MEDIA_WATCHDOG_INTERVAL_MS = 2_500;
+const MEDIA_RECOVERY_COOLDOWN_MS = 4_000;
 
 function isConnectionUsable(connection: RTCPeerConnection) {
-  return !["closed", "failed"].includes(connection.connectionState);
+  return connection.connectionState !== "closed";
+}
+
+function hasLiveTrack(
+  stream: MediaStream | undefined,
+  kind: MediaStreamTrack["kind"]
+) {
+  return Boolean(
+    stream
+      ?.getTracks()
+      .some((track) => track.kind === kind && track.readyState === "live")
+  );
+}
+
+function safelyRestartIce(connection: RTCPeerConnection) {
+  try {
+    connection.restartIce?.();
+  } catch {
+    return;
+  }
+}
+
+function safelySetIceServers(
+  connection: RTCPeerConnection,
+  iceServers: RTCIceServer[]
+) {
+  try {
+    connection.setConfiguration({ iceServers });
+  } catch {
+    return;
+  }
 }
 
 export function usePeerConnections(localStream: MediaStream | null) {
@@ -35,10 +69,21 @@ export function usePeerConnections(localStream: MediaStream | null) {
   const offeredPeerIds = useRef(new Set<string>());
   const pendingIceCandidates = useRef(new Map<string, IceCandidatePayload[]>());
   const pendingNegotiationPeerIds = useRef(new Set<string>());
+  const iceRecoveryTimers = useRef(new Map<string, number>());
+  const lastMediaRecoveryAt = useRef(new Map<string, number>());
   const remoteStreamRefs = useRef(new Map<string, MediaStream>());
   const [remoteStreams, setRemoteStreams] = useState<
     Record<string, MediaStream>
   >({});
+
+  const getCurrentTurnServers = useCallback(() => {
+    const latestTurnServers = useMeetingStore.getState().turnServers;
+    if (latestTurnServers?.length) {
+      return latestTurnServers;
+    }
+
+    return turnServers?.length ? turnServers : undefined;
+  }, [turnServers]);
 
   const sendDescription = useCallback(
     (
@@ -113,6 +158,34 @@ export function usePeerConnections(localStream: MediaStream | null) {
     [flushNegotiation]
   );
 
+  const recoverConnection = useCallback(
+    (peerId: string, delay = ICE_RECOVERY_DELAY_MS) => {
+      const existingTimer = iceRecoveryTimers.current.get(peerId);
+      if (existingTimer) {
+        window.clearTimeout(existingTimer);
+      }
+
+      const timer = window.setTimeout(() => {
+        iceRecoveryTimers.current.delete(peerId);
+        const connection = connections.current.get(peerId);
+        if (!connection || !isConnectionUsable(connection)) {
+          return;
+        }
+
+        const latestTurnServers = getCurrentTurnServers();
+        if (latestTurnServers?.length) {
+          safelySetIceServers(connection, buildIceServers(latestTurnServers));
+        }
+
+        safelyRestartIce(connection);
+        requestNegotiation(peerId);
+      }, delay);
+
+      iceRecoveryTimers.current.set(peerId, timer);
+    },
+    [getCurrentTurnServers, requestNegotiation]
+  );
+
   const flushQueuedIceCandidates = useCallback(async (peerId: string) => {
     const connection = connections.current.get(peerId);
     const queued = pendingIceCandidates.current.get(peerId) ?? [];
@@ -123,7 +196,9 @@ export function usePeerConnections(localStream: MediaStream | null) {
 
     pendingIceCandidates.current.delete(peerId);
     for (const payload of queued) {
-      await connection.addIceCandidate(payloadToIceCandidate(payload));
+      await connection
+        .addIceCandidate(payloadToIceCandidate(payload))
+        .catch(() => undefined);
     }
   }, []);
 
@@ -167,54 +242,65 @@ export function usePeerConnections(localStream: MediaStream | null) {
         return existing;
       }
 
-      const connection = createPeerConnection({
-        iceServers: turnServers?.length ? turnServers : undefined,
-        onDataChannel: (event) => {
-          if (event.channel.label === FILE_TRANSFER_CHANNEL) {
-            dataChannelRegistry.register(peerId, event.channel);
-          }
-        },
-        onIceCandidate: (candidate) => sendIceCandidate(peerId, candidate),
-        onTrack: (event) => upsertRemoteTrack(peerId, event)
-      });
+      let connection: RTCPeerConnection;
+
+      try {
+        connection = createPeerConnection({
+          iceServers: getCurrentTurnServers(),
+          onDataChannel: (event) => {
+            if (event.channel.label === FILE_TRANSFER_CHANNEL) {
+              dataChannelRegistry.register(peerId, event.channel);
+            }
+          },
+          onIceCandidate: (candidate) => sendIceCandidate(peerId, candidate),
+          onTrack: (event) => upsertRemoteTrack(peerId, event)
+        });
+      } catch {
+        return null;
+      }
       ensureRecvTransceivers(connection, { audio: 1, video: 1 });
       connection.onnegotiationneeded = () => requestNegotiation(peerId);
-      connection.oniceconnectionstatechange = () => {
+      const handleConnectionRecovery = () => {
         if (
           connection.iceConnectionState === "failed" ||
-          connection.iceConnectionState === "disconnected"
+          connection.iceConnectionState === "disconnected" ||
+          connection.connectionState === "failed" ||
+          connection.connectionState === "disconnected"
         ) {
-          window.setTimeout(
-            () => {
-              if (!isConnectionUsable(connection)) {
-                return;
-              }
-
-              connection.restartIce();
-              requestNegotiation(peerId);
-            },
-            connection.iceConnectionState === "failed" ? 0 : 800
+          recoverConnection(
+            peerId,
+            connection.iceConnectionState === "failed" ||
+              connection.connectionState === "failed"
+              ? 0
+              : ICE_RECOVERY_DELAY_MS
           );
         }
       };
+      connection.oniceconnectionstatechange = handleConnectionRecovery;
+      connection.onconnectionstatechange = handleConnectionRecovery;
 
       if (localStream) {
         void addLocalTracks(connection, localStream);
       }
 
-      const channel = connection.createDataChannel(FILE_TRANSFER_CHANNEL, {
-        ordered: true
-      });
-      dataChannelRegistry.register(peerId, channel);
+      try {
+        const channel = connection.createDataChannel(FILE_TRANSFER_CHANNEL, {
+          ordered: true
+        });
+        dataChannelRegistry.register(peerId, channel);
+      } catch {
+        dataChannelRegistry.unregister(peerId);
+      }
 
       connections.current.set(peerId, connection);
       return connection;
     },
     [
       localStream,
+      getCurrentTurnServers,
       requestNegotiation,
+      recoverConnection,
       sendIceCandidate,
-      turnServers,
       upsertRemoteTrack
     ]
   );
@@ -227,14 +313,16 @@ export function usePeerConnections(localStream: MediaStream | null) {
         return;
       }
 
-      if (!isConnectionUsable(connection) || !connection.remoteDescription) {
+      if (!connection || !isConnectionUsable(connection) || !connection.remoteDescription) {
         const queued = pendingIceCandidates.current.get(peerId) ?? [];
         queued.push(payload);
         pendingIceCandidates.current.set(peerId, queued);
         return;
       }
 
-      await connection.addIceCandidate(payloadToIceCandidate(payload));
+      await connection
+        .addIceCandidate(payloadToIceCandidate(payload))
+        .catch(() => undefined);
     },
     [ensureConnection]
   );
@@ -265,7 +353,57 @@ export function usePeerConnections(localStream: MediaStream | null) {
         requestNegotiation(peerId);
       });
     });
-  }, [localStream, requestNegotiation]);
+  }, [localStream, peers, requestNegotiation]);
+
+  useEffect(() => {
+    const latestTurnServers = getCurrentTurnServers();
+
+    if (!latestTurnServers?.length) {
+      return;
+    }
+
+    connections.current.forEach((connection, peerId) => {
+      if (!isConnectionUsable(connection)) {
+        return;
+      }
+
+      safelySetIceServers(connection, buildIceServers(latestTurnServers));
+      safelyRestartIce(connection);
+      requestNegotiation(peerId);
+    });
+  }, [getCurrentTurnServers, requestNegotiation]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const now = Date.now();
+
+      Object.entries(peers).forEach(([peerId, peer]) => {
+        const stream = remoteStreams[peerId];
+        const expectsAudio =
+          peer.media.audioEnabled && peer.media.audioStatus !== "off";
+        const expectsVideo =
+          (peer.media.videoEnabled && peer.media.videoStatus !== "off") ||
+          (peer.media.screenSharing && peer.media.screenShareStatus !== "off");
+        const missingExpectedAudio = expectsAudio && !hasLiveTrack(stream, "audio");
+        const missingExpectedVideo = expectsVideo && !hasLiveTrack(stream, "video");
+
+        if (!missingExpectedAudio && !missingExpectedVideo) {
+          return;
+        }
+
+        const lastRecoveryAt = lastMediaRecoveryAt.current.get(peerId) ?? 0;
+        if (now - lastRecoveryAt < MEDIA_RECOVERY_COOLDOWN_MS) {
+          return;
+        }
+
+        lastMediaRecoveryAt.current.set(peerId, now);
+        ensureConnection(peerId);
+        recoverConnection(peerId, 0);
+      });
+    }, MEDIA_WATCHDOG_INTERVAL_MS);
+
+    return () => window.clearInterval(timer);
+  }, [ensureConnection, peers, recoverConnection, remoteStreams]);
 
   useEffect(() => {
     const peerIds = new Set(Object.keys(peers));
@@ -282,6 +420,12 @@ export function usePeerConnections(localStream: MediaStream | null) {
       makingOfferPeerIds.current.delete(peerId);
       offeredPeerIds.current.delete(peerId);
       pendingNegotiationPeerIds.current.delete(peerId);
+      const recoveryTimer = iceRecoveryTimers.current.get(peerId);
+      if (recoveryTimer) {
+        window.clearTimeout(recoveryTimer);
+      }
+      iceRecoveryTimers.current.delete(peerId);
+      lastMediaRecoveryAt.current.delete(peerId);
       remoteStreamRefs.current.delete(peerId);
       setRemoteStreams((current) => {
         const { [peerId]: _removed, ...next } = current;
@@ -299,7 +443,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
         }
 
         const connection = ensureConnection(message.from);
-        if (!isConnectionUsable(connection)) {
+        if (!connection || !isConnectionUsable(connection)) {
           return;
         }
         const offerCollision =
@@ -336,6 +480,7 @@ export function usePeerConnections(localStream: MediaStream | null) {
         if (message.from) {
           const connection = ensureConnection(message.from);
           if (
+            !connection ||
             !isConnectionUsable(connection) ||
             connection.signalingState === "stable"
           ) {
@@ -368,6 +513,9 @@ export function usePeerConnections(localStream: MediaStream | null) {
   useEffect(
     () => () => {
       connections.current.forEach(closePeerConnection);
+      iceRecoveryTimers.current.forEach((timer) => window.clearTimeout(timer));
+      iceRecoveryTimers.current.clear();
+      lastMediaRecoveryAt.current.clear();
       connections.current.forEach((_connection, peerId) =>
         dataChannelRegistry.unregister(peerId)
       );

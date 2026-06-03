@@ -25,9 +25,13 @@ REQUIRED_KEYS = {
     "PUBLIC_IP_DISCOVERY_URLS",
     "TURN_PORT",
     "TURN_HOST_PORT",
+    "TURN_RELAY_PORT_MIN",
+    "TURN_RELAY_PORT_MAX",
+    "TURN_REALM",
     "TURN_SECRET",
     "DB_PATH",
     "SFU_FALLBACK_THRESHOLD_KBPS",
+    "SFU_AUTO_PEER_THRESHOLD",
     "ALLOWED_ORIGINS",
     "ACCESS_TOKEN_TTL_MINUTES",
     "REFRESH_TOKEN_TTL_DAYS",
@@ -56,6 +60,8 @@ PRODUCTION_KEYS = {
     "DOCKER_IMAGE_TAG",
     "BACKEND_CONTAINER_NAME",
     "FRONTEND_CONTAINER_NAME",
+    "COTURN_CONTAINER_NAME",
+    "COTURN_IMAGE",
     "DOCKER_INTERNAL_NETWORK",
     "DOCKER_PROXY_NETWORK",
 }
@@ -65,7 +71,10 @@ INTEGER_KEYS = {
     "BACKEND_HOST_PORT",
     "TURN_PORT",
     "TURN_HOST_PORT",
+    "TURN_RELAY_PORT_MIN",
+    "TURN_RELAY_PORT_MAX",
     "SFU_FALLBACK_THRESHOLD_KBPS",
+    "SFU_AUTO_PEER_THRESHOLD",
     "ACCESS_TOKEN_TTL_MINUTES",
     "REFRESH_TOKEN_TTL_DAYS",
     "RATE_LIMIT_RPS",
@@ -159,7 +168,7 @@ def validate_values(
         except ValueError:
             add_issue(issues, f"{key} must be an integer")
             continue
-        if number < 1 or number > 65535 and "PORT" in key:
+        if "PORT" in key and (number < 1 or number > 65535):
             add_issue(issues, f"{key} is outside a valid port range")
 
     if values.get("DEFAULT_APP_MODE") not in {"public", "private"}:
@@ -182,6 +191,10 @@ def validate_values(
             )
         if (udp_max - udp_min) != (host_max - host_min):
             add_issue(issues, "internal and host WebRTC UDP ranges must be same size")
+        turn_relay_min = int(values.get("TURN_RELAY_PORT_MIN", "0"))
+        turn_relay_max = int(values.get("TURN_RELAY_PORT_MAX", "0"))
+        if turn_relay_min > turn_relay_max:
+            add_issue(issues, "TURN_RELAY_PORT_MIN must be <= TURN_RELAY_PORT_MAX")
     except ValueError:
         pass
 

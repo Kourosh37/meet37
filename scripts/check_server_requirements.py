@@ -13,10 +13,49 @@ import subprocess
 import sys
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+def find_project_root() -> Path:
+    script_dir = Path(__file__).resolve().parent
+    for candidate in [script_dir, script_dir.parent]:
+        if (candidate / "docker-compose.yml").exists() or (candidate / ".env").exists():
+            return candidate
+    return script_dir.parent
+
+
+ROOT = find_project_root()
 DEFAULT_ENV_FILE = ROOT / ".env"
 DEFAULT_ENV_EXAMPLE = ROOT / ".env.example"
 DEFAULT_COMPOSE_FILE = ROOT / "docker-compose.yml"
+
+BUILTIN_DEFAULTS = {
+    "PORT": "8080",
+    "BACKEND_HOST_PORT": "8080",
+    "BACKEND_HEALTHCHECK_URL": "http://localhost:8080/health",
+    "FRONTEND_PORT": "3000",
+    "FRONTEND_HOST_PORT": "3000",
+    "FRONTEND_HEALTHCHECK_URL": "http://127.0.0.1:3000/",
+    "TURN_PORT": "3478",
+    "TURN_HOST_PORT": "3478",
+    "TURN_RELAY_PORT_MIN": "43000",
+    "TURN_RELAY_PORT_MAX": "43100",
+    "TURN_REALM": "localhost",
+    "WEBRTC_UDP_PORT_MIN": "40000",
+    "WEBRTC_UDP_PORT_MAX": "40100",
+    "WEBRTC_UDP_HOST_PORT_MIN": "40000",
+    "WEBRTC_UDP_HOST_PORT_MAX": "40100",
+    "NEXT_PUBLIC_API_BASE_URL": "browser-origin",
+    "NEXT_PUBLIC_WS_URL": "browser-origin",
+    "NEXT_PUBLIC_TURN_PUBLIC_IP": "127.0.0.1",
+    "BACKEND_INTERNAL_URL": "http://backend:8080",
+    "COTURN_CONTAINER_NAME": "meet37-coturn",
+    "COTURN_IMAGE": "coturn/coturn:latest",
+    "PUBLIC_IP_DISCOVERY_URLS": "https://ifconfig.me,https://icanhazip.com,https://api.ipify.org",
+    "DB_PATH": "/data/meet.db",
+    "ENV": "production",
+    "SFU_AUTO_PEER_THRESHOLD": "2",
+    "ALLOWED_ORIGINS": "http://localhost:3000,http://127.0.0.1:3000",
+    "DEFAULT_APP_MODE": "public",
+    "ADMIN_USERNAME": "admin",
+}
 
 
 def run(command: list[str], *, check: bool = True) -> subprocess.CompletedProcess[str]:
@@ -193,6 +232,7 @@ def generated_secret() -> str:
 def ensure_required_env(
     values: dict[str, str], defaults: dict[str, str], args: argparse.Namespace
 ) -> None:
+    defaults = {**BUILTIN_DEFAULTS, **defaults}
     for key in [
         "PORT",
         "BACKEND_HOST_PORT",
@@ -202,6 +242,9 @@ def ensure_required_env(
         "FRONTEND_HEALTHCHECK_URL",
         "TURN_PORT",
         "TURN_HOST_PORT",
+        "TURN_RELAY_PORT_MIN",
+        "TURN_RELAY_PORT_MAX",
+        "TURN_REALM",
         "WEBRTC_UDP_PORT_MIN",
         "WEBRTC_UDP_PORT_MAX",
         "WEBRTC_UDP_HOST_PORT_MIN",
@@ -210,9 +253,15 @@ def ensure_required_env(
         "NEXT_PUBLIC_WS_URL",
         "NEXT_PUBLIC_TURN_PUBLIC_IP",
         "BACKEND_INTERNAL_URL",
+        "COTURN_CONTAINER_NAME",
+        "COTURN_IMAGE",
         "PUBLIC_IP_DISCOVERY_URLS",
         "DB_PATH",
         "ENV",
+        "SFU_AUTO_PEER_THRESHOLD",
+        "ALLOWED_ORIGINS",
+        "DEFAULT_APP_MODE",
+        "ADMIN_USERNAME",
     ]:
         if not values.get(key) and defaults.get(key):
             values[key] = defaults[key]
@@ -250,6 +299,25 @@ def ensure_required_env(
 def fix_ports(values: dict[str, str], allowed_container_names: set[str]) -> list[str]:
     changes: list[str] = []
 
+    missing = [
+        key
+        for key in [
+            "FRONTEND_HOST_PORT",
+            "BACKEND_HOST_PORT",
+            "TURN_HOST_PORT",
+            "TURN_RELAY_PORT_MIN",
+            "TURN_RELAY_PORT_MAX",
+            "WEBRTC_UDP_HOST_PORT_MIN",
+            "WEBRTC_UDP_HOST_PORT_MAX",
+        ]
+        if not values.get(key)
+    ]
+    if missing:
+        raise RuntimeError(
+            "missing required environment values after defaults were applied: "
+            + ", ".join(missing)
+        )
+
     frontend = int(values["FRONTEND_HOST_PORT"])
     next_frontend = find_available_port(
         frontend, allowed_container_names=allowed_container_names
@@ -279,6 +347,20 @@ def fix_ports(values: dict[str, str], allowed_container_names: set[str]) -> list
         values["TURN_HOST_PORT"] = str(next_turn)
         values["TURN_PORT"] = str(next_turn)
         changes.append(f"TURN_PORT/TURN_HOST_PORT {turn} -> {next_turn}")
+
+    relay_min = int(values["TURN_RELAY_PORT_MIN"])
+    relay_max = int(values["TURN_RELAY_PORT_MAX"])
+    if not range_is_available(
+        relay_min, relay_max, allowed_container_names=allowed_container_names
+    ):
+        next_min, next_max = find_available_udp_range(
+            relay_min, relay_max, allowed_container_names=allowed_container_names
+        )
+        values["TURN_RELAY_PORT_MIN"] = str(next_min)
+        values["TURN_RELAY_PORT_MAX"] = str(next_max)
+        changes.append(
+            f"TURN relay UDP range {relay_min}-{relay_max} -> {next_min}-{next_max}"
+        )
 
     udp_min = int(values["WEBRTC_UDP_HOST_PORT_MIN"])
     udp_max = int(values["WEBRTC_UDP_HOST_PORT_MAX"])
@@ -350,6 +432,7 @@ def fix_firewall(values: dict[str, str], include_frontend: bool) -> None:
         ufw_allow(f"{values['FRONTEND_HOST_PORT']}/tcp")
     ufw_allow(f"{values['TURN_HOST_PORT']}/tcp")
     ufw_allow(f"{values['TURN_HOST_PORT']}/udp")
+    ufw_allow(f"{values['TURN_RELAY_PORT_MIN']}:{values['TURN_RELAY_PORT_MAX']}/udp")
     ufw_allow(
         f"{values['WEBRTC_UDP_HOST_PORT_MIN']}:{values['WEBRTC_UDP_HOST_PORT_MAX']}/udp"
     )

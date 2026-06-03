@@ -4,11 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import type { ConnectionQuality } from "@/features/meeting/types/peer";
 import type { StatsPayload } from "@/features/meeting/types/signaling";
 import { WebRTCStatsCollector } from "@/lib/webrtc/statsCollector";
+import { applyConnectionVideoQuality } from "@/lib/webrtc/videoQuality";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 const STATS_INTERVAL_MS = 5_000;
 
-function qualityFromStats(stats: StatsPayload): ConnectionQuality {
+type MeasuredConnectionQuality = Exclude<ConnectionQuality, "unknown">;
+
+function qualityFromStats(stats: StatsPayload): MeasuredConnectionQuality {
   if (stats.packet_loss_pct >= 6 || stats.rtt_ms >= 350) {
     return "poor";
   }
@@ -35,7 +38,9 @@ export function useQualityStats(connections: Map<string, RTCPeerConnection>) {
         .collect(connections.values())
         .then((stats) => {
           if (stats) {
-            setQuality(qualityFromStats(stats));
+            const nextQuality = qualityFromStats(stats);
+            setQuality(nextQuality);
+            void applyConnectionVideoQuality(connections.values(), nextQuality);
             webSocketManager.send({ payload: stats, type: "stats" });
           }
         })

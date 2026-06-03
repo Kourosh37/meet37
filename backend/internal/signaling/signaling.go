@@ -337,6 +337,7 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 	go h.logEvent(req.RoomID, p.userID, "join")
 	p.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": p.id, "peers": h.getPeerList(req.RoomID, p.id), "mode": p.mode, "is_host": p.isHost, "turn_servers": h.sfuMgr.GetTURNCredentials(p.id)}})
 	h.broadcast(req.RoomID, models.SignalMessage{Type: "peer-joined", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName, "is_host": p.isHost}}, p.id)
+	h.maybeTriggerRoomSFU(req.RoomID)
 }
 
 func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
@@ -384,6 +385,7 @@ func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
 	go h.logEvent(host.roomID, peer.userID, "join")
 	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(host.roomID, peer.id), "mode": peer.mode, "is_host": false, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
 	h.broadcast(host.roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false}}, peer.id)
+	h.maybeTriggerRoomSFU(host.roomID)
 }
 
 func (h *Hub) handleRejectPeer(host *Peer, msg models.SignalMessage) {
@@ -535,6 +537,35 @@ func (h *Hub) triggerSFUFallback(p *Peer) {
 
 	p.sendMsg(models.SignalMessage{Type: "sfu-switch", Payload: map[string]interface{}{"session_id": session.ID, "turn_servers": h.sfuMgr.GetTURNCredentials(p.id)}})
 	h.broadcast(p.roomID, models.SignalMessage{Type: "peer-mode-changed", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "mode": "sfu"}}, p.id)
+}
+
+func (h *Hub) maybeTriggerRoomSFU(roomID string) {
+	threshold := h.cfg.SFUAutoPeerThreshold
+	if threshold <= 0 {
+		return
+	}
+
+	h.mu.RLock()
+	room := h.rooms[roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+
+	room.mu.RLock()
+	if len(room.peers) < threshold {
+		room.mu.RUnlock()
+		return
+	}
+	peers := make([]*Peer, 0, len(room.peers))
+	for _, peer := range room.peers {
+		peers = append(peers, peer)
+	}
+	room.mu.RUnlock()
+
+	for _, peer := range peers {
+		h.triggerSFUFallback(peer)
+	}
 }
 
 func (h *Hub) relay(from *Peer, msg models.SignalMessage) {

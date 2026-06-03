@@ -83,6 +83,8 @@ Example:
 - `sfu-offer`
 - `sfu-ice-candidate`
 
+The client sends SFU offers after receiving `sfu-switch` or after a local media track changes while an SFU session is active.
+
 ### Participant State
 
 Broadcast to other peers:
@@ -223,6 +225,35 @@ Host-only:
 - `peer-mode-changed`
 
 Internal peer mode messages are operational state. Normal UI should not show P2P/SFU labels to users.
+
+`sfu-switch` includes:
+
+```json
+{
+  "type": "sfu-switch",
+  "payload": {
+    "session_id": "...",
+    "turn_servers": []
+  }
+}
+```
+
+`sfu-renegotiate-needed` maps a relayed SFU track back to the original peer:
+
+```json
+{
+  "type": "sfu-renegotiate-needed",
+  "payload": {
+    "session_id": "...",
+    "track_id": "...",
+    "stream_id": "...",
+    "owner_id": "...",
+    "mime_type": "video/vp8"
+  }
+}
+```
+
+The client should tolerate tracks arriving before this owner mapping. In that case, keep the track pending and publish it to the tile when `owner_id` is known.
 
 ### Chat And File
 

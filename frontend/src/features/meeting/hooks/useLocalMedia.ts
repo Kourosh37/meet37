@@ -8,6 +8,12 @@ import {
   buildAudioConstraints
 } from "@/lib/webrtc/audioQuality";
 import { stopMediaStream } from "@/lib/webrtc/PeerConnectionFactory";
+import {
+  applyVideoTrackConstraints,
+  buildCameraConstraints,
+  buildScreenShareConstraints,
+  setVideoContentHint
+} from "@/lib/webrtc/videoQuality";
 
 function isLocalhost(hostname: string) {
   return ["localhost", "127.0.0.1", "::1"].includes(hostname);
@@ -51,6 +57,29 @@ function streamWithoutKind(
   });
 
   return retainedTracks.length ? new MediaStream(retainedTracks) : null;
+}
+
+async function getDisplayMediaWithFallback() {
+  try {
+    return await navigator.mediaDevices.getDisplayMedia({
+      audio: false,
+      video: buildScreenShareConstraints()
+    });
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      !["OverconstrainedError", "TypeError", "ConstraintNotSatisfiedError"].includes(
+        error.name
+      )
+    ) {
+      throw error;
+    }
+
+    return navigator.mediaDevices.getDisplayMedia({
+      audio: false,
+      video: true
+    });
+  }
 }
 
 export function useLocalMedia() {
@@ -133,11 +162,7 @@ export function useLocalMedia() {
         setVideoStatus(shouldUseVideo ? "starting" : "off");
         const nextStream = await navigator.mediaDevices.getUserMedia({
           audio: shouldUseAudio ? buildAudioConstraints(audioDeviceId) : false,
-          video: shouldUseVideo
-            ? {
-                deviceId: videoDeviceId ? { exact: videoDeviceId } : undefined
-              }
-            : false
+          video: shouldUseVideo ? buildCameraConstraints(videoDeviceId) : false
         });
 
         setStream((current) => {
@@ -153,8 +178,14 @@ export function useLocalMedia() {
           track.enabled = shouldUseAudio;
         });
         nextStream.getVideoTracks().forEach((track) => {
+          setVideoContentHint(track, "motion");
           track.enabled = shouldUseVideo;
         });
+        await Promise.all(
+          nextStream
+            .getVideoTracks()
+            .map((track) => applyVideoTrackConstraints(track))
+        );
         setAudioStatus(
           shouldUseAudio && nextStream.getAudioTracks().length ? "ready" : "off"
         );
@@ -301,12 +332,7 @@ export function useLocalMedia() {
 
     try {
       setScreenShareStatus("starting");
-      const displayStream = await navigator.mediaDevices.getDisplayMedia({
-        audio: false,
-        video: {
-          displaySurface: "monitor"
-        } as MediaTrackConstraints
-      });
+      const displayStream = await getDisplayMediaWithFallback();
       const screenTrack = displayStream.getVideoTracks()[0];
 
       if (!screenTrack) {
@@ -318,6 +344,8 @@ export function useLocalMedia() {
 
       screenTrackRef.current?.stop();
       screenTrackRef.current = screenTrack;
+      setVideoContentHint(screenTrack, "detail");
+      await applyVideoTrackConstraints(screenTrack, true);
       screenTrack.onended = () => {
         void stopScreenShare();
       };

@@ -25,12 +25,17 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
       type: "message" as const,
       value: message
     })),
-    ...files.transfers.map((transfer) => ({
-      id: transfer.fileId,
-      timestamp: transfer.createdAt,
-      type: "file" as const,
-      value: transfer
-    }))
+    ...files.transfers
+      .filter(
+        (transfer) =>
+          !(transfer.direction === "outgoing" && transfer.targetPeerId)
+      )
+      .map((transfer) => ({
+        id: transfer.fileId,
+        timestamp: transfer.createdAt,
+        type: "file" as const,
+        value: transfer
+      }))
   ].sort((left, right) => left.timestamp - right.timestamp);
 
   if (!isOpen) {

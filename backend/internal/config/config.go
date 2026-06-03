@@ -26,6 +26,7 @@ type Config struct {
 	MaxBodyBytes             int64
 	SFURecordingEnabled      bool
 	SFURecordingPath         string
+	SFUAutoPeerThreshold     int
 	WebRTCUDPPortMin         int
 	WebRTCUDPPortMax         int
 	RedisURL                 string
@@ -53,6 +54,7 @@ func Load() *Config {
 		MaxBodyBytes:             int64(getEnvInt("MAX_BODY_BYTES", 1<<20)),
 		SFURecordingEnabled:      getEnvBool("SFU_RECORDING_ENABLED", false),
 		SFURecordingPath:         getEnv("SFU_RECORDING_PATH", "/data/recordings"),
+		SFUAutoPeerThreshold:     getEnvInt("SFU_AUTO_PEER_THRESHOLD", 2),
 		WebRTCUDPPortMin:         getEnvInt("WEBRTC_UDP_PORT_MIN", 40000),
 		WebRTCUDPPortMax:         getEnvInt("WEBRTC_UDP_PORT_MAX", 40100),
 		RedisURL:                 getEnv("REDIS_URL", ""),

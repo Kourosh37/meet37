@@ -47,8 +47,12 @@ This page is the operational reference for meet37 environment variables. The sou
 | `TURN_PUBLIC_IP` | Production | Public IP or host advertised for media/TURN-style credentials. |
 | `TURN_PORT` | Yes | Internal advertised TURN/SFU port. |
 | `TURN_HOST_PORT` | Docker | Host-published TURN/SFU port. |
+| `TURN_RELAY_PORT_MIN` | Docker | Coturn relay UDP port range start. |
+| `TURN_RELAY_PORT_MAX` | Docker | Coturn relay UDP port range end. |
+| `TURN_REALM` | Production | TURN authentication realm, usually the public meeting domain. |
 | `TURN_SECRET` | Yes | Secret for time-limited TURN-style credentials. |
 | `SFU_FALLBACK_THRESHOLD_KBPS` | Yes | Low bitrate threshold for SFU fallback logic. |
+| `SFU_AUTO_PEER_THRESHOLD` | Optional | Participant count at which a room is switched to SFU mode. Use `0` to disable automatic room-wide switching. |
 | `SFU_RECORDING_ENABLED` | Optional | Enables diagnostic RTP recording. |
 | `SFU_RECORDING_PATH` | Optional | Recording output directory. |
 | `WEBRTC_UDP_PORT_MIN` | Yes | Internal UDP media port range start. |
@@ -85,6 +89,8 @@ This page is the operational reference for meet37 environment variables. The sou
 | `DOCKER_IMAGE_OUTPUT_DIR` | Image script | Directory for exported image archives. |
 | `BACKEND_CONTAINER_NAME` | Prod compose | Backend container name. |
 | `FRONTEND_CONTAINER_NAME` | Prod compose | Frontend container name. |
+| `COTURN_CONTAINER_NAME` | Prod compose | Coturn container name. |
+| `COTURN_IMAGE` | Prod compose | Coturn image reference. |
 | `DOCKER_INTERNAL_NETWORK` | Prod compose | Private app network. |
 | `DOCKER_PROXY_NETWORK` | Prod compose | External reverse-proxy network. |
 
@@ -100,6 +106,10 @@ TURN_PUBLIC_IP=203.0.113.10
 NEXT_PUBLIC_TURN_PUBLIC_IP=203.0.113.10
 TURN_PORT=3478
 TURN_HOST_PORT=3478
+TURN_RELAY_PORT_MIN=43000
+TURN_RELAY_PORT_MAX=43100
+TURN_REALM=meet.example.com
+SFU_AUTO_PEER_THRESHOLD=2
 WEBRTC_UDP_PORT_MIN=40000
 WEBRTC_UDP_PORT_MAX=40100
 WEBRTC_UDP_HOST_PORT_MIN=40000

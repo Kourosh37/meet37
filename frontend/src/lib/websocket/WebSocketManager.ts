@@ -28,6 +28,19 @@ export class WebSocketManager {
 
   connect() {
     this.manuallyClosed = false;
+
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    if (
+      this.socket?.readyState === WebSocket.OPEN ||
+      this.socket?.readyState === WebSocket.CONNECTING
+    ) {
+      return;
+    }
+
     this.setStatus(this.socket ? "reconnecting" : "connecting");
 
     const url = new URL(publicEnv.NEXT_PUBLIC_WS_URL);

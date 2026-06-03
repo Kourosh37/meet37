@@ -52,7 +52,11 @@ export class SFUClient {
             return;
           }
 
-          this.connection.restartIce();
+          try {
+            this.connection.restartIce();
+          } catch {
+            return;
+          }
           void this.createOffer().then((offer) => {
             if (offer) {
               this.options.onOffer?.(offer);
@@ -73,7 +77,7 @@ export class SFUClient {
 
   async createOffer() {
     if (!this.connection) {
-      throw new Error("SFU connection is not initialized");
+      return null;
     }
 
     if (this.makingOffer || this.connection.signalingState !== "stable") {
@@ -112,7 +116,9 @@ export class SFUClient {
       return;
     }
 
-    await this.connection.addIceCandidate(payloadToIceCandidate(payload));
+    await this.connection
+      .addIceCandidate(payloadToIceCandidate(payload))
+      .catch(() => undefined);
   }
 
   async syncLocalStream(localStream: MediaStream | null) {
@@ -132,7 +138,9 @@ export class SFUClient {
     const pending = [...this.pendingIceCandidates];
     this.pendingIceCandidates = [];
     for (const payload of pending) {
-      await this.connection.addIceCandidate(payloadToIceCandidate(payload));
+      await this.connection
+        .addIceCandidate(payloadToIceCandidate(payload))
+        .catch(() => undefined);
     }
   }
 

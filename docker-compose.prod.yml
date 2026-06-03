@@ -5,8 +5,6 @@ services:
     env_file:
       - ./.env
     ports:
-      - "${TURN_HOST_PORT:?TURN_HOST_PORT is required}:${TURN_PORT:?TURN_PORT is required}/udp"
-      - "${TURN_HOST_PORT:?TURN_HOST_PORT is required}:${TURN_PORT:?TURN_PORT is required}/tcp"
       - "${WEBRTC_UDP_HOST_PORT_MIN:?WEBRTC_UDP_HOST_PORT_MIN is required}-${WEBRTC_UDP_HOST_PORT_MAX:?WEBRTC_UDP_HOST_PORT_MAX is required}:${WEBRTC_UDP_PORT_MIN:?WEBRTC_UDP_PORT_MIN is required}-${WEBRTC_UDP_PORT_MAX:?WEBRTC_UDP_PORT_MAX is required}/udp"
     volumes:
       - ./data/backend:/data
@@ -15,6 +13,31 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+    networks:
+      - internal
+    restart: unless-stopped
+
+  coturn:
+    image: "${COTURN_IMAGE:?COTURN_IMAGE is required}"
+    container_name: "${COTURN_CONTAINER_NAME:?COTURN_CONTAINER_NAME is required}"
+    command:
+      - -n
+      - --log-file=stdout
+      - --listening-port=${TURN_PORT:?TURN_PORT is required}
+      - --realm=${TURN_REALM:?TURN_REALM is required}
+      - --external-ip=${TURN_PUBLIC_IP:?TURN_PUBLIC_IP is required}
+      - --use-auth-secret
+      - --static-auth-secret=${TURN_SECRET:?TURN_SECRET is required}
+      - --min-port=${TURN_RELAY_PORT_MIN:?TURN_RELAY_PORT_MIN is required}
+      - --max-port=${TURN_RELAY_PORT_MAX:?TURN_RELAY_PORT_MAX is required}
+      - --fingerprint
+      - --no-cli
+      - --no-tls
+      - --no-dtls
+    ports:
+      - "${TURN_HOST_PORT:?TURN_HOST_PORT is required}:${TURN_PORT:?TURN_PORT is required}/udp"
+      - "${TURN_HOST_PORT:?TURN_HOST_PORT is required}:${TURN_PORT:?TURN_PORT is required}/tcp"
+      - "${TURN_RELAY_PORT_MIN:?TURN_RELAY_PORT_MIN is required}-${TURN_RELAY_PORT_MAX:?TURN_RELAY_PORT_MAX is required}:${TURN_RELAY_PORT_MIN:?TURN_RELAY_PORT_MIN is required}-${TURN_RELAY_PORT_MAX:?TURN_RELAY_PORT_MAX is required}/udp"
     networks:
       - internal
     restart: unless-stopped

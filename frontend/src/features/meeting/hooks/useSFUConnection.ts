@@ -7,6 +7,9 @@ import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 export function useSFUConnection(localStream: MediaStream | null) {
   const clientRef = useRef<SFUClient | null>(null);
   const remoteStreamRefs = useRef(new Map<string, MediaStream>());
+  const pendingTracksRef = useRef(
+    new Map<string, { stream: MediaStream; track: MediaStreamTrack }>()
+  );
   const streamOwnersRef = useRef(new Map<string, string>());
   const trackOwnersRef = useRef(new Map<string, string>());
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -15,6 +18,45 @@ export function useSFUConnection(localStream: MediaStream | null) {
   >({});
 
   useEffect(() => {
+    const publishOwnerTrack = (
+      ownerId: string,
+      track: MediaStreamTrack,
+      stream?: MediaStream
+    ) => {
+      const ownerStream =
+        remoteStreamRefs.current.get(ownerId) ?? stream ?? new MediaStream();
+
+      if (!remoteStreamRefs.current.has(ownerId)) {
+        remoteStreamRefs.current.set(ownerId, ownerStream);
+      }
+
+      if (!ownerStream.getTracks().some((existing) => existing.id === track.id)) {
+        ownerStream.addTrack(track);
+      }
+
+      const publish = () => {
+        setRemoteStreams((current) => ({
+          ...current,
+          [ownerId]: new MediaStream(ownerStream.getTracks())
+        }));
+      };
+
+      track.addEventListener("ended", publish);
+      track.addEventListener("mute", publish);
+      track.addEventListener("unmute", publish);
+      publish();
+    };
+
+    const publishPendingOwnerTracks = (ownerId: string, trackId: string) => {
+      const pending = pendingTracksRef.current.get(trackId);
+      if (!pending) {
+        return;
+      }
+
+      pendingTracksRef.current.delete(trackId);
+      publishOwnerTrack(ownerId, pending.track, pending.stream);
+    };
+
     const getClient = () => {
       if (!clientRef.current) {
         clientRef.current = new SFUClient({
@@ -31,48 +73,15 @@ export function useSFUConnection(localStream: MediaStream | null) {
               (stream ? streamOwnersRef.current.get(stream.id) : undefined);
 
             if (ownerId) {
-              const ownerStream =
-                remoteStreamRefs.current.get(ownerId) ??
-                stream ??
-                new MediaStream();
-
-              if (!remoteStreamRefs.current.has(ownerId)) {
-                remoteStreamRefs.current.set(ownerId, ownerStream);
-              }
-
-              if (
-                !ownerStream
-                  .getTracks()
-                  .some((track) => track.id === event.track.id)
-              ) {
-                ownerStream.addTrack(event.track);
-              }
-
-              const publish = () => {
-                setRemoteStreams((current) => ({
-                  ...current,
-                  [ownerId]: new MediaStream(ownerStream.getTracks())
-                }));
-              };
-
-              event.track.addEventListener("ended", publish);
-              event.track.addEventListener("mute", publish);
-              event.track.addEventListener("unmute", publish);
-              publish();
+              publishOwnerTrack(ownerId, event.track, stream);
               return;
             }
 
             if (stream) {
-              const publish = () => {
-                setRemoteStreams((current) => ({
-                  ...current,
-                  [stream.id]: new MediaStream(stream.getTracks())
-                }));
-              };
-              event.track.addEventListener("ended", publish);
-              event.track.addEventListener("mute", publish);
-              event.track.addEventListener("unmute", publish);
-              publish();
+              pendingTracksRef.current.set(event.track.id, {
+                stream,
+                track: event.track
+              });
             }
           }
         });
@@ -114,6 +123,10 @@ export function useSFUConnection(localStream: MediaStream | null) {
           message.payload.stream_id,
           message.payload.owner_id
         );
+        publishPendingOwnerTracks(
+          message.payload.owner_id,
+          message.payload.track_id
+        );
         const offer = await getClient().createOffer();
         if (offer) {
           webSocketManager.send({ payload: offer, type: "sfu-offer" });
@@ -142,6 +155,7 @@ export function useSFUConnection(localStream: MediaStream | null) {
     () => () => {
       clientRef.current?.close();
       remoteStreamRefs.current.clear();
+      pendingTracksRef.current.clear();
       streamOwnersRef.current.clear();
       trackOwnersRef.current.clear();
     },

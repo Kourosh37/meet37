@@ -48,6 +48,40 @@ func TestHandleStatsTriggersSFUSwitch(t *testing.T) {
 	}
 }
 
+func TestRoomAutoSFUSwitchesAtPeerThreshold(t *testing.T) {
+	hub, _ := testHub(t)
+	hub.cfg.SFUAutoPeerThreshold = 2
+	roomID := "room-1"
+	first := &Peer{id: "peer-1", roomID: roomID, mode: "p2p", send: make(chan []byte, 4), hub: hub}
+	second := &Peer{id: "peer-2", roomID: roomID, mode: "p2p", send: make(chan []byte, 4), hub: hub}
+	hub.rooms[roomID] = &Room{
+		id:      roomID,
+		peers:   map[string]*Peer{first.id: first, second.id: second},
+		pending: map[string]*Peer{},
+	}
+
+	hub.maybeTriggerRoomSFU(roomID)
+
+	for _, peer := range []*Peer{first, second} {
+		deadline := time.After(time.Second)
+		for {
+			select {
+			case raw := <-peer.send:
+				var msg models.SignalMessage
+				if err := json.Unmarshal(raw, &msg); err != nil {
+					t.Fatalf("decode signal: %v", err)
+				}
+				if msg.Type == "sfu-switch" {
+					goto nextPeer
+				}
+			case <-deadline:
+				t.Fatalf("timed out waiting for sfu-switch for %s", peer.id)
+			}
+		}
+	nextPeer:
+	}
+}
+
 func TestHandleMessagePersistsChatAndFileMetadata(t *testing.T) {
 	hub, database := testHub(t)
 	roomID := "room-1"

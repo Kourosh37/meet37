@@ -3,6 +3,7 @@ import type {
   SessionDescriptionPayload
 } from "@/features/meeting/types/signaling";
 import { applyAudioSenderParameters } from "@/lib/webrtc/audioQuality";
+import { applyVideoSenderParameters } from "@/lib/webrtc/videoQuality";
 
 const defaultIceServers: RTCIceServer[] = [
   { urls: ["stun:stun.l.google.com:19302"] }
@@ -18,9 +19,39 @@ export interface PeerConnectionFactoryOptions {
 export function createPeerConnection(
   options: PeerConnectionFactoryOptions = {}
 ) {
-  const connection = new RTCPeerConnection({
-    iceServers: mergeIceServers(options.iceServers)
-  });
+  const iceServers = buildIceServers(options.iceServers);
+  const configs: RTCConfiguration[] = [
+    {
+      bundlePolicy: "max-bundle",
+      iceCandidatePoolSize: 4,
+      iceServers
+    },
+    {
+      bundlePolicy: "max-bundle",
+      iceServers
+    },
+    {
+      iceServers
+    }
+  ];
+  const connection = configs.reduce<RTCPeerConnection | null>(
+    (created, config) => {
+      if (created) {
+        return created;
+      }
+
+      try {
+        return new RTCPeerConnection(config);
+      } catch {
+        return null;
+      }
+    },
+    null
+  );
+
+  if (!connection) {
+    throw new Error("WebRTC peer connections are not supported.");
+  }
 
   connection.onicecandidate = (event) => {
     if (!event.candidate) {
@@ -41,7 +72,7 @@ export function createPeerConnection(
   return connection;
 }
 
-function mergeIceServers(iceServers: RTCIceServer[] | undefined) {
+export function buildIceServers(iceServers: RTCIceServer[] | undefined) {
   if (!iceServers?.length) {
     return defaultIceServers;
   }
@@ -133,7 +164,7 @@ async function attachOrReplaceTrack(
     try {
       enableSenderDirection(connection, reusableSender);
       await reusableSender.replaceTrack(track);
-      await applyAudioSenderParameters(reusableSender);
+      await applySenderParameters(reusableSender);
       return;
     } catch (error) {
       void error;
@@ -142,7 +173,7 @@ async function attachOrReplaceTrack(
 
   try {
     const sender = connection.addTrack(track, stream);
-    await applyAudioSenderParameters(sender);
+    await applySenderParameters(sender);
   } catch (error) {
     void error;
   }
@@ -242,9 +273,9 @@ export async function syncLocalTracks(
     enableSenderDirection(connection, sender);
     if (!track || replacement.id !== track.id) {
       await sender.replaceTrack(replacement);
-      await applyAudioSenderParameters(sender);
+      await applySenderParameters(sender);
     } else {
-      await applyAudioSenderParameters(sender);
+      await applySenderParameters(sender);
     }
   }
 
@@ -256,6 +287,11 @@ export async function syncLocalTracks(
       await attachOrReplaceTrack(connection, stream, track);
     }
   }
+}
+
+async function applySenderParameters(sender: RTCRtpSender) {
+  await applyAudioSenderParameters(sender);
+  await applyVideoSenderParameters(sender);
 }
 
 export function stopMediaStream(stream: MediaStream | null | undefined) {

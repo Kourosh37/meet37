@@ -72,10 +72,13 @@ export function VideoTile({
   const hasAudio = audioTracks.some(
     (track) => track.readyState === "live" && !track.muted
   );
-  const hasVideo = Boolean(
-    videoTracks.some((track) => track.readyState === "live" && !track.muted) &&
-      (videoEnabled || screenSharing)
+  const hasLiveVideoTrack = videoTracks.some(
+    (track) => track.readyState === "live"
   );
+  const hasVideo = Boolean(
+    hasLiveVideoTrack && (videoEnabled || screenSharing)
+  );
+  const shouldRenderVideo = hasLiveVideoTrack && (videoEnabled || screenSharing);
   const trackAspectRatio = useMemo(() => {
     const settings = videoTracks[0]?.getSettings();
     const width = settings?.width;
@@ -129,14 +132,14 @@ export function VideoTile({
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.srcObject = hasVideo ? videoStream : null;
-      if (hasVideo) {
+      videoRef.current.srcObject = shouldRenderVideo ? videoStream : null;
+      if (shouldRenderVideo) {
         void videoRef.current.play().catch(() => undefined);
       } else {
         setVideoAspectRatio(null);
       }
     }
-  }, [hasVideo, videoStream]);
+  }, [shouldRenderVideo, videoStream]);
 
   useEffect(() => {
     const updateTrackState = () => setTrackVersion((version) => version + 1);
@@ -187,23 +190,33 @@ export function VideoTile({
         </span>
       ) : null}
 
-      {hasVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          className={cn(
-            "h-full w-full object-contain",
-            isLocal && !screenSharing && "scale-x-[-1]"
-          )}
-          muted
-          onLoadedMetadata={() => {
-            const video = videoRef.current;
-            if (video?.videoWidth && video.videoHeight) {
-              setVideoAspectRatio(video.videoWidth / video.videoHeight);
-            }
-          }}
-          playsInline
-        />
+      {shouldRenderVideo ? (
+        <>
+          <video
+            ref={videoRef}
+            autoPlay
+            className={cn(
+              "h-full w-full bg-black object-contain",
+              isLocal && !screenSharing && "scale-x-[-1]"
+            )}
+            muted
+            onLoadedMetadata={() => {
+              const video = videoRef.current;
+              if (video?.videoWidth && video.videoHeight) {
+                setVideoAspectRatio(video.videoWidth / video.videoHeight);
+              }
+            }}
+            playsInline
+          />
+          {!hasVideo && loadingLabel ? (
+            <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35 text-white backdrop-blur-[1px]">
+              <div className="flex flex-col items-center gap-3 text-center">
+                <Loader2 className="size-8 animate-spin text-white" />
+                <p className="text-sm font-medium">{loadingLabel}</p>
+              </div>
+            </div>
+          ) : null}
+        </>
       ) : loadingLabel ? (
         <div className="grid place-items-center bg-muted text-muted-foreground">
           <div className="flex flex-col items-center gap-3 text-center">

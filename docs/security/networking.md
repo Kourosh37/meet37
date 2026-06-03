@@ -39,6 +39,7 @@ Media ports must be reachable from browser clients:
 ```text
 TURN_HOST_PORT/TCP
 TURN_HOST_PORT/UDP
+TURN_RELAY_PORT_MIN-TURN_RELAY_PORT_MAX/UDP
 WEBRTC_UDP_HOST_PORT_MIN-WEBRTC_UDP_HOST_PORT_MAX/UDP
 ```
 
@@ -49,6 +50,7 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 3478/tcp
 ufw allow 3478/udp
+ufw allow 43000:43100/udp
 ufw allow 40000:40100/udp
 ufw reload
 ```
@@ -62,7 +64,7 @@ Production compose uses:
 - `DOCKER_INTERNAL_NETWORK`: private network between backend and frontend.
 - `DOCKER_PROXY_NETWORK`: external network shared by frontend and reverse proxy.
 
-The backend should not join the proxy network unless there is a specific operational reason.
+The backend and coturn services should not join the proxy network unless there is a specific operational reason. The frontend joins the proxy network so Caddy can reach it.
 
 ## NAT And VPN
 

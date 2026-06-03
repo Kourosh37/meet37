@@ -73,15 +73,40 @@ Check:
 - Whether WebRTC offer/answer completed.
 - Whether ICE reached connected/completed.
 - Whether UDP media ports are reachable on the server.
+- Whether coturn is running and relay ports are published.
+- Whether SFU switched the room before the browser completed renegotiation.
 
 Server commands:
 
 ```bash
-grep -E 'TURN_PUBLIC_IP|TURN_PORT|WEBRTC_UDP' .env
+grep -E 'TURN_PUBLIC_IP|TURN_PORT|TURN_HOST_PORT|TURN_RELAY_PORT|WEBRTC_UDP|SFU_AUTO_PEER_THRESHOLD' .env
 docker ps
 ufw status verbose || true
-ss -lunpt | grep -E '(:3478|:40000|:40100)' || true
+ss -lunpt | grep -E '(:3478|:43000|:43100|:40000|:40100)' || true
+docker compose logs --tail=120 backend
+docker compose logs --tail=120 coturn
 ```
+
+Use the actual ports from `.env`. If `TURN_PORT=3479`, search for `3479` instead of `3478`.
+
+Validate TURN with generated time-limited credentials:
+
+```bash
+SECRET="$(grep '^TURN_SECRET=' .env | cut -d= -f2-)"
+COTURN_CONTAINER_NAME="$(grep '^COTURN_CONTAINER_NAME=' .env | cut -d= -f2-)"
+TURN_PUBLIC_IP="$(grep '^TURN_PUBLIC_IP=' .env | cut -d= -f2-)"
+TURN_PORT="$(grep '^TURN_PORT=' .env | cut -d= -f2-)"
+USERNAME="$(($(date +%s) + 3600)):test"
+PASSWORD="$(printf '%s' "$USERNAME" | openssl dgst -binary -sha1 -hmac "$SECRET" | openssl base64)"
+docker exec "$COTURN_CONTAINER_NAME" turnutils_uclient \
+  -u "$USERNAME" \
+  -w "$PASSWORD" \
+  -y "$TURN_PUBLIC_IP" \
+  -p "$TURN_PORT" \
+  "$TURN_PUBLIC_IP"
+```
+
+The test must use the generated HMAC password. Passing `TURN_SECRET` directly as the password is invalid and produces `Cannot find credentials of user <test>` in coturn logs.
 
 ## Audio Indicator Moves But No Audio Arrives
 
@@ -108,6 +133,22 @@ Check:
 - Browser console for SCTP/data channel errors.
 
 If media also fails, fix WebRTC connectivity first.
+
+## SFU Switch Causes Media To Drop
+
+Expected behavior:
+
+- The backend can send `sfu-switch` based on stats or `SFU_AUTO_PEER_THRESHOLD`.
+- The frontend should keep P2P media alive while SFU negotiation completes.
+- SFU tracks are published to tiles only after they are mapped to the owning peer.
+
+If media disappears after switching:
+
+- Confirm browser console has no `sfu-offer`, `sfu-answer`, or ICE candidate errors.
+- Confirm coturn is reachable with the generated credential test above.
+- Confirm `SFU_AUTO_PEER_THRESHOLD` is not forcing SFU before deployment media ports are ready.
+- Temporarily set `SFU_AUTO_PEER_THRESHOLD=0` to isolate whether the failure is SFU cutover or basic P2P/ICE connectivity.
+- Restart containers after changing `.env`.
 
 ## File Transfer Stays Transferring
 

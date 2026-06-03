@@ -20,6 +20,7 @@ export async function applyAudioTrackConstraints(track: MediaStreamTrack) {
   await track
     .applyConstraints({
       autoGainControl: true,
+      channelCount: { ideal: 1 },
       echoCancellation: true,
       noiseSuppression: true,
       sampleRate: { ideal: 48000 },
@@ -45,7 +46,7 @@ export async function applyAudioSenderParameters(sender: RTCRtpSender) {
     : [{}];
 
   const encoding = parameters.encodings[0] as AudioEncodingParameters;
-  encoding.maxBitrate = Math.max(encoding.maxBitrate ?? 0, 128_000);
+  encoding.maxBitrate = Math.max(encoding.maxBitrate ?? 0, 96_000);
   encoding.dtx = "disabled";
   encoding.priority = "high";
   encoding.networkPriority = "high";

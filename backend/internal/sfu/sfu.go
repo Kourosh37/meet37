@@ -231,7 +231,7 @@ func (s *Session) ensurePeer(m *Manager, peerID string, onCandidate func(webrtc.
 		}
 	})
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
-		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed || state == webrtc.PeerConnectionStateDisconnected {
+		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
 			s.removePeer(peerID)
 		}
 	})

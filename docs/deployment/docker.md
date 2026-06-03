@@ -12,6 +12,7 @@ meet37 provides two Docker Compose files:
 Services:
 
 - `backend`
+- `coturn`
 - `frontend`
 
 Volumes:
@@ -24,6 +25,7 @@ Published ports:
 - `FRONTEND_HOST_PORT:FRONTEND_PORT`
 - `TURN_HOST_PORT:TURN_PORT/udp`
 - `TURN_HOST_PORT:TURN_PORT/tcp`
+- `TURN_RELAY_PORT_MIN-TURN_RELAY_PORT_MAX/udp`
 - `WEBRTC_UDP_HOST_PORT_MIN-WEBRTC_UDP_HOST_PORT_MAX:WEBRTC_UDP_PORT_MIN-WEBRTC_UDP_PORT_MAX/udp`
 
 Run:
@@ -46,6 +48,7 @@ docker compose --env-file .env config -q
 Services:
 
 - `backend`
+- `coturn`
 - `frontend`
 
 Data:
@@ -91,8 +94,10 @@ gzip -dc dist/meet37-frontend_<tag>.tar.gz | docker load
 ```bash
 docker compose logs -f backend
 docker compose logs -f frontend
+docker compose logs -f coturn
 docker compose -f docker-compose.prod.yml logs -f backend
 docker compose -f docker-compose.prod.yml logs -f frontend
+docker compose -f docker-compose.prod.yml logs -f coturn
 ```
 
 ## Health

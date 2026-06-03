@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Build meet37 Docker images and save them as .tar.gz files.
+"""Build/package meet37 Docker images and save them as .tar.gz files.
 
 Output defaults to:
   dist/
 
-The script only builds and exports images. It does not generate compose files,
-environment files, Caddy snippets, or offline deployment bundles.
+The script builds application images and exports third-party runtime images
+such as coturn for offline deployment. It does not generate compose files,
+environment files, Caddy snippets, or full deployment bundles.
 """
 
 from __future__ import annotations
@@ -71,8 +72,35 @@ def save_image(image: str, output_dir: Path) -> Path:
     tar_path.unlink()
     return gz_path
 
-def build_images(args: argparse.Namespace) -> tuple[str, str]:
-    env = {**parse_env_file(ROOT / ".env.example"), **parse_env_file(ROOT / ".env")}
+def split_csv(value: str) -> list[str]:
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+def ordered_unique(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    output: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        output.append(value)
+    return output
+
+def package_external_images(args: argparse.Namespace, env: dict[str, str]) -> list[str]:
+    images: list[str] = []
+    coturn_image = args.coturn_image or env.get("COTURN_IMAGE", "")
+    if coturn_image and not args.skip_coturn:
+        images.append(coturn_image)
+
+    images.extend(split_csv(env.get("DOCKER_EXTRA_IMAGES", "")))
+    images.extend(args.extra_image)
+    images = ordered_unique(images)
+
+    for image in images:
+        run(["docker", "pull", image])
+
+    return images
+
+def build_images(args: argparse.Namespace, env: dict[str, str]) -> tuple[str, str]:
     version = args.version or env.get("DOCKER_IMAGE_TAG") or get_git_version()
 
     backend_image_name = args.backend_image or env.get("DOCKER_BACKEND_IMAGE")
@@ -131,7 +159,7 @@ def build_images(args: argparse.Namespace) -> tuple[str, str]:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build meet37 Docker images and save .tar.gz archives in dist."
+        description="Build/package meet37 Docker images and save .tar.gz archives."
     )
     parser.add_argument(
         "--output-dir",
@@ -152,6 +180,22 @@ def parse_args() -> argparse.Namespace:
         "--frontend-image",
         default="",
         help="Frontend image repository/name without tag. Defaults to DOCKER_FRONTEND_IMAGE.",
+    )
+    parser.add_argument(
+        "--coturn-image",
+        default="",
+        help="Coturn image reference to pull and archive. Defaults to COTURN_IMAGE.",
+    )
+    parser.add_argument(
+        "--extra-image",
+        action="append",
+        default=[],
+        help="Additional third-party image reference to pull and archive. Can be repeated.",
+    )
+    parser.add_argument(
+        "--skip-coturn",
+        action="store_true",
+        help="Do not pull/archive COTURN_IMAGE.",
     )
     parser.add_argument(
         "--api-base-url",
@@ -189,7 +233,8 @@ def main() -> int:
         raise SystemExit("DOCKER_IMAGE_OUTPUT_DIR is required.")
 
     try:
-        images = build_images(args)
+        images = list(build_images(args, env))
+        images.extend(package_external_images(args, env))
         output_dir = Path(output_dir_value).resolve()
         archives = [save_image(image, output_dir) for image in images]
     except subprocess.CalledProcessError as exc:

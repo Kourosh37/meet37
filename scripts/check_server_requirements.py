@@ -36,18 +36,26 @@ BUILTIN_DEFAULTS = {
     "TURN_PORT": "3478",
     "TURN_HOST_PORT": "3478",
     "TURN_RELAY_PORT_MIN": "43000",
-    "TURN_RELAY_PORT_MAX": "43100",
+    "TURN_RELAY_PORT_MAX": "43500",
     "TURN_REALM": "localhost",
     "WEBRTC_UDP_PORT_MIN": "40000",
-    "WEBRTC_UDP_PORT_MAX": "40100",
+    "WEBRTC_UDP_PORT_MAX": "40500",
     "WEBRTC_UDP_HOST_PORT_MIN": "40000",
-    "WEBRTC_UDP_HOST_PORT_MAX": "40100",
+    "WEBRTC_UDP_HOST_PORT_MAX": "40500",
     "NEXT_PUBLIC_API_BASE_URL": "browser-origin",
     "NEXT_PUBLIC_WS_URL": "browser-origin",
     "NEXT_PUBLIC_TURN_PUBLIC_IP": "127.0.0.1",
     "BACKEND_INTERNAL_URL": "http://backend:8080",
     "COTURN_CONTAINER_NAME": "meet37-coturn",
     "COTURN_IMAGE": "coturn/coturn:latest",
+    "DOCKER_EXTRA_IMAGES": "",
+    "BACKEND_CONTAINER_NAME": "meet37-backend",
+    "FRONTEND_CONTAINER_NAME": "meet37",
+    "DOCKER_BACKEND_IMAGE": "meet37-backend",
+    "DOCKER_FRONTEND_IMAGE": "meet37-frontend",
+    "DOCKER_IMAGE_OUTPUT_DIR": "dist",
+    "DOCKER_INTERNAL_NETWORK": "meet37_internal",
+    "DOCKER_PROXY_NETWORK": "proxy",
     "PUBLIC_IP_DISCOVERY_URLS": "https://ifconfig.me,https://icanhazip.com,https://api.ipify.org",
     "DB_PATH": "/data/meet.db",
     "ENV": "production",
@@ -255,6 +263,14 @@ def ensure_required_env(
         "BACKEND_INTERNAL_URL",
         "COTURN_CONTAINER_NAME",
         "COTURN_IMAGE",
+        "DOCKER_EXTRA_IMAGES",
+        "BACKEND_CONTAINER_NAME",
+        "FRONTEND_CONTAINER_NAME",
+        "DOCKER_BACKEND_IMAGE",
+        "DOCKER_FRONTEND_IMAGE",
+        "DOCKER_IMAGE_OUTPUT_DIR",
+        "DOCKER_INTERNAL_NETWORK",
+        "DOCKER_PROXY_NETWORK",
         "PUBLIC_IP_DISCOVERY_URLS",
         "DB_PATH",
         "ENV",
@@ -421,27 +437,100 @@ def ufw_allow(rule: str) -> None:
     run(["ufw", "allow", rule], check=False)
 
 
-def fix_firewall(values: dict[str, str], include_frontend: bool) -> None:
+def firewalld_is_active() -> bool:
+    if os.name != "posix" or not command_exists("firewall-cmd"):
+        return False
+    result = run(["firewall-cmd", "--state"], check=False)
+    return result.returncode == 0 and result.stdout.strip() == "running"
+
+
+def firewall_rules(
+    values: dict[str, str],
+    include_frontend: bool,
+    include_backend: bool,
+) -> list[tuple[str, str]]:
+    rules = [
+        ("80", "tcp"),
+        ("443", "tcp"),
+        (values["TURN_HOST_PORT"], "tcp"),
+        (values["TURN_HOST_PORT"], "udp"),
+        (f"{values['TURN_RELAY_PORT_MIN']}:{values['TURN_RELAY_PORT_MAX']}", "udp"),
+        (
+            f"{values['WEBRTC_UDP_HOST_PORT_MIN']}:{values['WEBRTC_UDP_HOST_PORT_MAX']}",
+            "udp",
+        ),
+    ]
+    if include_frontend:
+        rules.append((values["FRONTEND_HOST_PORT"], "tcp"))
+    if include_backend:
+        rules.append((values["BACKEND_HOST_PORT"], "tcp"))
+    return rules
+
+
+def fix_ufw_firewall(
+    values: dict[str, str],
+    include_frontend: bool,
+    include_backend: bool,
+) -> bool:
     if not ufw_is_active():
-        print("ufw is not active; firewall rules were not changed")
+        return False
+
+    for port, proto in firewall_rules(values, include_frontend, include_backend):
+        ufw_allow(f"{port}/{proto}")
+    run(["ufw", "reload"], check=False)
+    print("ufw firewall rules are ready")
+    return True
+
+
+def fix_firewalld(
+    values: dict[str, str],
+    include_frontend: bool,
+    include_backend: bool,
+) -> bool:
+    if not firewalld_is_active():
+        return False
+
+    for port, proto in firewall_rules(values, include_frontend, include_backend):
+        firewalld_port = port.replace(":", "-")
+        run(
+            [
+                "firewall-cmd",
+                "--permanent",
+                f"--add-port={firewalld_port}/{proto}",
+            ],
+            check=False,
+        )
+    run(["firewall-cmd", "--reload"], check=False)
+    print("firewalld rules are ready")
+    return True
+
+
+def fix_firewall(
+    values: dict[str, str],
+    include_frontend: bool,
+    include_backend: bool,
+) -> None:
+    if fix_ufw_firewall(values, include_frontend, include_backend):
+        return
+    if fix_firewalld(values, include_frontend, include_backend):
         return
 
-    ufw_allow("80/tcp")
-    ufw_allow("443/tcp")
-    if include_frontend:
-        ufw_allow(f"{values['FRONTEND_HOST_PORT']}/tcp")
-    ufw_allow(f"{values['TURN_HOST_PORT']}/tcp")
-    ufw_allow(f"{values['TURN_HOST_PORT']}/udp")
-    ufw_allow(f"{values['TURN_RELAY_PORT_MIN']}:{values['TURN_RELAY_PORT_MAX']}/udp")
-    ufw_allow(
-        f"{values['WEBRTC_UDP_HOST_PORT_MIN']}:{values['WEBRTC_UDP_HOST_PORT_MAX']}/udp"
-    )
-    run(["ufw", "reload"], check=False)
+    print("no active ufw/firewalld firewall detected; firewall rules were not changed")
 
 
-def validate_compose(compose_file: Path) -> None:
+def validate_compose(compose_file: Path, env_file: Path) -> None:
     compose = docker_compose_command()
-    run([*compose, "-f", str(compose_file), "config", "-q"])
+    run(
+        [
+            *compose,
+            "--env-file",
+            str(env_file),
+            "-f",
+            str(compose_file),
+            "config",
+            "-q",
+        ]
+    )
 
 
 def allowed_container_names(compose_file: Path) -> set[str]:
@@ -460,6 +549,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--public-origin", default="")
     parser.add_argument("--proxy-network", default="")
     parser.add_argument("--include-frontend-port", action="store_true")
+    parser.add_argument("--include-backend-port", action="store_true")
     parser.add_argument("--restart", action="store_true")
     return parser.parse_args()
 
@@ -478,10 +568,11 @@ def main() -> int:
         ensure_docker()
         port_changes = fix_ports(values, allowed_container_names(compose_file))
         write_env_file(env_file, values)
-        if args.proxy_network:
-            ensure_docker_network(args.proxy_network)
-        fix_firewall(values, args.include_frontend_port)
-        validate_compose(compose_file)
+        proxy_network = args.proxy_network or values.get("DOCKER_PROXY_NETWORK", "")
+        if proxy_network:
+            ensure_docker_network(proxy_network)
+        fix_firewall(values, args.include_frontend_port, args.include_backend_port)
+        validate_compose(compose_file, env_file)
 
         if args.restart:
             compose = docker_compose_command()

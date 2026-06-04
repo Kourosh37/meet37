@@ -8,6 +8,10 @@ import { ChatPanel } from "@/features/meeting/components/ChatPanel";
 import { ControlBar } from "@/features/meeting/components/ControlBar";
 import { MeetingHeader } from "@/features/meeting/components/MeetingHeader";
 import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPanel";
+import {
+  ReactionOverlay,
+  type FloatingReaction
+} from "@/features/meeting/components/ReactionOverlay";
 import { RemoteAudioPlayer } from "@/features/meeting/components/RemoteAudioPlayer";
 import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
 import { VideoGrid } from "@/features/meeting/components/VideoGrid";
@@ -54,6 +58,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const [remoteAudioLevels, setRemoteAudioLevels] = useState<
     Record<string, number>
   >({});
+  const [reactions, setReactions] = useState<FloatingReaction[]>([]);
   const peerIds = useMemo(
     () => Object.keys(meeting.peers).sort().join(","),
     [meeting.peers]
@@ -104,8 +109,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       { handler: localMedia.toggleAudio, key: "m" },
       { handler: localMedia.toggleVideo, key: "v" },
       { handler: localMedia.toggleScreenShare, key: "s" },
-      { handler: () => ui.togglePanel("chat"), key: "c" },
-      { handler: () => ui.togglePanel("participants"), key: "p" }
+      { handler: () => ui.togglePanel("chat"), key: "c" }
     ],
     [
       localMedia.toggleAudio,
@@ -305,6 +309,50 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     router.push("/");
   }
 
+  const addReaction = useCallback((emoji: string, name: string) => {
+    const now = Date.now();
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${now}-${Math.random()}`;
+    setReactions((current) => [
+      ...current.slice(-14),
+      {
+        drift: Math.round(Math.random() * 180 - 90),
+        emoji,
+        id,
+        name,
+        rotate: Math.round(Math.random() * 28 - 14),
+        x: Math.round(18 + Math.random() * 64)
+      }
+    ]);
+  }, []);
+
+  const removeReaction = useCallback((id: string) => {
+    setReactions((current) => current.filter((reaction) => reaction.id !== id));
+  }, []);
+
+  const handleReaction = useCallback(
+    (emoji: string) => {
+      addReaction(emoji, displayName);
+      webSocketManager.send({ payload: { emoji }, type: "reaction" });
+    },
+    [addReaction, displayName]
+  );
+
+  useEffect(() => {
+    return webSocketManager.subscribe("reaction", (message) => {
+      if (!message.payload.emoji) {
+        return;
+      }
+      const senderName =
+        message.payload.display_name ??
+        (message.from ? meeting.peers[message.from]?.displayName : undefined) ??
+        "Guest";
+      addReaction(message.payload.emoji, senderName);
+    });
+  }, [addReaction, meeting.peers]);
+
   async function handleCopyInvite() {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -374,6 +422,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         </div>
       </div>
       <RemoteAudioPlayer streams={remoteStreams} />
+      <ReactionOverlay onDone={removeReaction} reactions={reactions} />
 
       <AdmissionModal
         onApprove={moderation.approvePeer}
@@ -402,12 +451,11 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         onCopyInvite={() => void handleCopyInvite()}
         onLeave={handleLeave}
         onOpenSettings={() => ui.openPanel("settings")}
+        onReaction={handleReaction}
         onToggleAudio={localMedia.toggleAudio}
         onToggleChat={() => ui.togglePanel("chat")}
-        onToggleParticipants={() => ui.togglePanel("participants")}
         onToggleScreenShare={localMedia.toggleScreenShare}
         onToggleVideo={localMedia.toggleVideo}
-        participantsOpen={ui.participantsOpen}
         screenSharing={localMedia.screenSharing}
         screenShareSupported={localMedia.screenShareSupported}
         screenShareUnavailableReason={localMedia.screenShareUnavailableReason}

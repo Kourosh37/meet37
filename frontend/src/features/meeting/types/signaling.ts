@@ -119,6 +119,12 @@ export interface AudioLevelPayload {
   level: number;
 }
 
+export interface ReactionPayload {
+  display_name?: string;
+  emoji: string;
+  peer_id?: string;
+}
+
 export interface FileOfferPayload {
   file_id: string;
   name: string;
@@ -174,6 +180,7 @@ export type OutgoingSignalMessage =
   | SignalEnvelope<"sfu-offer", SessionDescriptionPayload>
   | SignalEnvelope<"sfu-ice-candidate", IceCandidatePayload>
   | SignalEnvelope<"chat", ChatPayload>
+  | SignalEnvelope<"reaction", ReactionPayload>
   | SignalEnvelope<"media-state", MediaStatePayload>
   | SignalEnvelope<"audio-level", AudioLevelPayload>
   | SignalEnvelope<"file-offer", FileOfferPayload>
@@ -200,6 +207,7 @@ export type IncomingSignalMessage =
   | SignalEnvelope<"sfu-renegotiate-needed", SfuRenegotiateNeededPayload>
   | SignalEnvelope<"peer-mode-changed", PeerModeChangedPayload>
   | SignalEnvelope<"chat", ChatPayload>
+  | SignalEnvelope<"reaction", ReactionPayload>
   | SignalEnvelope<"media-state", MediaStatePayload>
   | SignalEnvelope<"audio-level", AudioLevelPayload>
   | SignalEnvelope<"file-offer", FileOfferPayload>

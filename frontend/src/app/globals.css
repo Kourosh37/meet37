@@ -87,6 +87,53 @@ textarea:disabled {
   background: rgb(var(--primary) / 0.22);
 }
 
+.meet-reaction-float {
+  animation: meet-reaction-float 3.2s ease-out forwards;
+  transform: translateX(-50%);
+}
+
+.meet-reaction-sway {
+  animation: meet-reaction-sway 1.05s ease-in-out infinite alternate;
+}
+
+@keyframes meet-reaction-float {
+  0% {
+    opacity: 0;
+    transform: translate3d(-50%, 28px, 0) scale(0.86)
+      rotate(calc(var(--meet-reaction-rotate) * -0.35));
+  }
+  12% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+    transform: translate3d(
+        calc(-50% + (var(--meet-reaction-drift) * 0.45)),
+        -42vh,
+        0
+      )
+      scale(1) rotate(var(--meet-reaction-rotate));
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(
+        calc(-50% + var(--meet-reaction-drift)),
+        -68vh,
+        0
+      )
+      scale(1.08) rotate(calc(var(--meet-reaction-rotate) * 1.4));
+  }
+}
+
+@keyframes meet-reaction-sway {
+  from {
+    transform: translateX(-10px);
+  }
+  to {
+    transform: translateX(10px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

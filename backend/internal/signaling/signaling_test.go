@@ -115,3 +115,43 @@ func TestHandleMessagePersistsChatAndFileMetadata(t *testing.T) {
 		t.Fatalf("expected one rejected transfer row, got %d", rejectedCount)
 	}
 }
+
+func TestHandleMessageBroadcastsReactionWithDisplayName(t *testing.T) {
+	hub, _ := testHub(t)
+	roomID := "room-1"
+	sender := &Peer{id: "peer-1", roomID: roomID, displayName: "Alice", send: make(chan []byte, 4), hub: hub}
+	receiver := &Peer{id: "peer-2", roomID: roomID, displayName: "Bob", send: make(chan []byte, 4), hub: hub}
+	hub.rooms[roomID] = &Room{
+		id:      roomID,
+		peers:   map[string]*Peer{sender.id: sender, receiver.id: receiver},
+		pending: map[string]*Peer{},
+	}
+
+	hub.handleMessage(sender, []byte(`{"type":"reaction","payload":{"emoji":"👏"}}`))
+
+	select {
+	case raw := <-receiver.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode signal: %v", err)
+		}
+		if msg.Type != "reaction" || msg.From != sender.id {
+			t.Fatalf("unexpected signal: %#v", msg)
+		}
+		payload, ok := msg.Payload.(map[string]interface{})
+		if !ok {
+			t.Fatalf("unexpected payload type: %#v", msg.Payload)
+		}
+		if payload["emoji"] != "👏" || payload["display_name"] != "Alice" || payload["peer_id"] != sender.id {
+			t.Fatalf("unexpected reaction payload: %#v", payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for reaction")
+	}
+
+	select {
+	case raw := <-sender.send:
+		t.Fatalf("sender should not receive own broadcast: %s", string(raw))
+	default:
+	}
+}

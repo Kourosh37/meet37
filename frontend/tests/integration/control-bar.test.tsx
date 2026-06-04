@@ -9,12 +9,11 @@ function renderControlBar(overrides = {}) {
       onCopyInvite={vi.fn()}
       onLeave={vi.fn()}
       onOpenSettings={vi.fn()}
+      onReaction={vi.fn()}
       onToggleAudio={vi.fn()}
       onToggleChat={vi.fn()}
-      onToggleParticipants={vi.fn()}
       onToggleScreenShare={vi.fn()}
       onToggleVideo={vi.fn()}
-      participantsOpen={false}
       screenSharing={false}
       videoEnabled
       {...overrides}
@@ -39,5 +38,15 @@ describe("ControlBar", () => {
 
     fireEvent.click(button);
     expect(onToggleScreenShare).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens the reaction picker and sends the selected emoji", () => {
+    const onReaction = vi.fn();
+    renderControlBar({ onReaction });
+
+    fireEvent.click(screen.getByRole("button", { name: "Send reaction" }));
+    fireEvent.click(screen.getByRole("button", { name: "Send 👏 reaction" }));
+
+    expect(onReaction).toHaveBeenCalledWith("👏");
   });
 });

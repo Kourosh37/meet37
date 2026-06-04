@@ -186,6 +186,8 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.relay(p, msg)
 	case "media-state", "audio-level":
 		h.broadcast(p.roomID, msg, p.id)
+	case "reaction":
+		h.handleReaction(p, msg)
 	case "chat":
 		h.broadcast(p.roomID, msg, p.id)
 		h.persistChat(p, msg)
@@ -212,6 +214,31 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 	default:
 		p.sendMsg(errMsg("unknown message type"))
 	}
+}
+
+func (h *Hub) handleReaction(p *Peer, msg models.SignalMessage) {
+	if p.roomID == "" {
+		return
+	}
+	var body struct {
+		Emoji string `json:"emoji"`
+	}
+	if !decodePayload(msg.Payload, &body) {
+		return
+	}
+	body.Emoji = strings.TrimSpace(body.Emoji)
+	if body.Emoji == "" || len([]rune(body.Emoji)) > 4 {
+		return
+	}
+	h.broadcast(p.roomID, models.SignalMessage{
+		Type: "reaction",
+		From: p.id,
+		Payload: map[string]interface{}{
+			"display_name": p.displayName,
+			"emoji":        body.Emoji,
+			"peer_id":      p.id,
+		},
+	}, p.id)
 }
 
 func (h *Hub) handleSFUOffer(p *Peer, msg models.SignalMessage) {

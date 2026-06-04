@@ -21,16 +21,15 @@ import (
 
 func testConfig() *config.Config {
 	return &config.Config{
-		AdminUsername:            "admin",
-		AdminPassword:            "admin-pass",
-		JWTSecret:                "test-secret",
-		DefaultAppMode:           "public",
-		TURNPublicIP:             "127.0.0.1",
-		TURNPort:                 3478,
-		TURNSecret:               "turn-secret",
-		SFUFallbackThresholdKbps: 1500,
-		AccessTokenTTLMinutes:    15,
-		RefreshTokenTTLDays:      30,
+		AdminUsername:         "admin",
+		AdminPassword:         "admin-pass",
+		JWTSecret:             "test-secret",
+		DefaultAppMode:        "public",
+		TURNPublicIP:          "127.0.0.1",
+		TURNPort:              3478,
+		TURNSecret:            "turn-secret",
+		AccessTokenTTLMinutes: 15,
+		RefreshTokenTTLDays:   30,
 	}
 }
 

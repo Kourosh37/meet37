@@ -14,11 +14,10 @@ import (
 func testHub(t *testing.T) (*Hub, *db.DB) {
 	t.Helper()
 	cfg := &config.Config{
-		JWTSecret:                "test-secret",
-		TURNPublicIP:             "127.0.0.1",
-		TURNPort:                 3478,
-		TURNSecret:               "turn-secret",
-		SFUFallbackThresholdKbps: 1500,
+		JWTSecret:    "test-secret",
+		TURNPublicIP: "127.0.0.1",
+		TURNPort:     3478,
+		TURNSecret:   "turn-secret",
 	}
 	database, err := db.Open(t.TempDir()+"/meet.db", "public")
 	if err != nil {
@@ -28,11 +27,11 @@ func testHub(t *testing.T) (*Hub, *db.DB) {
 	return NewHub(cfg, database, sfu.NewManager(cfg), nil), database
 }
 
-func TestHandleStatsTriggersSFUSwitch(t *testing.T) {
+func TestHandleMessageRejectsDirectPeerSignaling(t *testing.T) {
 	hub, _ := testHub(t)
-	peer := &Peer{id: "peer-1", roomID: "room-1", mode: "p2p", send: make(chan []byte, 4), hub: hub}
+	peer := &Peer{id: "peer-1", roomID: "room-1", mode: "sfu", send: make(chan []byte, 4), hub: hub}
 
-	hub.handleStats(peer, models.SignalMessage{Payload: map[string]interface{}{"bitrate_kbps": 100.0}})
+	hub.handleMessage(peer, []byte(`{"type":"offer","to":"peer-2","payload":{"sdp":"direct-offer"}}`))
 
 	select {
 	case raw := <-peer.send:
@@ -40,45 +39,11 @@ func TestHandleStatsTriggersSFUSwitch(t *testing.T) {
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			t.Fatalf("decode signal: %v", err)
 		}
-		if msg.Type != "sfu-switch" {
-			t.Fatalf("expected sfu-switch, got %q", msg.Type)
+		if msg.Type != "error" {
+			t.Fatalf("expected direct signaling error, got %q", msg.Type)
 		}
 	case <-time.After(time.Second):
-		t.Fatalf("timed out waiting for sfu-switch")
-	}
-}
-
-func TestRoomAutoSFUSwitchesAtPeerThreshold(t *testing.T) {
-	hub, _ := testHub(t)
-	hub.cfg.SFUAutoPeerThreshold = 2
-	roomID := "room-1"
-	first := &Peer{id: "peer-1", roomID: roomID, mode: "p2p", send: make(chan []byte, 4), hub: hub}
-	second := &Peer{id: "peer-2", roomID: roomID, mode: "p2p", send: make(chan []byte, 4), hub: hub}
-	hub.rooms[roomID] = &Room{
-		id:      roomID,
-		peers:   map[string]*Peer{first.id: first, second.id: second},
-		pending: map[string]*Peer{},
-	}
-
-	hub.maybeTriggerRoomSFU(roomID)
-
-	for _, peer := range []*Peer{first, second} {
-		deadline := time.After(time.Second)
-		for {
-			select {
-			case raw := <-peer.send:
-				var msg models.SignalMessage
-				if err := json.Unmarshal(raw, &msg); err != nil {
-					t.Fatalf("decode signal: %v", err)
-				}
-				if msg.Type == "sfu-switch" {
-					goto nextPeer
-				}
-			case <-deadline:
-				t.Fatalf("timed out waiting for sfu-switch for %s", peer.id)
-			}
-		}
-	nextPeer:
+		t.Fatalf("timed out waiting for direct signaling error")
 	}
 }
 

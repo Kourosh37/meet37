@@ -44,9 +44,7 @@ export function LiveRoomsTable({ rows }: LiveRoomsTableProps) {
               <td className="px-4 py-3 text-surface-foreground">
                 {stats?.pending_count ?? 0}
               </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {stats?.has_sfu_session ? "SFU" : "P2P"}
-              </td>
+              <td className="px-4 py-3 text-muted-foreground">SFU</td>
             </tr>
           ))}
         </tbody>

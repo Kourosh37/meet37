@@ -1,4 +1,4 @@
-export type PeerMode = "p2p" | "sfu";
+export type PeerMode = "sfu";
 export type MediaKind = "audio" | "video" | string;
 export type MediaTrackStatus = "off" | "starting" | "ready" | "error";
 
@@ -142,9 +142,23 @@ export interface FileAnswerPayload {
   reason?: string;
 }
 
-export interface FileCandidatePayload {
+export interface FileStartPayload {
   file_id: string;
-  candidate: string;
+  mime: string;
+  name: string;
+  size: number;
+  total_chunks: number;
+}
+
+export interface FileChunkPayload {
+  bytes_base64: string;
+  file_id: string;
+  index: number;
+  total_chunks: number;
+}
+
+export interface FileCompletePayload {
+  file_id: string;
 }
 
 export interface StatsPayload {
@@ -178,9 +192,6 @@ export type OutgoingSignalMessage =
   | SignalEnvelope<"leave", undefined>
   | SignalEnvelope<"approve-peer", PeerIdPayload>
   | SignalEnvelope<"reject-peer", RejectPeerPayload>
-  | SignalEnvelope<"offer", SessionDescriptionPayload>
-  | SignalEnvelope<"answer", SessionDescriptionPayload>
-  | SignalEnvelope<"ice-candidate", IceCandidatePayload>
   | SignalEnvelope<"sfu-offer", SessionDescriptionPayload>
   | SignalEnvelope<"sfu-ice-candidate", IceCandidatePayload>
   | SignalEnvelope<"chat", ChatPayload>
@@ -190,7 +201,9 @@ export type OutgoingSignalMessage =
   | SignalEnvelope<"audio-level", AudioLevelPayload>
   | SignalEnvelope<"file-offer", FileOfferPayload>
   | SignalEnvelope<"file-answer", FileAnswerPayload>
-  | SignalEnvelope<"file-candidate", FileCandidatePayload>
+  | SignalEnvelope<"file-start", FileStartPayload>
+  | SignalEnvelope<"file-chunk", FileChunkPayload>
+  | SignalEnvelope<"file-complete", FileCompletePayload>
   | SignalEnvelope<"stats", StatsPayload>
   | SignalEnvelope<"mute-peer", MutePeerPayload>
   | SignalEnvelope<"kick-peer", KickPeerPayload>;
@@ -203,9 +216,6 @@ export type IncomingSignalMessage =
   | SignalEnvelope<"peer-joined", PeerJoinedPayload>
   | SignalEnvelope<"peer-left", PeerIdPayload>
   | SignalEnvelope<"room-closed", undefined>
-  | SignalEnvelope<"offer", SessionDescriptionPayload>
-  | SignalEnvelope<"answer", SessionDescriptionPayload>
-  | SignalEnvelope<"ice-candidate", IceCandidatePayload>
   | SignalEnvelope<"sfu-switch", SfuSwitchPayload>
   | SignalEnvelope<"sfu-answer", SfuAnswerPayload>
   | SignalEnvelope<"sfu-ice-candidate", IceCandidatePayload>
@@ -218,7 +228,9 @@ export type IncomingSignalMessage =
   | SignalEnvelope<"audio-level", AudioLevelPayload>
   | SignalEnvelope<"file-offer", FileOfferPayload>
   | SignalEnvelope<"file-answer", FileAnswerPayload>
-  | SignalEnvelope<"file-candidate", FileCandidatePayload>
+  | SignalEnvelope<"file-start", FileStartPayload>
+  | SignalEnvelope<"file-chunk", FileChunkPayload>
+  | SignalEnvelope<"file-complete", FileCompletePayload>
   | SignalEnvelope<"mute-request", MuteRequestPayload>
   | SignalEnvelope<"kicked", KickedPayload>
   | SignalEnvelope<"error", SignalErrorPayload>;

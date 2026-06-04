@@ -13,7 +13,7 @@ describe("MessageRouter", () => {
     const message: IncomingSignalMessage = {
       payload: {
         is_host: true,
-        mode: "p2p",
+        mode: "sfu",
         peers: [],
         your_id: "peer-1"
       },

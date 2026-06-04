@@ -86,7 +86,6 @@ export interface LiveRoomStats {
   active: boolean;
   peer_count: number;
   pending_count: number;
-  p2p_peers: number;
   sfu_peers: number;
   has_sfu_session: boolean;
 }

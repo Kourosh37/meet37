@@ -26,6 +26,7 @@ interface VideoTileProps {
   isHost?: boolean;
   isLocal?: boolean;
   isMaximized?: boolean;
+  fillContainer?: boolean;
   mode?: PeerMode;
   onMaximize?: () => void;
   screenSharing?: boolean;
@@ -41,6 +42,7 @@ export function VideoTile({
   audioStatus = audioEnabled ? "ready" : "off",
   className,
   displayName,
+  fillContainer = false,
   isHost = false,
   isLocal = false,
   isMaximized = false,
@@ -137,7 +139,7 @@ export function VideoTile({
     <article
       className={cn(
         "relative grid overflow-hidden rounded-lg border border-border bg-black shadow-sm transition-[border-color,box-shadow,transform]",
-        isMaximized
+        isMaximized || fillContainer
           ? "h-full max-h-full min-h-0 w-full max-w-full"
           : "aspect-video min-h-[clamp(150px,48vw,240px)] sm:min-h-[180px]",
         isSpeaking &&

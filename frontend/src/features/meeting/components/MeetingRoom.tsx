@@ -18,7 +18,6 @@ import { VideoGrid } from "@/features/meeting/components/VideoGrid";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
 import { useAudioLevel } from "@/features/meeting/hooks/useAudioLevel";
 import { useModeration } from "@/features/meeting/hooks/useModeration";
-import { usePeerConnections } from "@/features/meeting/hooks/usePeerConnections";
 import { useQualityStats } from "@/features/meeting/hooks/useQualityStats";
 import { useSFUConnection } from "@/features/meeting/hooks/useSFUConnection";
 import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
@@ -65,21 +64,17 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     () => Object.keys(meeting.peers).sort().join(","),
     [meeting.peers]
   );
-  const peerConnections = usePeerConnections(localMedia.stream);
-  const sfu = useSFUConnection(localMedia.stream);
-  const connectionQuality = useQualityStats(peerConnections.connections);
-  const remoteStreams = useMemo(
-    () => ({
-      ...peerConnections.remoteStreams,
-      ...sfu.remoteStreams
-    }),
-    [peerConnections.remoteStreams, sfu.remoteStreams]
-  );
+  const sfu = useSFUConnection(localMedia.stream, {
+    enabled: meeting.phase === "in-call" && Boolean(meeting.localPeerId),
+    turnServers: meeting.turnServers ?? []
+  });
+  const connectionQuality = useQualityStats(sfu.connections);
+  const remoteStreams = sfu.remoteStreams;
   const localPeer = useMemo(
     () =>
       ({
         connection: {
-          mode: "p2p",
+          mode: "sfu",
           quality: "unknown"
         },
         displayName,

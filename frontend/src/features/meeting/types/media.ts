@@ -35,7 +35,6 @@ export interface PeerConnectionRecord {
   peerId: string;
   mode: PeerMode;
   connection: RTCPeerConnection;
-  dataChannel?: RTCDataChannel;
 }
 
 export interface SfuSessionState {

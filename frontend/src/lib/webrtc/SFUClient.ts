@@ -130,6 +130,10 @@ export class SFUClient {
     return this.createOffer();
   }
 
+  getConnection() {
+    return this.connection;
+  }
+
   private async flushPendingIceCandidates() {
     if (!this.connection?.remoteDescription) {
       return;

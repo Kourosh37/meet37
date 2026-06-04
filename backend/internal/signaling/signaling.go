@@ -28,9 +28,7 @@ const (
 	writeWait      = 10 * time.Second
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 128 * 1024
-	maxPacketLoss  = 8.0
-	maxRTT         = 300.0
+	maxMessageSize = 256 * 1024
 )
 
 var upgrader = websocket.Upgrader{
@@ -105,7 +103,7 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
 	username, _ := r.Context().Value(middleware.CtxUsername).(string)
-	peer := &Peer{id: uuid.NewString(), userID: userID, displayName: username, conn: conn, send: make(chan []byte, 256), mode: "p2p", hub: h}
+	peer := &Peer{id: uuid.NewString(), userID: userID, displayName: username, conn: conn, send: make(chan []byte, 256), mode: "sfu", hub: h}
 	go peer.writePump()
 	go peer.readPump()
 }
@@ -184,8 +182,8 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.removePeer(p)
 	case "ping":
 		h.handlePing(p, msg)
-	case "offer", "answer", "ice-candidate", "file-candidate":
-		h.relay(p, msg)
+	case "offer", "answer", "ice-candidate":
+		p.sendMsg(errMsg("direct browser signaling is disabled"))
 	case "media-state", "audio-level":
 		h.broadcast(p.roomID, msg, p.id)
 	case "reaction":
@@ -198,6 +196,8 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.relay(p, msg)
 	case "file-answer":
 		h.persistFileTransfer(p, msg, "answered")
+		h.relay(p, msg)
+	case "file-start", "file-chunk", "file-complete":
 		h.relay(p, msg)
 	case "stats":
 		h.handleStats(p, msg)
@@ -380,7 +380,6 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 	go h.logEvent(req.RoomID, p.userID, "join")
 	p.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": p.id, "peers": h.getPeerList(req.RoomID, p.id), "mode": p.mode, "is_host": p.isHost, "turn_servers": h.sfuMgr.GetTURNCredentials(p.id)}})
 	h.broadcast(req.RoomID, models.SignalMessage{Type: "peer-joined", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName, "is_host": p.isHost}}, p.id)
-	h.maybeTriggerRoomSFU(req.RoomID)
 }
 
 func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
@@ -428,7 +427,6 @@ func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
 	go h.logEvent(host.roomID, peer.userID, "join")
 	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(host.roomID, peer.id), "mode": peer.mode, "is_host": false, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
 	h.broadcast(host.roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false}}, peer.id)
-	h.maybeTriggerRoomSFU(host.roomID)
 }
 
 func (h *Hub) handleRejectPeer(host *Peer, msg models.SignalMessage) {
@@ -548,67 +546,7 @@ func (h *Hub) closePendingByHost(host *Peer, msg models.SignalMessage, eventType
 
 func (h *Hub) handleStats(p *Peer, msg models.SignalMessage) {
 	var stats models.StatsReport
-	if !decodePayload(msg.Payload, &stats) {
-		return
-	}
-	shouldFallback := stats.BitrateKbps > 0 && stats.BitrateKbps < float64(h.cfg.SFUFallbackThresholdKbps)
-	shouldFallback = shouldFallback || stats.PacketLossPct > maxPacketLoss || stats.RTTMs > maxRTT
-	if shouldFallback {
-		h.triggerSFUFallback(p)
-	}
-}
-
-func (h *Hub) triggerSFUFallback(p *Peer) {
-	if p.roomID == "" {
-		return
-	}
-	p.mu.Lock()
-	if p.mode == "sfu" {
-		p.mu.Unlock()
-		return
-	}
-	p.mode = "sfu"
-	p.mu.Unlock()
-
-	room := h.getOrCreateRoom(p.roomID)
-	room.mu.Lock()
-	if room.sfuSession == nil {
-		room.sfuSession = h.sfuMgr.CreateSession(p.roomID)
-	}
-	session := room.sfuSession
-	room.mu.Unlock()
-
-	p.sendMsg(models.SignalMessage{Type: "sfu-switch", Payload: map[string]interface{}{"session_id": session.ID, "turn_servers": h.sfuMgr.GetTURNCredentials(p.id)}})
-	h.broadcast(p.roomID, models.SignalMessage{Type: "peer-mode-changed", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "mode": "sfu"}}, p.id)
-}
-
-func (h *Hub) maybeTriggerRoomSFU(roomID string) {
-	threshold := h.cfg.SFUAutoPeerThreshold
-	if threshold <= 0 {
-		return
-	}
-
-	h.mu.RLock()
-	room := h.rooms[roomID]
-	h.mu.RUnlock()
-	if room == nil {
-		return
-	}
-
-	room.mu.RLock()
-	if len(room.peers) < threshold {
-		room.mu.RUnlock()
-		return
-	}
-	peers := make([]*Peer, 0, len(room.peers))
-	for _, peer := range room.peers {
-		peers = append(peers, peer)
-	}
-	room.mu.RUnlock()
-
-	for _, peer := range peers {
-		h.triggerSFUFallback(peer)
-	}
+	_ = decodePayload(msg.Payload, &stats)
 }
 
 func (h *Hub) relay(from *Peer, msg models.SignalMessage) {
@@ -731,15 +669,13 @@ func (h *Hub) GetRoomStats(roomID string) map[string]interface{} {
 	}
 	room.mu.RLock()
 	defer room.mu.RUnlock()
-	p2p, sfuCount := 0, 0
+	sfuCount := 0
 	for _, peer := range room.peers {
 		if peer.mode == "sfu" {
 			sfuCount++
-		} else {
-			p2p++
 		}
 	}
-	return map[string]interface{}{"active": true, "peer_count": len(room.peers), "pending_count": len(room.pending), "p2p_peers": p2p, "sfu_peers": sfuCount, "has_sfu_session": room.sfuSession != nil}
+	return map[string]interface{}{"active": true, "peer_count": len(room.peers), "pending_count": len(room.pending), "sfu_peers": sfuCount, "has_sfu_session": room.sfuSession != nil}
 }
 
 func (h *Hub) GetSFUStats() sfu.Stats {

@@ -13,10 +13,10 @@ import type {
   FileTransferRecord
 } from "@/features/meeting/types/file";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
-import { dataChannelRegistry } from "@/lib/webrtc/DataChannelRegistry";
 import {
   assertFilePolicy,
   chunkBlob,
+  DEFAULT_FILE_CHUNK_SIZE,
   reassembleChunks
 } from "@/lib/utils/fileChunker";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
@@ -24,33 +24,6 @@ import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 const OBJECT_URL_TTL_MS = 10 * 60 * 1000;
 const RECEIVE_IDLE_TIMEOUT_MS = 30_000;
 const RESEND_DELAY_MS = 5_000;
-
-type FileChannelMessage =
-  | {
-      fileId: string;
-      index: number;
-      size: number;
-      totalChunks: number;
-      type: "file-chunk-meta";
-    }
-  | {
-      fileId: string;
-      mime: string;
-      name: string;
-      size: number;
-      totalChunks: number;
-      type: "file-start";
-    }
-  | {
-      fileId: string;
-      type: "file-complete";
-    };
-
-interface PendingChunkMeta {
-  fileId: string;
-  index: number;
-  totalChunks: number;
-}
 
 interface ReceiveBuffer {
   chunks: FileChunk[];
@@ -68,20 +41,33 @@ interface SharedFileEntry {
   sendingPeerIds: Set<string>;
 }
 
-function parseChannelMessage(data: MessageEvent["data"]) {
-  if (typeof data !== "string") {
-    return null;
-  }
-
-  try {
-    return JSON.parse(data) as FileChannelMessage;
-  } catch {
-    return null;
-  }
+function totalChunksFor(file: File) {
+  return Math.ceil(file.size / DEFAULT_FILE_CHUNK_SIZE);
 }
 
-function totalChunksFor(file: File) {
-  return Math.ceil(file.size / (64 * 1024));
+function arrayBufferToBase64(buffer: ArrayBuffer) {
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  const batchSize = 0x8000;
+
+  for (let index = 0; index < bytes.length; index += batchSize) {
+    binary += String.fromCharCode(
+      ...bytes.subarray(index, index + batchSize)
+    );
+  }
+
+  return window.btoa(binary);
+}
+
+function base64ToArrayBuffer(value: string) {
+  const binary = window.atob(value);
+  const bytes = new Uint8Array(binary.length);
+
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+
+  return bytes.buffer;
 }
 
 export function useFileTransfer(roomId: string | null) {
@@ -98,7 +84,6 @@ export function useFileTransfer(roomId: string | null) {
   const updateStatus = useFileTransferStore((state) => state.updateStatus);
   const localPeerId = useMeetingStore((state) => state.localPeerId);
   const peers = useMeetingStore((state) => state.peers);
-  const pendingChunkMeta = useRef(new Map<string, PendingChunkMeta>());
   const receiveBuffers = useRef(new Map<string, ReceiveBuffer>());
   const receiveTimeouts = useRef(new Map<string, number>());
   const sharedFiles = useRef(new Map<string, SharedFileEntry>());
@@ -131,7 +116,6 @@ export function useFileTransfer(roomId: string | null) {
   const sendFileBytes = useCallback(
     async (fileId: string, peerId: string, file: File) => {
       try {
-        await dataChannelRegistry.waitUntilOpen(peerId);
         webSocketManager.send({
           payload: {
             file_id: fileId,
@@ -142,44 +126,43 @@ export function useFileTransfer(roomId: string | null) {
           to: peerId,
           type: "file-offer"
         });
-        dataChannelRegistry.send(
-          peerId,
-          JSON.stringify({
-            fileId,
+
+        webSocketManager.send({
+          payload: {
+            file_id: fileId,
             mime: file.type || "application/octet-stream",
             name: file.name,
             size: file.size,
-            totalChunks: totalChunksFor(file),
-            type: "file-start"
-          } satisfies FileChannelMessage)
-        );
+            total_chunks: totalChunksFor(file)
+          },
+          to: peerId,
+          type: "file-start"
+        });
 
         let bytesTransferred = 0;
 
         for await (const chunk of chunkBlob(fileId, file)) {
-          dataChannelRegistry.send(
-            peerId,
-            JSON.stringify({
-              fileId,
+          webSocketManager.send({
+            payload: {
+              bytes_base64: arrayBufferToBase64(chunk.bytes),
+              file_id: fileId,
               index: chunk.index,
-              size: chunk.bytes.byteLength,
-              totalChunks: chunk.totalChunks,
-              type: "file-chunk-meta"
-            } satisfies FileChannelMessage)
-          );
-          dataChannelRegistry.send(peerId, chunk.bytes);
-          await dataChannelRegistry.waitForBufferedAmount(peerId);
+              total_chunks: chunk.totalChunks
+            },
+            to: peerId,
+            type: "file-chunk"
+          });
           bytesTransferred += chunk.bytes.byteLength;
           updateProgress(fileId, bytesTransferred);
         }
 
-        dataChannelRegistry.send(
-          peerId,
-          JSON.stringify({
-            fileId,
-            type: "file-complete"
-          } satisfies FileChannelMessage)
-        );
+        webSocketManager.send({
+          payload: {
+            file_id: fileId
+          },
+          to: peerId,
+          type: "file-complete"
+        });
         const objectUrl = URL.createObjectURL(file);
         objectUrls.current.add(objectUrl);
         completeTransfer(fileId, objectUrl);
@@ -329,103 +312,76 @@ export function useFileTransfer(roomId: string | null) {
           targetPeerId: localPeerId ?? ""
         });
         refreshReceiveTimeout(message.payload.file_id);
+      }),
+      webSocketManager.subscribe("file-start", (message) => {
+        const existing =
+          useFileTransferStore.getState().transfers[message.payload.file_id];
+
+        if (!existing) {
+          addOrUpdateTransfer({
+            createdAt: Date.now(),
+            direction: "incoming",
+            fileId: message.payload.file_id,
+            mime: message.payload.mime,
+            name: message.payload.name,
+            progress: {
+              bytesTransferred: 0,
+              fileId: message.payload.file_id,
+              percentage: 0,
+              totalBytes: message.payload.size
+            },
+            senderPeerId: message.from ?? "unknown",
+            size: message.payload.size,
+            status: "transferring",
+            targetPeerId: localPeerId ?? ""
+          });
+        }
+
+        receiveBuffers.current.set(message.payload.file_id, {
+          chunks: [],
+          completed: false,
+          mime: message.payload.mime,
+          name: message.payload.name,
+          receivedBytes: 0,
+          size: message.payload.size,
+          totalChunks: message.payload.total_chunks
+        });
+        updateStatus(message.payload.file_id, "transferring");
+        refreshReceiveTimeout(message.payload.file_id);
+      }),
+      webSocketManager.subscribe("file-chunk", (message) => {
+        const buffer = receiveBuffers.current.get(message.payload.file_id);
+
+        if (!buffer) {
+          return;
+        }
+
+        const bytes = base64ToArrayBuffer(message.payload.bytes_base64);
+        buffer.chunks.push({
+          bytes,
+          fileId: message.payload.file_id,
+          index: message.payload.index,
+          totalChunks: message.payload.total_chunks
+        });
+        buffer.receivedBytes += bytes.byteLength;
+        updateProgress(message.payload.file_id, buffer.receivedBytes);
+        refreshReceiveTimeout(message.payload.file_id);
+
+        if (
+          buffer.chunks.length >= buffer.totalChunks ||
+          buffer.receivedBytes >= buffer.size
+        ) {
+          completeReceivedFile(message.payload.file_id);
+        }
+      }),
+      webSocketManager.subscribe("file-complete", (message) => {
+        completeReceivedFile(message.payload.file_id);
       })
     ];
 
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [addOrUpdateTransfer, localPeerId, refreshReceiveTimeout]);
-
-  useEffect(() => {
-    return dataChannelRegistry.subscribe(({ data, peerId }) => {
-      const message = parseChannelMessage(data);
-
-      if (message?.type === "file-start") {
-        const existing =
-          useFileTransferStore.getState().transfers[message.fileId];
-
-        if (!existing) {
-          addOrUpdateTransfer({
-            createdAt: Date.now(),
-            direction: "incoming",
-            fileId: message.fileId,
-            mime: message.mime,
-            name: message.name,
-            progress: {
-              bytesTransferred: 0,
-              fileId: message.fileId,
-              percentage: 0,
-              totalBytes: message.size
-            },
-            senderPeerId: peerId,
-            size: message.size,
-            status: "transferring",
-            targetPeerId: localPeerId ?? ""
-          });
-        }
-
-        receiveBuffers.current.set(message.fileId, {
-          chunks: [],
-          completed: false,
-          mime: message.mime,
-          name: message.name,
-          receivedBytes: 0,
-          size: message.size,
-          totalChunks: message.totalChunks
-        });
-        updateStatus(message.fileId, "transferring");
-        refreshReceiveTimeout(message.fileId);
-        return;
-      }
-
-      if (message?.type === "file-chunk-meta") {
-        pendingChunkMeta.current.set(peerId, {
-          fileId: message.fileId,
-          index: message.index,
-          totalChunks: message.totalChunks
-        });
-        refreshReceiveTimeout(message.fileId);
-        return;
-      }
-
-      if (message?.type === "file-complete") {
-        completeReceivedFile(message.fileId);
-        return;
-      }
-
-      if (data instanceof ArrayBuffer) {
-        const meta = pendingChunkMeta.current.get(peerId);
-
-        if (!meta) {
-          return;
-        }
-
-        pendingChunkMeta.current.delete(peerId);
-        const buffer = receiveBuffers.current.get(meta.fileId);
-
-        if (!buffer) {
-          return;
-        }
-
-        buffer.chunks.push({
-          bytes: data,
-          fileId: meta.fileId,
-          index: meta.index,
-          totalChunks: meta.totalChunks
-        });
-        buffer.receivedBytes += data.byteLength;
-        updateProgress(meta.fileId, buffer.receivedBytes);
-        refreshReceiveTimeout(meta.fileId);
-
-        if (
-          buffer.chunks.length >= buffer.totalChunks ||
-          buffer.receivedBytes >= buffer.size
-        ) {
-          completeReceivedFile(meta.fileId);
-        }
-      }
-    });
   }, [
     addOrUpdateTransfer,
     completeReceivedFile,

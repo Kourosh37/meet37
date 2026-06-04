@@ -10,7 +10,7 @@ function peer(
 ): MeetingPeer {
   return {
     connection: {
-      mode: "p2p",
+      mode: "sfu",
       quality: "unknown"
     },
     displayName,

@@ -48,7 +48,7 @@ export interface MeetingState {
 function peerFromJoined(payload: JoinedPayload["peers"][number]): MeetingPeer {
   return {
     connection: {
-      mode: payload.mode,
+      mode: "sfu",
       quality: "unknown"
     },
     displayName: payload.display_name,
@@ -125,7 +125,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
         ...state.peers,
         [payload.peer_id]: {
           connection: {
-            mode: "p2p",
+            mode: "sfu",
             quality: "unknown"
           },
           displayName: payload.display_name,

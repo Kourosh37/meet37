@@ -16,13 +16,13 @@ describe("meetingStore", () => {
     useMeetingStore.getState().beginJoin("room-1");
     useMeetingStore.getState().joined({
       is_host: true,
-      mode: "p2p",
+      mode: "sfu",
       peers: [
         {
           display_name: "Guest",
           id: "peer-2",
           is_host: false,
-          mode: "p2p"
+          mode: "sfu"
         }
       ],
       your_id: "peer-1"

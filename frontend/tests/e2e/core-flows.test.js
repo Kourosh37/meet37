@@ -41,7 +41,6 @@ async function mockBackend(page) {
         live: {
           active: true,
           has_sfu_session: false,
-          p2p_peers: 0,
           peer_count: 0,
           pending_count: 0,
           sfu_peers: 0
@@ -116,7 +115,7 @@ test("open room prejoin sends a websocket join and enters the meeting", async ({
         JSON.stringify({
           payload: {
             is_host: false,
-            mode: "p2p",
+            mode: "sfu",
             peers: [],
             your_id: "peer-e2e"
           },
@@ -197,7 +196,7 @@ test("duplicate display names stop the join attempt until corrected", async ({
       JSON.stringify({
         payload: {
           is_host: false,
-          mode: "p2p",
+          mode: "sfu",
           peers: [],
           your_id: "peer-corrected"
         },

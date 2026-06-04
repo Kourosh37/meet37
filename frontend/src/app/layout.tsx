@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     template: "%s | meet37"
   },
   description:
-    "Browser-based video meetings with room sharing, moderation, and P2P-first media.",
+    "Browser-based video meetings with room sharing, moderation, and server-relayed media.",
   applicationName: "meet37",
   icons: {
     apple: "/icons/meet37-logo-light.svg",

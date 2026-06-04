@@ -18,6 +18,7 @@ import { createPortal } from "react-dom";
 
 const REACTION_EMOJIS = [
   "\u{1F44D}",
+  "\u{1F44E}",
   "\u{1F44F}",
   "\u{2764}\u{FE0F}",
   "\u{1F602}",
@@ -71,7 +72,7 @@ export function ControlBar({
   const reactionPicker =
     mounted && reactionMenuOpen
       ? createPortal(
-          <div className="fixed bottom-[4.75rem] left-1/2 z-[9999] flex -translate-x-1/2 gap-1 rounded-lg border border-border bg-surface p-2 shadow-2xl sm:bottom-[5.5rem]">
+          <div className="fixed bottom-[4.75rem] left-1/2 z-[9999] flex w-[min(24rem,calc(100vw-1rem))] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-lg border border-border bg-surface p-2 shadow-2xl sm:bottom-[5.5rem] sm:w-auto">
             {REACTION_EMOJIS.map((emoji) => (
               <button
                 aria-label={`Send ${emoji} reaction`}

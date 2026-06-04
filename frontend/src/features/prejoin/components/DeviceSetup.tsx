@@ -5,8 +5,8 @@ import { useEffect, useRef } from "react";
 import { useDeviceSetup } from "@/features/prejoin/hooks/useDeviceSetup";
 
 export function DeviceSetup() {
-  const videoRef = useRef<HTMLVideoElement>(null);
   const setup = useDeviceSetup();
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     if (videoRef.current) {

@@ -7,6 +7,11 @@ import {
   applyAudioTrackConstraints,
   buildAudioConstraints
 } from "@/lib/webrtc/audioQuality";
+import {
+  applyVideoTrackConstraints,
+  buildCameraConstraints,
+  setVideoContentHint
+} from "@/lib/webrtc/videoQuality";
 
 export interface DeviceSetupState {
   audioEnabled: boolean;
@@ -156,18 +161,20 @@ export function useDeviceSetup() {
           audio: audioEnabled
             ? buildAudioConstraints(selectedAudioDeviceId)
             : false,
-          video: videoEnabled
-            ? {
-                deviceId: selectedVideoDeviceId
-                  ? { exact: selectedVideoDeviceId }
-                  : undefined
-              }
-            : false
+          video: videoEnabled ? buildCameraConstraints(selectedVideoDeviceId) : false
         });
         await Promise.all(
           stream
             .getAudioTracks()
             .map((track) => applyAudioTrackConstraints(track))
+        );
+        stream.getVideoTracks().forEach((track) => {
+          setVideoContentHint(track, "motion");
+        });
+        await Promise.all(
+          stream
+            .getVideoTracks()
+            .map((track) => applyVideoTrackConstraints(track))
         );
 
         setState((current) => {

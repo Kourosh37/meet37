@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { FittedVideo } from "@/components/media/FittedVideo";
 import { VideoOff } from "lucide-react";
 import { cn } from "@/lib/utils/cn";
 
@@ -17,14 +17,6 @@ export function LocalVideoPreview({
   stream,
   videoEnabled = true
 }: LocalVideoPreviewProps) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = videoEnabled ? stream : null;
-    }
-  }, [stream, videoEnabled]);
-
   const hasVideo = Boolean(stream?.getVideoTracks().length && videoEnabled);
 
   return (
@@ -35,13 +27,7 @@ export function LocalVideoPreview({
       )}
     >
       {hasVideo ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          className="h-full w-full scale-x-[-1] object-contain"
-          muted={muted}
-          playsInline
-        />
+        <FittedVideo mirrored muted={muted} stream={stream} />
       ) : (
         <div className="grid place-items-center gap-3 text-muted-foreground">
           <VideoOff className="h-8 w-8" aria-hidden="true" />

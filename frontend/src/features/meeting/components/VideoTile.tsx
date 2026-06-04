@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Loader2,
   Maximize2,
@@ -9,6 +9,7 @@ import {
   MonitorUp,
   VideoOff
 } from "lucide-react";
+import { FittedVideo } from "@/components/media/FittedVideo";
 import type {
   MediaTrackStatus,
   PeerMode
@@ -51,11 +52,6 @@ export function VideoTile({
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
   const [trackVersion, setTrackVersion] = useState(0);
-  const [videoFitMode, setVideoFitMode] = useState<"height" | "width">(
-    "width"
-  );
-  const videoFrameRef = useRef<HTMLDivElement | null>(null);
-  const videoRef = useRef<HTMLVideoElement | null>(null);
   const audioTracks = useMemo(() => {
     void trackVersion;
     return stream?.getAudioTracks() ?? [];
@@ -120,82 +116,19 @@ export function VideoTile({
   );
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = shouldRenderVideo ? videoStream : null;
-      if (shouldRenderVideo) {
-        void videoRef.current.play().catch(() => undefined);
-      }
-    }
-  }, [shouldRenderVideo, videoStream]);
-
-  useEffect(() => {
-    if (!shouldRenderVideo) {
-      setVideoFitMode("width");
-      return;
-    }
-
-    const updateVideoFit = () => {
-      const frame = videoFrameRef.current;
-      const video = videoRef.current;
-
-      if (
-        !frame ||
-        !video ||
-        frame.clientWidth <= 0 ||
-        frame.clientHeight <= 0 ||
-        video.videoWidth <= 0 ||
-        video.videoHeight <= 0
-      ) {
-        return;
-      }
-
-      const videoHeightAtFullWidth =
-        frame.clientWidth * (video.videoHeight / video.videoWidth);
-      setVideoFitMode(
-        videoHeightAtFullWidth > frame.clientHeight ? "height" : "width"
-      );
-    };
-
-    updateVideoFit();
-    const frame = videoFrameRef.current;
-    const video = videoRef.current;
-
-    video?.addEventListener("loadedmetadata", updateVideoFit);
-    video?.addEventListener("resize", updateVideoFit);
-
-    if (typeof ResizeObserver === "undefined" || !frame) {
-      window.addEventListener("resize", updateVideoFit);
-      return () => {
-        window.removeEventListener("resize", updateVideoFit);
-        video?.removeEventListener("loadedmetadata", updateVideoFit);
-        video?.removeEventListener("resize", updateVideoFit);
-      };
-    }
-
-    const observer = new ResizeObserver(updateVideoFit);
-    observer.observe(frame);
-
-    return () => {
-      observer.disconnect();
-      video?.removeEventListener("loadedmetadata", updateVideoFit);
-      video?.removeEventListener("resize", updateVideoFit);
-    };
-  }, [shouldRenderVideo, videoStream]);
-
-  useEffect(() => {
     const updateTrackState = () => setTrackVersion((version) => version + 1);
 
     [...audioTracks, ...videoTracks].forEach((track) => {
-      track.addEventListener("ended", updateTrackState);
-      track.addEventListener("mute", updateTrackState);
-      track.addEventListener("unmute", updateTrackState);
+      track.addEventListener?.("ended", updateTrackState);
+      track.addEventListener?.("mute", updateTrackState);
+      track.addEventListener?.("unmute", updateTrackState);
     });
 
     return () => {
       [...audioTracks, ...videoTracks].forEach((track) => {
-        track.removeEventListener("ended", updateTrackState);
-        track.removeEventListener("mute", updateTrackState);
-        track.removeEventListener("unmute", updateTrackState);
+        track.removeEventListener?.("ended", updateTrackState);
+        track.removeEventListener?.("mute", updateTrackState);
+        track.removeEventListener?.("unmute", updateTrackState);
       });
     };
   }, [audioTracks, videoTracks]);
@@ -232,44 +165,12 @@ export function VideoTile({
 
       {shouldRenderVideo ? (
         <>
-          <div
-            ref={videoFrameRef}
-            className="absolute inset-0 grid place-items-center bg-black"
-          >
-            <video
-              ref={videoRef}
-              autoPlay
-              className={cn(
-                "block max-h-full max-w-full bg-black object-contain",
-                videoFitMode === "height" ? "h-full w-auto" : "h-auto w-full",
-                isLocal && !screenSharing && "scale-x-[-1]"
-              )}
-              muted
-              onLoadedMetadata={() => {
-                const video = videoRef.current;
-                const frame = videoFrameRef.current;
-
-                if (
-                  !video ||
-                  !frame ||
-                  video.videoWidth <= 0 ||
-                  video.videoHeight <= 0 ||
-                  frame.clientHeight <= 0
-                ) {
-                  return;
-                }
-
-                const videoHeightAtFullWidth =
-                  frame.clientWidth * (video.videoHeight / video.videoWidth);
-                setVideoFitMode(
-                  videoHeightAtFullWidth > frame.clientHeight
-                    ? "height"
-                    : "width"
-                );
-              }}
-              playsInline
-            />
-          </div>
+          <FittedVideo
+            className="absolute inset-0"
+            mirrored={isLocal && !screenSharing}
+            muted
+            stream={videoStream}
+          />
           {!hasVideo && loadingLabel ? (
             <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35 text-white backdrop-blur-[1px]">
               <div className="flex flex-col items-center gap-3 text-center">

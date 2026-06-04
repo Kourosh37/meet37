@@ -22,6 +22,7 @@ import { usePeerConnections } from "@/features/meeting/hooks/usePeerConnections"
 import { useQualityStats } from "@/features/meeting/hooks/useQualityStats";
 import { useSFUConnection } from "@/features/meeting/hooks/useSFUConnection";
 import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
+import { useWebSocketPing } from "@/features/meeting/hooks/useWebSocketPing";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 import { useMeetingUiStore } from "@/features/meeting/stores/uiStore";
 import type { MeetingPeer } from "@/features/meeting/types/peer";
@@ -38,6 +39,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const router = useRouter();
   const meeting = useMeetingStore();
   const websocket = useWebSocket();
+  const pingMs = useWebSocketPing(websocket.status === "open");
   const localMedia = useLocalMedia();
   const moderation = useModeration();
   const onlineStatus = useOnlineStatus();
@@ -368,6 +370,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         connectionQuality={connectionQuality}
         isConnected={websocket.status === "open"}
         participantCount={Object.keys(meeting.peers).length + 1}
+        pingMs={pingMs}
         roomName={roomName}
         statusLabel={websocket.status === "open" ? "Connected" : websocket.status}
       />

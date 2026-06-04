@@ -182,6 +182,8 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.handleJoin(p, msg)
 	case "leave":
 		h.removePeer(p)
+	case "ping":
+		h.handlePing(p, msg)
 	case "offer", "answer", "ice-candidate", "file-candidate":
 		h.relay(p, msg)
 	case "media-state", "audio-level":
@@ -214,6 +216,20 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 	default:
 		p.sendMsg(errMsg("unknown message type"))
 	}
+}
+
+func (h *Hub) handlePing(p *Peer, msg models.SignalMessage) {
+	var body struct {
+		ID string `json:"id"`
+	}
+	if !decodePayload(msg.Payload, &body) || body.ID == "" {
+		return
+	}
+	p.sendMsg(models.SignalMessage{
+		Type:    "pong",
+		From:    p.id,
+		Payload: map[string]string{"id": body.ID},
+	})
 }
 
 func (h *Hub) handleReaction(p *Peer, msg models.SignalMessage) {

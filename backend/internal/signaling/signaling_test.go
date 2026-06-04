@@ -155,3 +155,30 @@ func TestHandleMessageBroadcastsReactionWithDisplayName(t *testing.T) {
 	default:
 	}
 }
+
+func TestHandleMessageRespondsToPing(t *testing.T) {
+	hub, _ := testHub(t)
+	peer := &Peer{id: "peer-1", send: make(chan []byte, 4), hub: hub}
+
+	hub.handleMessage(peer, []byte(`{"type":"ping","payload":{"id":"ping-1"}}`))
+
+	select {
+	case raw := <-peer.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode signal: %v", err)
+		}
+		if msg.Type != "pong" || msg.From != peer.id {
+			t.Fatalf("unexpected signal: %#v", msg)
+		}
+		payload, ok := msg.Payload.(map[string]interface{})
+		if !ok {
+			t.Fatalf("unexpected payload type: %#v", msg.Payload)
+		}
+		if payload["id"] != "ping-1" {
+			t.Fatalf("unexpected pong payload: %#v", payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for pong")
+	}
+}

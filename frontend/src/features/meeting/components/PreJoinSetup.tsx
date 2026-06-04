@@ -7,6 +7,7 @@ import { MeetingHeader } from "@/features/meeting/components/MeetingHeader";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
 import { useMeetingRoom } from "@/features/meeting/hooks/useMeetingRoom";
+import { useWebSocketPing } from "@/features/meeting/hooks/useWebSocketPing";
 import { DeviceSetup } from "@/features/prejoin/components/DeviceSetup";
 import { DisplayNameInput } from "@/features/prejoin/components/DisplayNameInput";
 import { PasswordPrompt } from "@/features/prejoin/components/PasswordPrompt";
@@ -21,6 +22,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   const { data, error, isLoading } = useRoomMeta(roomId);
   const { cancelJoin, joinMeeting, meeting, websocket } =
     useMeetingRoom(roomId);
+  const pingMs = useWebSocketPing(websocket.status === "open");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
@@ -114,7 +116,9 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     return (
       <>
         <MeetingHeader
+          isConnected={websocket.status === "open"}
           participantCount={data?.live.peer_count}
+          pingMs={pingMs}
           roomName={data?.room.name ?? "Meeting room"}
           statusLabel={
             websocket.status === "open" ? "Ready" : websocket.status

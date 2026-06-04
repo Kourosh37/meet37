@@ -453,7 +453,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         audioEnabled={localMedia.audioEnabled}
         onCopyInvite={() => void handleCopyInvite()}
         onLeave={handleLeave}
-        onOpenSettings={() => ui.openPanel("settings")}
+        onOpenSettings={() => ui.togglePanel("settings")}
         onReaction={handleReaction}
         onToggleAudio={localMedia.toggleAudio}
         onToggleChat={() => ui.togglePanel("chat")}

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { ChatMessage } from "@/features/meeting/components/ChatMessage";
 import { FileTransferItem } from "@/features/meeting/components/FileTransferItem";
@@ -16,6 +16,7 @@ interface ChatPanelProps {
 
 export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
+  const [shouldRender, setShouldRender] = useState(isOpen);
   const chat = useChat(roomId, isOpen);
   const files = useFileTransfer(roomId);
   const timeline = [
@@ -38,7 +39,17 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
       }))
   ].sort((left, right) => left.timestamp - right.timestamp);
 
-  if (!isOpen) {
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setShouldRender(false), 260);
+    return () => window.clearTimeout(timeout);
+  }, [isOpen]);
+
+  if (!shouldRender) {
     return null;
   }
 
@@ -49,7 +60,13 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
   }
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl">
+    <aside
+      className={
+        isOpen
+          ? "meet-chat-panel-open fixed inset-y-0 right-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl"
+          : "meet-chat-panel-close fixed inset-y-0 right-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl"
+      }
+    >
       <div className="flex items-center justify-between border-b border-border p-4">
         <div>
           <h2 className="text-sm font-semibold text-surface-foreground">

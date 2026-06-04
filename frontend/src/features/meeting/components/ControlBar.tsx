@@ -13,7 +13,7 @@ import {
   Settings,
   SmilePlus
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 const REACTION_EMOJIS = [
@@ -72,16 +72,17 @@ export function ControlBar({
   const reactionPicker =
     mounted && reactionMenuOpen
       ? createPortal(
-          <div className="fixed bottom-[4.75rem] left-1/2 z-[9999] flex w-[min(24rem,calc(100vw-1rem))] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-lg border border-border bg-surface p-2 shadow-2xl sm:bottom-[5.5rem] sm:w-auto">
-            {REACTION_EMOJIS.map((emoji) => (
+          <div className="meet-emoji-picker fixed bottom-[4.75rem] left-1/2 z-[9999] flex w-[min(24rem,calc(100vw-1rem))] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-lg border border-border bg-surface p-2 shadow-2xl sm:bottom-[5.5rem] sm:w-auto">
+            {REACTION_EMOJIS.map((emoji, index) => (
               <button
                 aria-label={`Send ${emoji} reaction`}
-                className="grid size-10 place-items-center rounded-md text-2xl transition hover:bg-muted"
+                className="meet-emoji-button grid size-10 place-items-center rounded-md text-2xl transition hover:bg-muted"
                 key={emoji}
                 onClick={() => {
                   onReaction(emoji);
                   setReactionMenuOpen(false);
                 }}
+                style={{ "--meet-emoji-index": index } as CSSProperties}
                 type="button"
               >
                 {emoji}
@@ -169,10 +170,10 @@ export function ControlBar({
           <MessageSquare className="size-5" />
         </button>
         <button
-          aria-label="Open settings"
+          aria-label="Toggle settings"
           className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
           onClick={onOpenSettings}
-          title="Open settings"
+          title="Toggle settings"
           type="button"
         >
           <Settings className="size-5" />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 
 interface SettingsDrawerProps {
@@ -27,12 +28,30 @@ export function SettingsDrawer({
   screenShareUnavailableReason = "Screen sharing is not available in this browser.",
   videoEnabled
 }: SettingsDrawerProps) {
-  if (!isOpen) {
+  const [shouldRender, setShouldRender] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setShouldRender(false), 260);
+    return () => window.clearTimeout(timeout);
+  }, [isOpen]);
+
+  if (!shouldRender) {
     return null;
   }
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 w-[min(360px,100vw)] border-l border-border bg-surface p-4 shadow-xl">
+    <aside
+      className={
+        isOpen
+          ? "meet-settings-drawer-open fixed inset-y-0 right-0 z-40 w-[min(360px,100vw)] border-l border-border bg-surface p-4 shadow-xl"
+          : "meet-settings-drawer-close fixed inset-y-0 right-0 z-40 w-[min(360px,100vw)] border-l border-border bg-surface p-4 shadow-xl"
+      }
+    >
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-surface-foreground">
           Meeting settings

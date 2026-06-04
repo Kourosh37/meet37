@@ -42,7 +42,7 @@ export function ReactionOverlay({ onDone, reactions }: ReactionOverlayProps) {
             } as CSSProperties
           }
         >
-          <div className="meet-reaction-sway flex items-center gap-2 rounded-full border border-white/25 bg-black/55 px-3 py-2 text-white shadow-xl backdrop-blur-md">
+          <div className="meet-reaction-sway flex items-center gap-2 rounded-full border border-white/25 bg-black/70 px-3 py-2 text-white shadow-lg">
             <span className="text-3xl leading-none">{reaction.emoji}</span>
             <span className="max-w-32 truncate text-sm font-semibold">
               {reaction.name}

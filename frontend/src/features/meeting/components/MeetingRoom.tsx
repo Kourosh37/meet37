@@ -5,14 +5,12 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { AdmissionModal } from "@/features/meeting/components/AdmissionModal";
 import { ChatPanel } from "@/features/meeting/components/ChatPanel";
-import { ConnectionQualityIndicator } from "@/features/meeting/components/ConnectionQualityIndicator";
 import { ControlBar } from "@/features/meeting/components/ControlBar";
+import { MeetingHeader } from "@/features/meeting/components/MeetingHeader";
 import { ParticipantsPanel } from "@/features/meeting/components/ParticipantsPanel";
 import { RemoteAudioPlayer } from "@/features/meeting/components/RemoteAudioPlayer";
 import { SettingsDrawer } from "@/features/meeting/components/SettingsDrawer";
 import { VideoGrid } from "@/features/meeting/components/VideoGrid";
-import { BrandMark } from "@/components/layout/BrandMark";
-import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
 import { useAudioLevel } from "@/features/meeting/hooks/useAudioLevel";
 import { useModeration } from "@/features/meeting/hooks/useModeration";
@@ -317,32 +315,16 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   }
 
   return (
-    <main className="mx-auto flex h-[100svh] w-full max-w-7xl flex-col overflow-hidden border-x border-border px-4 sm:min-h-[calc(100vh-9rem)] sm:px-6">
-      <header className="fixed inset-x-0 top-0 z-30 mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 border-b border-border bg-surface/95 px-4 py-3 shadow-sm backdrop-blur sm:static sm:mt-4 sm:rounded-lg sm:border sm:bg-surface sm:backdrop-blur-none">
-        <div className="flex min-w-0 items-center gap-3">
-          <BrandMark className="h-9 w-9 shrink-0" size={36} />
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {websocket.status === "open" ? "Connected" : websocket.status}
-              </p>
-              <ConnectionQualityIndicator
-                isConnected={websocket.status === "open"}
-                quality={connectionQuality}
-              />
-            </div>
-            <h1 className="truncate text-lg font-semibold tracking-normal text-surface-foreground">
-              {roomName ?? "Meeting room"}
-            </h1>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>{Object.keys(meeting.peers).length + 1} participants</span>
-          <ThemeSwitch />
-        </div>
-      </header>
+    <main className="mx-auto flex h-[100svh] w-full max-w-7xl flex-col overflow-hidden border-x border-border px-4 sm:px-6">
+      <MeetingHeader
+        connectionQuality={connectionQuality}
+        isConnected={websocket.status === "open"}
+        participantCount={Object.keys(meeting.peers).length + 1}
+        roomName={roomName}
+        statusLabel={websocket.status === "open" ? "Connected" : websocket.status}
+      />
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-28 pt-24 sm:overflow-visible sm:pb-0 sm:pt-4">
+      <div className="min-h-0 flex-1 overflow-y-auto pb-32 pt-24">
         <div className="flex min-h-full flex-col gap-4">
           {localMedia.error ? (
             <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">

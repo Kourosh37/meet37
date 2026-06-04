@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { MeetingHeader } from "@/features/meeting/components/MeetingHeader";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
 import { useMeetingRoom } from "@/features/meeting/hooks/useMeetingRoom";
@@ -108,8 +110,25 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     }
   }, [meeting.phase]);
 
+  function renderPrejoinChrome(children: ReactNode) {
+    return (
+      <>
+        <MeetingHeader
+          participantCount={data?.live.peer_count}
+          roomName={data?.room.name ?? "Meeting room"}
+          statusLabel={
+            websocket.status === "open" ? "Ready" : websocket.status
+          }
+        />
+        <div className="pt-20">{children}</div>
+      </>
+    );
+  }
+
   if (meeting.phase === "waiting-approval") {
-    return <WaitingRoom onCancel={cancelJoin} roomName={data?.room.name} />;
+    return renderPrejoinChrome(
+      <WaitingRoom onCancel={cancelJoin} roomName={data?.room.name} />
+    );
   }
 
   if (meeting.phase === "in-call") {
@@ -124,7 +143,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   }
 
   if (["kicked", "rejected", "room-closed"].includes(meeting.phase)) {
-    return (
+    return renderPrejoinChrome(
       <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
         <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
           {meeting.phase === "room-closed" ? "Meeting ended" : "Unable to join"}
@@ -147,7 +166,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   }
 
   if (isLoading) {
-    return (
+    return renderPrejoinChrome(
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1fr_380px]">
         <div className="aspect-video animate-pulse rounded-lg border border-border bg-muted" />
         <div className="h-96 animate-pulse rounded-lg border border-border bg-muted" />
@@ -156,7 +175,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   }
 
   if (error || !data) {
-    return (
+    return renderPrejoinChrome(
       <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
         <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
           Room unavailable
@@ -174,7 +193,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     );
   }
 
-  return (
+  return renderPrejoinChrome(
     <section className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1fr_400px] lg:items-start">
       <DeviceSetup />
 

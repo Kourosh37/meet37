@@ -597,6 +597,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--public-ip", default="")
     parser.add_argument("--public-origin", default="")
     parser.add_argument("--proxy-network", default="")
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Compatibility flag; checks always apply safe fixes.",
+    )
     parser.add_argument("--include-frontend-port", action="store_true")
     parser.add_argument("--include-backend-port", action="store_true")
     parser.add_argument("--restart", action="store_true")

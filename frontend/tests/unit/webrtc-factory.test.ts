@@ -112,7 +112,7 @@ describe("PeerConnectionFactory helpers", () => {
     expect(connection.getTransceivers()).toHaveLength(2);
   });
 
-  it("enables a reused recvonly transceiver before sending a new local track", async () => {
+  it("keeps recvonly transceivers available and publishes new local tracks separately", async () => {
     const connection = new FakeConnection();
     const sender = new FakeSender(null);
     connection.senders.push(sender);
@@ -127,7 +127,9 @@ describe("PeerConnectionFactory helpers", () => {
       fakeStream([fakeTrack("camera", "video")])
     );
 
-    expect(sender.track?.id).toBe("camera");
-    expect(connection.transceivers[0]?.direction).toBe("sendrecv");
+    expect(sender.track).toBeNull();
+    expect(connection.transceivers[0]?.direction).toBe("recvonly");
+    expect(connection.senders[1]?.track?.id).toBe("camera");
+    expect(connection.transceivers[1]?.direction).toBe("sendrecv");
   });
 });

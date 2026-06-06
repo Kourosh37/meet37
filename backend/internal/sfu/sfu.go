@@ -4,10 +4,13 @@ import (
 	"crypto/hmac"
 	"crypto/sha1"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -15,6 +18,7 @@ import (
 	"meet-backend/internal/config"
 
 	"github.com/google/uuid"
+	"github.com/pion/rtcp"
 	"github.com/pion/rtp"
 	"github.com/pion/webrtc/v4"
 )
@@ -50,6 +54,7 @@ type forwardedTrack struct {
 	trackID   string
 	streamID  string
 	mimeType  string
+	ssrc      uint32
 	local     *webrtc.TrackLocalStaticRTP
 	createdAt int64
 	recording *os.File
@@ -83,7 +88,7 @@ func NewManager(cfg *config.Config) *Manager {
 			uint16(cfg.WebRTCUDPPortMax),
 		)
 	}
-	if cfg.TURNPublicIP != "" && cfg.TURNPublicIP != "127.0.0.1" && cfg.TURNPublicIP != "localhost" {
+	if net.ParseIP(cfg.TURNPublicIP) != nil {
 		settingEngine.SetNAT1To1IPs(
 			[]string{cfg.TURNPublicIP},
 			webrtc.ICECandidateTypeHost,
@@ -253,12 +258,14 @@ func (s *Session) handleRemoteTrack(ownerID string, remote *webrtc.TrackRemote, 
 		trackID:   remote.ID(),
 		streamID:  remote.StreamID(),
 		mimeType:  remote.Codec().MimeType,
+		ssrc:      uint32(remote.SSRC()),
 		local:     local,
 		createdAt: time.Now().Unix(),
 	}
 	ft.recording = s.openRecording(ownerID, remote)
 
 	s.mu.Lock()
+	s.removeOwnerTracksByKindLocked(ownerID, mediaKind(ft.mimeType))
 	s.tracks[ft.id] = ft
 	for _, peer := range s.peers {
 		if peer.ID != ownerID {
@@ -275,15 +282,17 @@ func (s *Session) handleRemoteTrack(ownerID string, remote *webrtc.TrackRemote, 
 				if err != io.EOF {
 
 				}
+				s.removeForwardedTrack(ft.id)
 				return
 			}
-			cloned := &rtp.Packet{}
-			*cloned = *pkt
-			if err := local.WriteRTP(cloned); err != nil {
+			written, keepGoing := writeForwardedRTP(local, pkt)
+			if !keepGoing {
 				return
 			}
-			atomic.AddUint64(&s.stats.PacketsRelayed, 1)
-			atomic.AddUint64(&s.stats.BytesRelayed, uint64(pkt.MarshalSize()))
+			if written {
+				atomic.AddUint64(&s.stats.PacketsRelayed, 1)
+				atomic.AddUint64(&s.stats.BytesRelayed, uint64(pkt.MarshalSize()))
+			}
 			if ft.recording != nil {
 				if raw, err := pkt.Marshal(); err == nil {
 					_, _ = ft.recording.Write(raw)
@@ -291,6 +300,51 @@ func (s *Session) handleRemoteTrack(ownerID string, remote *webrtc.TrackRemote, 
 			}
 		}
 	}()
+}
+
+func mediaKind(mimeType string) string {
+	if strings.HasPrefix(strings.ToLower(mimeType), "video/") {
+		return "video"
+	}
+	if strings.HasPrefix(strings.ToLower(mimeType), "audio/") {
+		return "audio"
+	}
+	return strings.ToLower(mimeType)
+}
+
+func (s *Session) removeOwnerTracksByKindLocked(ownerID, kind string) {
+	for id, track := range s.tracks {
+		if track.ownerID == ownerID && mediaKind(track.mimeType) == kind {
+			if track.recording != nil {
+				_ = track.recording.Close()
+			}
+			delete(s.tracks, id)
+		}
+	}
+}
+
+func (s *Session) removeForwardedTrack(trackID string) {
+	s.mu.Lock()
+	track := s.tracks[trackID]
+	if track != nil {
+		if track.recording != nil {
+			_ = track.recording.Close()
+		}
+		delete(s.tracks, trackID)
+	}
+	s.mu.Unlock()
+}
+
+func writeForwardedRTP(local *webrtc.TrackLocalStaticRTP, pkt *rtp.Packet) (bool, bool) {
+	cloned := &rtp.Packet{}
+	*cloned = *pkt
+	if err := local.WriteRTP(cloned); err != nil {
+		if errors.Is(err, io.ErrClosedPipe) {
+			return false, true
+		}
+		return false, false
+	}
+	return true, true
 }
 
 func (s *Session) addExistingTracksToPeer(peer *Peer) {
@@ -314,7 +368,8 @@ func (s *Session) addTrackToPeerLocked(peer *Peer, track *forwardedTrack) {
 		return
 	}
 	peer.senders[track.id] = sender
-	go readSenderRTCP(sender)
+	go s.readSenderRTCP(sender, track)
+	go s.requestKeyFrame(track)
 	if peer.onSignal != nil {
 		peer.onSignal("sfu-renegotiate-needed", map[string]interface{}{
 			"session_id": s.ID,
@@ -324,6 +379,31 @@ func (s *Session) addTrackToPeerLocked(peer *Peer, track *forwardedTrack) {
 			"mime_type":  track.mimeType,
 		})
 	}
+}
+
+func (s *Session) requestKeyFrame(track *forwardedTrack) {
+	if track == nil || track.ssrc == 0 || !strings.HasPrefix(strings.ToLower(track.mimeType), "video/") {
+		return
+	}
+	s.mu.RLock()
+	owner := s.peers[track.ownerID]
+	s.mu.RUnlock()
+	if owner == nil || owner.pc == nil {
+		return
+	}
+	_ = owner.pc.WriteRTCP([]rtcp.Packet{
+		&rtcp.PictureLossIndication{MediaSSRC: track.ssrc},
+	})
+}
+
+func wantsKeyFrame(packets []rtcp.Packet) bool {
+	for _, packet := range packets {
+		switch packet.(type) {
+		case *rtcp.PictureLossIndication, *rtcp.FullIntraRequest:
+			return true
+		}
+	}
+	return false
 }
 
 func (s *Session) removePeer(peerID string) {
@@ -408,11 +488,14 @@ func readRTCP(receiver *webrtc.RTPReceiver) {
 	}
 }
 
-func readSenderRTCP(sender *webrtc.RTPSender) {
-	buf := make([]byte, 1500)
+func (s *Session) readSenderRTCP(sender *webrtc.RTPSender, track *forwardedTrack) {
 	for {
-		if _, _, err := sender.Read(buf); err != nil {
+		packets, _, err := sender.ReadRTCP()
+		if err != nil {
 			return
+		}
+		if wantsKeyFrame(packets) {
+			s.requestKeyFrame(track)
 		}
 	}
 }

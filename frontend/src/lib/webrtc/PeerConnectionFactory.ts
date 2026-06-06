@@ -152,7 +152,9 @@ async function attachOrReplaceTrack(
   }
 
   const reusableSender = senders.find(
-    (sender) => senderKind(connection, sender) === track.kind
+    (sender) =>
+      senderKind(connection, sender) === track.kind &&
+      senderCanPublish(connection, sender)
   );
 
   if (reusableSender) {
@@ -223,6 +225,18 @@ function disableSenderDirection(
   }
 }
 
+function senderCanPublish(connection: RTCPeerConnection, sender: RTCRtpSender) {
+  if (sender.track) {
+    return true;
+  }
+
+  const transceiver = transceiverForSender(connection, sender);
+  return (
+    transceiver?.direction === "sendrecv" ||
+    transceiver?.direction === "sendonly"
+  );
+}
+
 function senderKind(
   connection: RTCPeerConnection,
   sender: RTCRtpSender
@@ -249,6 +263,10 @@ export async function syncLocalTracks(
     const track = sender.track;
     const kind = senderKind(connection, sender);
     const replacement = kind ? tracksByKind.get(kind) : undefined;
+
+    if (replacement && !senderCanPublish(connection, sender)) {
+      continue;
+    }
 
     if (!replacement) {
       if (track) {

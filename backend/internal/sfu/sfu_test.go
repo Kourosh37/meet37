@@ -1,11 +1,13 @@
 package sfu
 
 import (
+	"strings"
 	"testing"
 	"time"
 
 	"meet-backend/internal/config"
 
+	"github.com/pion/rtcp"
 	"github.com/pion/webrtc/v4"
 )
 
@@ -36,6 +38,9 @@ func TestManagerCreatesAnswerForSFUOffer(t *testing.T) {
 	}
 	if answer == "" {
 		t.Fatal("empty SFU answer")
+	}
+	if !strings.Contains(answer, " 127.0.0.1 ") {
+		t.Fatalf("expected SFU answer to advertise configured host IP, got SDP:\n%s", answer)
 	}
 	if err := client.SetRemoteDescription(webrtc.SessionDescription{Type: webrtc.SDPTypeAnswer, SDP: answer}); err != nil {
 		t.Fatal(err)
@@ -95,5 +100,37 @@ func TestManagerAddsExistingTracksWithoutDeadlock(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("HandleOffer deadlocked while adding existing tracks")
+	}
+}
+
+func TestWantsKeyFrameRecognizesVideoFeedback(t *testing.T) {
+	if !wantsKeyFrame([]rtcp.Packet{&rtcp.PictureLossIndication{MediaSSRC: 1}}) {
+		t.Fatal("expected PLI to request a keyframe")
+	}
+	if !wantsKeyFrame([]rtcp.Packet{&rtcp.FullIntraRequest{FIR: []rtcp.FIREntry{{SSRC: 1}}}}) {
+		t.Fatal("expected FIR to request a keyframe")
+	}
+	if wantsKeyFrame([]rtcp.Packet{&rtcp.ReceiverReport{}}) {
+		t.Fatal("receiver reports should not request keyframes")
+	}
+}
+
+func TestRemoveOwnerTracksByKindKeepsCurrentMediaStateClean(t *testing.T) {
+	session := &Session{tracks: map[string]*forwardedTrack{
+		"old-video": {ownerID: "peer-1", mimeType: webrtc.MimeTypeVP8},
+		"audio":     {ownerID: "peer-1", mimeType: webrtc.MimeTypeOpus},
+		"other":     {ownerID: "peer-2", mimeType: webrtc.MimeTypeVP8},
+	}}
+
+	session.removeOwnerTracksByKindLocked("peer-1", "video")
+
+	if session.tracks["old-video"] != nil {
+		t.Fatal("expected old owner video track to be removed")
+	}
+	if session.tracks["audio"] == nil {
+		t.Fatal("audio from the same owner should be retained")
+	}
+	if session.tracks["other"] == nil {
+		t.Fatal("tracks from other owners should be retained")
 	}
 }

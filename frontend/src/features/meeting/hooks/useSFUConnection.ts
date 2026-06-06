@@ -18,9 +18,7 @@ export function useSFUConnection(
   const clientRef = useRef<SFUClient | null>(null);
   const localStreamRef = useRef(localStream);
   const remoteStreamRefs = useRef(new Map<string, MediaStream>());
-  const pendingTracksRef = useRef(
-    new Map<string, { stream: MediaStream; track: MediaStreamTrack }>()
-  );
+  const pendingTracksRef = useRef(new Map<string, MediaStreamTrack>());
   const startedRef = useRef(false);
   const streamOwnersRef = useRef(new Map<string, string>());
   const trackOwnersRef = useRef(new Map<string, string>());
@@ -46,13 +44,19 @@ export function useSFUConnection(
   }, [localStream]);
 
   const publishOwnerTrack = useCallback(
-    (ownerId: string, track: MediaStreamTrack, stream?: MediaStream) => {
+    (ownerId: string, track: MediaStreamTrack) => {
       const ownerStream =
-        remoteStreamRefs.current.get(ownerId) ?? stream ?? new MediaStream();
+        remoteStreamRefs.current.get(ownerId) ?? new MediaStream();
 
       if (!remoteStreamRefs.current.has(ownerId)) {
         remoteStreamRefs.current.set(ownerId, ownerStream);
       }
+
+      ownerStream.getTracks().forEach((existing) => {
+        if (existing.kind === track.kind && existing.id !== track.id) {
+          ownerStream.removeTrack(existing);
+        }
+      });
 
       if (
         !ownerStream.getTracks().some((existing) => existing.id === track.id)
@@ -83,7 +87,7 @@ export function useSFUConnection(
       }
 
       pendingTracksRef.current.delete(trackId);
-      publishOwnerTrack(ownerId, pending.track, pending.stream);
+      publishOwnerTrack(ownerId, pending);
     },
     [publishOwnerTrack]
   );
@@ -93,7 +97,7 @@ export function useSFUConnection(
     for (const [trackId, pending] of pendingTracksRef.current.entries()) {
       if (trackOwnersRef.current.get(trackId) === ownerId) {
         pendingTracksRef.current.delete(trackId);
-        pending.track.stop();
+        pending.stop();
       }
     }
     for (const [streamId, mappedOwner] of streamOwnersRef.current.entries()) {
@@ -132,15 +136,12 @@ export function useSFUConnection(
             (stream ? streamOwnersRef.current.get(stream.id) : undefined);
 
           if (ownerId) {
-            publishOwnerTrack(ownerId, event.track, stream);
+            publishOwnerTrack(ownerId, event.track);
             return;
           }
 
           if (stream) {
-            pendingTracksRef.current.set(event.track.id, {
-              stream,
-              track: event.track
-            });
+            pendingTracksRef.current.set(event.track.id, event.track);
           }
         }
       });

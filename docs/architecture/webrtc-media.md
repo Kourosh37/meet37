@@ -62,6 +62,8 @@ For production servers:
 - The server firewall must allow those same ports.
 - Caddy only handles HTTPS/WSS; it does not forward arbitrary WebRTC UDP media traffic.
 
+For local Docker testing on the same machine, `TURN_PUBLIC_IP=127.0.0.1` is intentional. The backend SFU advertises that address in ICE candidates so the browser connects to Docker-published UDP ports instead of unreachable container bridge addresses.
+
 ## P2P And SFU Behavior
 
 The UI should not expose implementation labels such as P2P or SFU to normal users. Internally:

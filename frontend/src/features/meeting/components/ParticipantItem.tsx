@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Shield,
-  Crown,
-  Mic,
-  MicOff,
-  MoreVertical,
-  Video,
-  VideoOff
-} from "lucide-react";
+import { Shield, Crown, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import type { MeetingPeer } from "@/features/meeting/types/peer";
 
 interface ParticipantItemProps {
@@ -39,15 +31,10 @@ export function ParticipantItem({
           {peer.displayName.slice(0, 1).toUpperCase()}
         </div>
         <div className="min-w-0">
-          <button
-            className="block max-w-full truncate text-left text-sm font-semibold text-foreground transition hover:text-primary disabled:hover:text-foreground"
-            disabled={!canAssignAdmin || isLocal || peer.isHost}
-            onClick={() => onAdmin?.(peer)}
-            type="button"
-          >
+          <p className="block max-w-full truncate text-sm font-semibold text-foreground">
             {peer.displayName}
             {isLocal ? " (You)" : ""}
-          </button>
+          </p>
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
             {peer.isHost ? (
               <Crown className="size-3.5" aria-label="Host" />
@@ -71,6 +58,15 @@ export function ParticipantItem({
 
       {canModerate && !isLocal ? (
         <div className="flex shrink-0 items-center gap-1">
+          {canAssignAdmin && !peer.isHost ? (
+            <button
+              className="rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
+              onClick={() => onAdmin?.(peer)}
+              type="button"
+            >
+              Admin
+            </button>
+          ) : null}
           <button
             className="rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
             onClick={() => onPermissions?.(peer)}
@@ -88,12 +84,7 @@ export function ParticipantItem({
             </button>
           ) : null}
         </div>
-      ) : (
-        <MoreVertical
-          className="size-4 shrink-0 text-muted-foreground"
-          aria-hidden="true"
-        />
-      )}
+      ) : null}
     </li>
   );
 }

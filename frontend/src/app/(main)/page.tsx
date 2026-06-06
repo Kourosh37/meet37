@@ -5,12 +5,15 @@ import type { FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, LogIn, Video } from "lucide-react";
 import Link from "next/link";
+import { usePublicSettings } from "@/features/rooms/hooks/useRoomMeta";
 
 export default function HomePage() {
   const router = useRouter();
+  const { data } = usePublicSettings();
   const [roomId, setRoomId] = useState("");
   const normalizedRoomId = roomId.trim().toLowerCase();
   const canJoin = /^[a-z]{3}-[a-z]{3}-[a-z]{3}$/.test(normalizedRoomId);
+  const showLogin = data?.app_mode === "private";
 
   function joinRoom(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -38,42 +41,44 @@ export default function HomePage() {
             meeting controls focused on the call.
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex w-full max-w-3xl flex-col gap-3 lg:flex-row">
           <Link
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
+            className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             href="/rooms/new"
           >
             Create room
             <ArrowRight className="size-4" />
           </Link>
-          <Link
-            className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-5 py-3 text-sm font-semibold text-surface-foreground transition hover:bg-muted"
-            href="/login"
+          <form
+            className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row"
+            onSubmit={joinRoom}
           >
-            <LogIn className="size-4" />
-            Login
-          </Link>
+            <input
+              className="h-12 min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-sm font-semibold lowercase tracking-normal text-foreground outline-none transition focus:border-primary"
+              inputMode="text"
+              onChange={(event) => setRoomId(event.target.value)}
+              pattern="[A-Za-z]{3}-[A-Za-z]{3}-[A-Za-z]{3}"
+              placeholder="aaa-aaa-aaa"
+              value={roomId}
+            />
+            <button
+              className="inline-flex h-12 items-center justify-center rounded-md bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!canJoin}
+              type="submit"
+            >
+              Join room
+            </button>
+          </form>
+          {showLogin ? (
+            <Link
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-surface px-5 text-sm font-semibold text-surface-foreground transition hover:bg-muted"
+              href="/login"
+            >
+              <LogIn className="size-4" />
+              Login
+            </Link>
+          ) : null}
         </div>
-        <form
-          className="flex max-w-md flex-col gap-2 sm:flex-row"
-          onSubmit={joinRoom}
-        >
-          <input
-            className="h-12 min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-sm font-semibold lowercase tracking-normal text-foreground outline-none transition focus:border-primary"
-            inputMode="text"
-            onChange={(event) => setRoomId(event.target.value)}
-            pattern="[A-Za-z]{3}-[A-Za-z]{3}-[A-Za-z]{3}"
-            placeholder="aaa-aaa-aaa"
-            value={roomId}
-          />
-          <button
-            className="inline-flex h-12 items-center justify-center rounded-md bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!canJoin}
-            type="submit"
-          >
-            Join room
-          </button>
-        </form>
       </div>
     </section>
   );

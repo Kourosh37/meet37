@@ -547,6 +547,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       />
       <ControlBar
         audioEnabled={localMedia.audioEnabled}
+        audioInputs={localMedia.audioInputs}
         canChat={canChat}
         canReact={canReact}
         canShareScreen={canShareScreen}
@@ -556,6 +557,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         onLeave={handleLeave}
         onOpenSettings={() => ui.togglePanel("settings")}
         onReaction={handleReaction}
+        onSelectAudioDevice={localMedia.setSelectedAudioDeviceId}
+        onSelectVideoDevice={localMedia.setSelectedVideoDeviceId}
         onToggleAudio={() => {
           if (localMedia.audioEnabled || canUseMic) {
             localMedia.toggleAudio();
@@ -579,7 +582,10 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         screenSharing={localMedia.screenSharing}
         screenShareSupported={localMedia.screenShareSupported}
         screenShareUnavailableReason={localMedia.screenShareUnavailableReason}
+        selectedAudioDeviceId={localMedia.selectedAudioDeviceId}
+        selectedVideoDeviceId={localMedia.selectedVideoDeviceId}
         videoEnabled={localMedia.videoEnabled}
+        videoInputs={localMedia.videoInputs}
       />
     </main>
   );

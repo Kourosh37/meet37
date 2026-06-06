@@ -68,9 +68,11 @@ async function getDisplayMediaWithFallback() {
   } catch (error) {
     if (
       error instanceof DOMException &&
-      !["OverconstrainedError", "TypeError", "ConstraintNotSatisfiedError"].includes(
-        error.name
-      )
+      ![
+        "OverconstrainedError",
+        "TypeError",
+        "ConstraintNotSatisfiedError"
+      ].includes(error.name)
     ) {
       throw error;
     }
@@ -110,6 +112,8 @@ export function useLocalMedia() {
   const [screenShareSupported, setScreenShareSupported] = useState(false);
   const [screenShareUnavailableReason, setScreenShareUnavailableReason] =
     useState("Screen sharing is not available in this browser.");
+  const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
+  const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
   const currentStreamRef = useRef<MediaStream | null>(null);
   const mediaOperationRef = useRef(Promise.resolve());
   const screenTrackRef = useRef<MediaStreamTrack | null>(null);
@@ -130,6 +134,16 @@ export function useLocalMedia() {
 
     setScreenShareSupported(hasDisplayMedia && (isSecure || isLocal));
     setScreenShareUnavailableReason(getScreenShareUnavailableReason());
+  }, []);
+
+  const enumerateDevices = useCallback(async () => {
+    if (!navigator.mediaDevices?.enumerateDevices) {
+      return;
+    }
+
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    setAudioInputs(devices.filter((device) => device.kind === "audioinput"));
+    setVideoInputs(devices.filter((device) => device.kind === "videoinput"));
   }, []);
 
   const startImmediately = useCallback(
@@ -194,6 +208,7 @@ export function useLocalMedia() {
         );
 
         setError(null);
+        await enumerateDevices();
         return nextStream;
       } catch (error) {
         setAudioStatus(shouldUseAudio ? "error" : "off");
@@ -208,7 +223,7 @@ export function useLocalMedia() {
         setIsStarting(false);
       }
     },
-    [setError]
+    [enumerateDevices, setError]
   );
 
   const start = useCallback(
@@ -258,6 +273,7 @@ export function useLocalMedia() {
       });
       setAudioStatus("ready");
       setError(null);
+      await enumerateDevices();
     } catch (error) {
       setAudioStatus("error");
       setError(
@@ -266,7 +282,7 @@ export function useLocalMedia() {
           : "Could not start local microphone."
       );
     }
-  }, [setError]);
+  }, [enumerateDevices, setError]);
 
   const stop = useCallback(() => {
     screenTrackRef.current = null;
@@ -438,6 +454,35 @@ export function useLocalMedia() {
     stopScreenShare
   ]);
 
+  const setSelectedAudioDeviceId = useCallback(
+    (deviceId: string) => {
+      useMediaStore.getState().setSelectedAudioDeviceId(deviceId);
+
+      if (!useMediaStore.getState().audioEnabled) {
+        return;
+      }
+
+      void runMediaOperation(startAudioTrackImmediately);
+    },
+    [runMediaOperation, startAudioTrackImmediately]
+  );
+
+  const setSelectedVideoDeviceId = useCallback(
+    (deviceId: string) => {
+      useMediaStore.getState().setSelectedVideoDeviceId(deviceId);
+
+      if (
+        !useMediaStore.getState().videoEnabled ||
+        useMediaStore.getState().screenSharing
+      ) {
+        return;
+      }
+
+      void runMediaOperation(() => startImmediately({ videoEnabled: true }));
+    },
+    [runMediaOperation, startImmediately]
+  );
+
   useEffect(() => {
     currentStreamRef.current = stream;
   }, [stream]);
@@ -453,8 +498,25 @@ export function useLocalMedia() {
     updateScreenShareSupport();
   }, [updateScreenShareSupport]);
 
+  useEffect(() => {
+    void enumerateDevices();
+
+    if (!navigator.mediaDevices) {
+      return;
+    }
+
+    navigator.mediaDevices.addEventListener?.("devicechange", enumerateDevices);
+    return () => {
+      navigator.mediaDevices.removeEventListener?.(
+        "devicechange",
+        enumerateDevices
+      );
+    };
+  }, [enumerateDevices]);
+
   return {
     audioEnabled,
+    audioInputs,
     audioStatus,
     error,
     isStarting,
@@ -464,6 +526,8 @@ export function useLocalMedia() {
     screenShareUnavailableReason,
     selectedAudioDeviceId,
     selectedVideoDeviceId,
+    setSelectedAudioDeviceId,
+    setSelectedVideoDeviceId,
     setScreenSharing,
     start,
     stop,
@@ -472,6 +536,7 @@ export function useLocalMedia() {
     toggleScreenShare,
     toggleVideo,
     videoStatus,
+    videoInputs,
     videoEnabled
   };
 }

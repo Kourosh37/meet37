@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import { DeviceSplitControl } from "@/features/meeting/components/DeviceSplitControl";
 
 const REACTION_EMOJIS = [
   "\u{1F44D}",
@@ -28,6 +29,7 @@ const REACTION_EMOJIS = [
 
 interface ControlBarProps {
   audioEnabled: boolean;
+  audioInputs?: MediaDeviceInfo[];
   canChat?: boolean;
   canReact?: boolean;
   canShareScreen?: boolean;
@@ -37,6 +39,8 @@ interface ControlBarProps {
   onLeave: () => void;
   onOpenSettings: () => void;
   onReaction: (emoji: string) => void;
+  onSelectAudioDevice?: (deviceId: string) => void;
+  onSelectVideoDevice?: (deviceId: string) => void;
   onToggleAudio: () => void;
   onToggleChat: () => void;
   onToggleScreenShare: () => void;
@@ -44,11 +48,15 @@ interface ControlBarProps {
   screenSharing: boolean;
   screenShareSupported?: boolean;
   screenShareUnavailableReason?: string;
+  selectedAudioDeviceId?: string;
+  selectedVideoDeviceId?: string;
   videoEnabled: boolean;
+  videoInputs?: MediaDeviceInfo[];
 }
 
 export function ControlBar({
   audioEnabled,
+  audioInputs = [],
   canChat = true,
   canReact = true,
   canShareScreen = true,
@@ -58,6 +66,8 @@ export function ControlBar({
   onLeave,
   onOpenSettings,
   onReaction,
+  onSelectAudioDevice,
+  onSelectVideoDevice,
   onToggleAudio,
   onToggleChat,
   onToggleScreenShare,
@@ -65,7 +75,10 @@ export function ControlBar({
   screenSharing,
   screenShareSupported = true,
   screenShareUnavailableReason = "Screen sharing is not available in this browser.",
-  videoEnabled
+  selectedAudioDeviceId = "",
+  selectedVideoDeviceId = "",
+  videoEnabled,
+  videoInputs = []
 }: ControlBarProps) {
   const [mounted, setMounted] = useState(false);
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
@@ -114,11 +127,18 @@ export function ControlBar({
   return (
     <>
       <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-center gap-2 overflow-x-auto border-x border-t border-border bg-surface px-3 py-3 shadow-[0_-14px_36px_rgb(15_23_42/0.12)] backdrop-blur sm:px-6 sm:py-4">
-        <button
-          aria-label={audioEnabled ? "Mute microphone" : "Unmute microphone"}
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+        <DeviceSplitControl
+          activeIcon={<Mic className="size-5" />}
+          defaultDeviceLabel="Default microphone"
+          devices={audioInputs}
           disabled={!audioEnabled && !canUseMic}
-          onClick={onToggleAudio}
+          inactiveIcon={<MicOff className="size-5" />}
+          isEnabled={audioEnabled}
+          label="Microphone"
+          onSelectDevice={onSelectAudioDevice ?? (() => undefined)}
+          onToggle={onToggleAudio}
+          selectLabel="Select microphone"
+          selectedDeviceId={selectedAudioDeviceId}
           title={
             audioEnabled
               ? "Mute microphone"
@@ -126,14 +146,8 @@ export function ControlBar({
                 ? "Unmute microphone"
                 : "Microphone is disabled by meeting permissions"
           }
-          type="button"
-        >
-          {audioEnabled ? (
-            <Mic className="size-5" />
-          ) : (
-            <MicOff className="size-5" />
-          )}
-        </button>
+          toggleLabel={audioEnabled ? "Mute microphone" : "Unmute microphone"}
+        />
         <button
           aria-label={screenSharing ? "Stop screen sharing" : "Share screen"}
           className={
@@ -148,11 +162,18 @@ export function ControlBar({
         >
           <MonitorUp className="size-5" />
         </button>
-        <button
-          aria-label={videoEnabled ? "Turn camera off" : "Turn camera on"}
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+        <DeviceSplitControl
+          activeIcon={<Camera className="size-5" />}
+          defaultDeviceLabel="Default camera"
+          devices={videoInputs}
           disabled={!videoEnabled && !canUseCamera}
-          onClick={onToggleVideo}
+          inactiveIcon={<CameraOff className="size-5" />}
+          isEnabled={videoEnabled}
+          label="Camera"
+          onSelectDevice={onSelectVideoDevice ?? (() => undefined)}
+          onToggle={onToggleVideo}
+          selectLabel="Select camera"
+          selectedDeviceId={selectedVideoDeviceId}
           title={
             videoEnabled
               ? "Turn camera off"
@@ -160,14 +181,8 @@ export function ControlBar({
                 ? "Turn camera on"
                 : "Camera is disabled by meeting permissions"
           }
-          type="button"
-        >
-          {videoEnabled ? (
-            <Camera className="size-5" />
-          ) : (
-            <CameraOff className="size-5" />
-          )}
-        </button>
+          toggleLabel={videoEnabled ? "Turn camera off" : "Turn camera on"}
+        />
         <button
           aria-label="Copy invite link"
           className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-foreground transition hover:bg-muted"

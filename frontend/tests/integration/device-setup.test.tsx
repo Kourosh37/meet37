@@ -137,10 +137,10 @@ describe("DeviceSetup", () => {
       screen.queryByRole("button", { name: /test camera\/mic/i })
     ).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: /^camera$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /turn camera off/i }));
     expect(screen.queryByText("Camera preview is off")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("button", { name: /^camera$/i }));
+    fireEvent.click(screen.getByRole("button", { name: /turn camera on/i }));
 
     await waitFor(() => {
       expect(document.querySelector("video")?.srcObject).toBe(stream);

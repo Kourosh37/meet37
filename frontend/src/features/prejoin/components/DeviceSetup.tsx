@@ -2,6 +2,7 @@
 
 import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { DeviceSplitControl } from "@/features/meeting/components/DeviceSplitControl";
 import { useDeviceSetup } from "@/features/prejoin/hooks/useDeviceSetup";
 
 export function DeviceSetup() {
@@ -44,63 +45,40 @@ export function DeviceSetup() {
       ) : null}
 
       <div className="flex flex-wrap gap-2">
-        <button
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-surface-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+        <DeviceSplitControl
+          activeIcon={<Mic className="size-4" />}
+          defaultDeviceLabel="Default microphone"
+          devices={setup.audioInputs}
           disabled={setup.permissionState === "prompting"}
-          onClick={() => setup.setAudioEnabled(!setup.audioEnabled)}
-          type="button"
-        >
-          {setup.audioEnabled ? (
-            <Mic className="size-4" />
-          ) : (
-            <MicOff className="size-4" />
-          )}
-          Mic
-        </button>
-        <button
-          className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium text-surface-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+          inactiveIcon={<MicOff className="size-4" />}
+          isEnabled={setup.audioEnabled}
+          label="Mic"
+          onSelectDevice={setup.setSelectedAudioDeviceId}
+          onToggle={() => setup.setAudioEnabled(!setup.audioEnabled)}
+          selectLabel="Select microphone"
+          selectedDeviceId={setup.selectedAudioDeviceId}
+          toggleLabel={
+            setup.audioEnabled ? "Mute microphone" : "Unmute microphone"
+          }
+          variant="labeled"
+        />
+        <DeviceSplitControl
+          activeIcon={<Camera className="size-4" />}
+          defaultDeviceLabel="Default camera"
+          devices={setup.videoInputs}
           disabled={setup.permissionState === "prompting"}
-          onClick={() => setup.setVideoEnabled(!setup.videoEnabled)}
-          type="button"
-        >
-          {setup.videoEnabled ? (
-            <Camera className="size-4" />
-          ) : (
-            <CameraOff className="size-4" />
-          )}
-          Camera
-        </button>
-      </div>
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <select
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
-          onChange={(event) =>
-            setup.setSelectedAudioDeviceId(event.target.value)
+          inactiveIcon={<CameraOff className="size-4" />}
+          isEnabled={setup.videoEnabled}
+          label="Camera"
+          onSelectDevice={setup.setSelectedVideoDeviceId}
+          onToggle={() => setup.setVideoEnabled(!setup.videoEnabled)}
+          selectLabel="Select camera"
+          selectedDeviceId={setup.selectedVideoDeviceId}
+          toggleLabel={
+            setup.videoEnabled ? "Turn camera off" : "Turn camera on"
           }
-          value={setup.selectedAudioDeviceId}
-        >
-          <option value="">Default microphone</option>
-          {setup.audioInputs.map((device) => (
-            <option key={device.deviceId} value={device.deviceId}>
-              {device.label || "Microphone"}
-            </option>
-          ))}
-        </select>
-        <select
-          className="h-10 rounded-md border border-border bg-background px-3 text-sm text-foreground"
-          onChange={(event) =>
-            setup.setSelectedVideoDeviceId(event.target.value)
-          }
-          value={setup.selectedVideoDeviceId}
-        >
-          <option value="">Default camera</option>
-          {setup.videoInputs.map((device) => (
-            <option key={device.deviceId} value={device.deviceId}>
-              {device.label || "Camera"}
-            </option>
-          ))}
-        </select>
+          variant="labeled"
+        />
       </div>
     </div>
   );

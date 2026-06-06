@@ -57,7 +57,7 @@ The coturn service:
 
 - Uses `${COTURN_IMAGE}`.
 - Publishes `TURN_HOST_PORT` for UDP and TCP.
-- Publishes `TURN_RELAY_PORT_MIN` through `TURN_RELAY_PORT_MAX` as UDP.
+- Publishes `TURN_RELAY_PORT_MIN` through `TURN_RELAY_PORT_MAX` as UDP and TCP.
 - Uses `TURN_PUBLIC_IP`, `TURN_REALM`, and `TURN_SECRET` to issue time-limited TURN credentials through the backend.
 - Joins only the internal app network.
 
@@ -90,6 +90,7 @@ Production compose publishes:
 - `TURN_HOST_PORT:TURN_PORT/udp`
 - `TURN_HOST_PORT:TURN_PORT/tcp`
 - `TURN_RELAY_PORT_MIN-TURN_RELAY_PORT_MAX:TURN_RELAY_PORT_MIN-TURN_RELAY_PORT_MAX/udp`
+- `TURN_RELAY_PORT_MIN-TURN_RELAY_PORT_MAX:TURN_RELAY_PORT_MIN-TURN_RELAY_PORT_MAX/tcp`
 - `WEBRTC_UDP_HOST_PORT_MIN-WEBRTC_UDP_HOST_PORT_MAX:WEBRTC_UDP_PORT_MIN-WEBRTC_UDP_PORT_MAX/udp`
 
 These ports must also be allowed by the server firewall.

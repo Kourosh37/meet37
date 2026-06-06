@@ -193,27 +193,66 @@ def find_available_port(
 
 
 def range_is_available(
-    start: int, end: int, *, allowed_container_names: set[str]
+    start: int,
+    end: int,
+    *,
+    allowed_container_names: set[str],
+    udp: bool = True,
 ) -> bool:
     return all(
-        port_is_usable(port, allowed_container_names=allowed_container_names, udp=True)
+        port_is_usable(port, allowed_container_names=allowed_container_names, udp=udp)
         for port in range(start, end + 1)
     )
 
 
-def find_available_udp_range(
-    start: int, end: int, *, allowed_container_names: set[str]
+def range_is_available_for_protocols(
+    start: int,
+    end: int,
+    *,
+    allowed_container_names: set[str],
+    udp: bool = True,
+    tcp: bool = False,
+) -> bool:
+    udp_available = not udp or range_is_available(
+        start,
+        end,
+        allowed_container_names=allowed_container_names,
+        udp=True,
+    )
+    tcp_available = not tcp or range_is_available(
+        start,
+        end,
+        allowed_container_names=allowed_container_names,
+        udp=False,
+    )
+    return udp_available and tcp_available
+
+
+def find_available_range(
+    start: int,
+    end: int,
+    *,
+    allowed_container_names: set[str],
+    udp: bool = True,
+    tcp: bool = False,
 ) -> tuple[int, int]:
     size = end - start + 1
     candidate = start
     while candidate + size - 1 <= 65535:
         candidate_end = candidate + size - 1
-        if range_is_available(
-            candidate, candidate_end, allowed_container_names=allowed_container_names
+        if range_is_available_for_protocols(
+            candidate,
+            candidate_end,
+            allowed_container_names=allowed_container_names,
+            udp=udp,
+            tcp=tcp,
         ):
             return candidate, candidate_end
         candidate += size
-    raise RuntimeError("could not find a free UDP media port range")
+    protocols = "/".join(
+        item for item, enabled in [("TCP", tcp), ("UDP", udp)] if enabled
+    )
+    raise RuntimeError(f"could not find a free {protocols} media port range")
 
 
 def capture_public_ip(values: dict[str, str]) -> str:
@@ -364,16 +403,24 @@ def fix_ports(values: dict[str, str], allowed_container_names: set[str]) -> list
 
     relay_min = int(values["TURN_RELAY_PORT_MIN"])
     relay_max = int(values["TURN_RELAY_PORT_MAX"])
-    if not range_is_available(
-        relay_min, relay_max, allowed_container_names=allowed_container_names
+    if not range_is_available_for_protocols(
+        relay_min,
+        relay_max,
+        allowed_container_names=allowed_container_names,
+        udp=True,
+        tcp=True,
     ):
-        next_min, next_max = find_available_udp_range(
-            relay_min, relay_max, allowed_container_names=allowed_container_names
+        next_min, next_max = find_available_range(
+            relay_min,
+            relay_max,
+            allowed_container_names=allowed_container_names,
+            udp=True,
+            tcp=True,
         )
         values["TURN_RELAY_PORT_MIN"] = str(next_min)
         values["TURN_RELAY_PORT_MAX"] = str(next_max)
         changes.append(
-            f"TURN relay UDP range {relay_min}-{relay_max} -> {next_min}-{next_max}"
+            f"TURN relay TCP/UDP range {relay_min}-{relay_max} -> {next_min}-{next_max}"
         )
 
     udp_min = int(values["WEBRTC_UDP_HOST_PORT_MIN"])
@@ -381,8 +428,11 @@ def fix_ports(values: dict[str, str], allowed_container_names: set[str]) -> list
     if not range_is_available(
         udp_min, udp_max, allowed_container_names=allowed_container_names
     ):
-        next_min, next_max = find_available_udp_range(
-            udp_min, udp_max, allowed_container_names=allowed_container_names
+        next_min, next_max = find_available_range(
+            udp_min,
+            udp_max,
+            allowed_container_names=allowed_container_names,
+            udp=True,
         )
         values["WEBRTC_UDP_PORT_MIN"] = str(next_min)
         values["WEBRTC_UDP_PORT_MAX"] = str(next_max)
@@ -452,6 +502,7 @@ def firewall_rules(
         ("443", "tcp"),
         (values["TURN_HOST_PORT"], "tcp"),
         (values["TURN_HOST_PORT"], "udp"),
+        (f"{values['TURN_RELAY_PORT_MIN']}:{values['TURN_RELAY_PORT_MAX']}", "tcp"),
         (f"{values['TURN_RELAY_PORT_MIN']}:{values['TURN_RELAY_PORT_MAX']}", "udp"),
         (
             f"{values['WEBRTC_UDP_HOST_PORT_MIN']}:{values['WEBRTC_UDP_HOST_PORT_MAX']}",

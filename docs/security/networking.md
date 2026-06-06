@@ -40,6 +40,7 @@ Media ports must be reachable from browser clients:
 TURN_HOST_PORT/TCP
 TURN_HOST_PORT/UDP
 TURN_RELAY_PORT_MIN-TURN_RELAY_PORT_MAX/UDP
+TURN_RELAY_PORT_MIN-TURN_RELAY_PORT_MAX/TCP
 WEBRTC_UDP_HOST_PORT_MIN-WEBRTC_UDP_HOST_PORT_MAX/UDP
 ```
 
@@ -50,6 +51,7 @@ ufw allow 80/tcp
 ufw allow 443/tcp
 ufw allow 3478/tcp
 ufw allow 3478/udp
+ufw allow 43000:43100/tcp
 ufw allow 43000:43100/udp
 ufw allow 40000:40100/udp
 ufw reload

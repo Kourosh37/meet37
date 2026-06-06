@@ -23,6 +23,7 @@ services:
     command:
       - -n
       - --log-file=stdout
+      - --listening-ip=0.0.0.0
       - --listening-port=${TURN_PORT:?TURN_PORT is required}
       - --realm=${TURN_REALM:?TURN_REALM is required}
       - --external-ip=${TURN_PUBLIC_IP:?TURN_PUBLIC_IP is required}
@@ -34,10 +35,12 @@ services:
       - --no-cli
       - --no-tls
       - --no-dtls
+      - --no-multicast-peers
     ports:
       - "${TURN_HOST_PORT:?TURN_HOST_PORT is required}:${TURN_PORT:?TURN_PORT is required}/udp"
       - "${TURN_HOST_PORT:?TURN_HOST_PORT is required}:${TURN_PORT:?TURN_PORT is required}/tcp"
       - "${TURN_RELAY_PORT_MIN:?TURN_RELAY_PORT_MIN is required}-${TURN_RELAY_PORT_MAX:?TURN_RELAY_PORT_MAX is required}:${TURN_RELAY_PORT_MIN:?TURN_RELAY_PORT_MIN is required}-${TURN_RELAY_PORT_MAX:?TURN_RELAY_PORT_MAX is required}/udp"
+      - "${TURN_RELAY_PORT_MIN:?TURN_RELAY_PORT_MIN is required}-${TURN_RELAY_PORT_MAX:?TURN_RELAY_PORT_MAX is required}:${TURN_RELAY_PORT_MIN:?TURN_RELAY_PORT_MIN is required}-${TURN_RELAY_PORT_MAX:?TURN_RELAY_PORT_MAX is required}/tcp"
     networks:
       - internal
     restart: unless-stopped

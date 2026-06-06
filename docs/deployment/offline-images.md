@@ -89,5 +89,5 @@ docker compose -f docker-compose.yml up -d
 
 - The production compose file must already exist on the server.
 - If Caddy is a separate project, use `DOCKER_PROXY_NETWORK` for the shared external Docker network.
-- `check_server_requirements.py` prepares env defaults, Docker networks, and firewall rules for HTTP, HTTPS, TURN, TURN relay UDP, and WebRTC/SFU UDP ranges.
+- `check_server_requirements.py` prepares env defaults, Docker networks, and firewall rules for HTTP, HTTPS, TURN, TURN relay TCP/UDP, and WebRTC/SFU UDP ranges.
 - Media port counts are controlled by the min/max values in `.env`, such as `TURN_RELAY_PORT_MIN/MAX` and `WEBRTC_UDP_HOST_PORT_MIN/MAX`.

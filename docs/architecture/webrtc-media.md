@@ -57,7 +57,7 @@ For production servers:
 
 - `TURN_PUBLIC_IP` must be reachable from the browser clients.
 - Docker must publish `TURN_HOST_PORT` for TCP and UDP on the coturn service.
-- Docker must publish `TURN_RELAY_PORT_MIN` through `TURN_RELAY_PORT_MAX` as UDP on the coturn service.
+- Docker must publish `TURN_RELAY_PORT_MIN` through `TURN_RELAY_PORT_MAX` as UDP and TCP on the coturn service.
 - Docker must publish `WEBRTC_UDP_HOST_PORT_MIN` through `WEBRTC_UDP_HOST_PORT_MAX` as UDP.
 - The server firewall must allow those same ports.
 - Caddy only handles HTTPS/WSS; it does not forward arbitrary WebRTC UDP media traffic.

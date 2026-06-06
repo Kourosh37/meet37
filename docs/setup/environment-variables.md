@@ -47,8 +47,8 @@ This page is the operational reference for meet37 environment variables. The sou
 | `TURN_PUBLIC_IP` | Production | Public IP or host advertised for media/TURN-style credentials. |
 | `TURN_PORT` | Yes | Internal advertised TURN/SFU port. |
 | `TURN_HOST_PORT` | Docker | Host-published TURN/SFU port. |
-| `TURN_RELAY_PORT_MIN` | Docker | Coturn relay UDP port range start. |
-| `TURN_RELAY_PORT_MAX` | Docker | Coturn relay UDP port range end. |
+| `TURN_RELAY_PORT_MIN` | Docker | Coturn relay TCP/UDP port range start. |
+| `TURN_RELAY_PORT_MAX` | Docker | Coturn relay TCP/UDP port range end. |
 | `TURN_REALM` | Production | TURN authentication realm, usually the public meeting domain. |
 | `TURN_SECRET` | Yes | Secret for time-limited TURN-style credentials. |
 | `SFU_FALLBACK_THRESHOLD_KBPS` | Yes | Low bitrate threshold for SFU fallback logic. |

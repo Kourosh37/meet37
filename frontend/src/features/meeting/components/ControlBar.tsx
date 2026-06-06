@@ -148,20 +148,6 @@ export function ControlBar({
           }
           toggleLabel={audioEnabled ? "Mute microphone" : "Unmute microphone"}
         />
-        <button
-          aria-label={screenSharing ? "Stop screen sharing" : "Share screen"}
-          className={
-            screenSharing
-              ? "grid size-11 place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90"
-              : "grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
-          }
-          onClick={onToggleScreenShare}
-          disabled={!screenSharing && !canShareScreen}
-          title={screenShareTitle}
-          type="button"
-        >
-          <MonitorUp className="size-5" />
-        </button>
         <DeviceSplitControl
           activeIcon={<Camera className="size-5" />}
           defaultDeviceLabel="Default camera"
@@ -183,6 +169,21 @@ export function ControlBar({
           }
           toggleLabel={videoEnabled ? "Turn camera off" : "Turn camera on"}
         />
+        <button
+          aria-label={screenSharing ? "Stop screen sharing" : "Share screen"}
+          className={
+            screenSharing
+              ? "grid size-11 place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90"
+              : "grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          }
+          onClick={onToggleScreenShare}
+          disabled={!screenSharing && !canShareScreen}
+          title={screenShareTitle}
+          type="button"
+        >
+          <MonitorUp className="size-5" />
+        </button>
+      
         <button
           aria-label="Copy invite link"
           className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-foreground transition hover:bg-muted"

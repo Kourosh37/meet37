@@ -125,6 +125,45 @@ func TestHandleMessageBroadcastsReactionWithDisplayName(t *testing.T) {
 	}
 }
 
+func TestHandleJoinPromotesFirstPeerInReusableRoomToHost(t *testing.T) {
+	hub, database := testHub(t)
+	roomID := "room-1"
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		roomID, "Room", "previous-host", "approval", 50, time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("insert room: %v", err)
+	}
+	peer := &Peer{id: "peer-1", mode: "sfu", send: make(chan []byte, 4), hub: hub}
+
+	hub.handleMessage(peer, []byte(`{"type":"join","payload":{"room_id":"room-1","display_name":"Alice"}}`))
+
+	select {
+	case raw := <-peer.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode signal: %v", err)
+		}
+		if msg.Type != "joined" {
+			t.Fatalf("expected joined signal, got %q", msg.Type)
+		}
+		payload, ok := msg.Payload.(map[string]interface{})
+		if !ok {
+			t.Fatalf("unexpected payload type: %#v", msg.Payload)
+		}
+		if payload["is_host"] != true {
+			t.Fatalf("expected first peer to join as host, got payload %#v", payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for joined signal")
+	}
+
+	if !peer.isHost {
+		t.Fatalf("expected peer host flag to be true")
+	}
+}
+
 func TestHandleMessageRespondsToPing(t *testing.T) {
 	hub, _ := testHub(t)
 	peer := &Peer{id: "peer-1", send: make(chan []byte, 4), hub: hub}

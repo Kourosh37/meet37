@@ -649,6 +649,9 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 
 	room := h.getOrCreateRoom(req.RoomID)
 	room.mu.Lock()
+	if !p.isHost && len(room.peers) == 0 && len(room.pending) == 0 {
+		p.isHost = true
+	}
 	identity := identityKey(p.userID, req.DisplayName)
 	if bannedUntil, ok := room.bans[identity]; ok {
 		if bannedUntil == 0 || bannedUntil > time.Now().Unix() {

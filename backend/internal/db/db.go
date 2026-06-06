@@ -108,6 +108,49 @@ CREATE TABLE IF NOT EXISTS file_transfers (
 	ts INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS room_peer_permissions (
+	room_id TEXT NOT NULL,
+	identity TEXT NOT NULL,
+	can_use_mic INTEGER NOT NULL,
+	can_use_camera INTEGER NOT NULL,
+	can_share_screen INTEGER NOT NULL,
+	can_chat INTEGER NOT NULL,
+	can_react INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL,
+	PRIMARY KEY (room_id, identity)
+);
+
+CREATE TABLE IF NOT EXISTS room_admin_permissions (
+	room_id TEXT NOT NULL,
+	identity TEXT NOT NULL,
+	can_kick INTEGER NOT NULL,
+	can_mute_mic INTEGER NOT NULL,
+	can_disable_camera INTEGER NOT NULL,
+	can_disable_screen INTEGER NOT NULL,
+	can_disable_chat INTEGER NOT NULL,
+	can_disable_emoji INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL,
+	PRIMARY KEY (room_id, identity)
+);
+
+CREATE TABLE IF NOT EXISTS room_bans (
+	room_id TEXT NOT NULL,
+	identity TEXT NOT NULL,
+	banned_until INTEGER NOT NULL,
+	created_at INTEGER NOT NULL,
+	PRIMARY KEY (room_id, identity)
+);
+
+CREATE TABLE IF NOT EXISTS room_default_permissions (
+	room_id TEXT PRIMARY KEY,
+	can_use_mic INTEGER NOT NULL,
+	can_use_camera INTEGER NOT NULL,
+	can_share_screen INTEGER NOT NULL,
+	can_chat INTEGER NOT NULL,
+	can_react INTEGER NOT NULL,
+	updated_at INTEGER NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_room_events_room ON room_events(room_id, ts);
 CREATE INDEX IF NOT EXISTS idx_rooms_host ON rooms(host_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_expires ON rooms(expires_at);
@@ -115,6 +158,7 @@ CREATE INDEX IF NOT EXISTS idx_refresh_sessions_token ON refresh_sessions(token_
 CREATE INDEX IF NOT EXISTS idx_refresh_sessions_user ON refresh_sessions(user_id, revoked_at, expires_at);
 CREATE INDEX IF NOT EXISTS idx_chat_messages_room ON chat_messages(room_id, ts);
 CREATE INDEX IF NOT EXISTS idx_file_transfers_room ON file_transfers(room_id, ts);
+CREATE INDEX IF NOT EXISTS idx_room_bans_expires ON room_bans(room_id, banned_until);
 `
 	if _, err := db.Exec(schema); err != nil {
 		return err

@@ -1,7 +1,27 @@
+"use client";
+
+import { useState } from "react";
+import type { FormEvent } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, LogIn, Video } from "lucide-react";
 import Link from "next/link";
 
 export default function HomePage() {
+  const router = useRouter();
+  const [roomId, setRoomId] = useState("");
+  const normalizedRoomId = roomId.trim().toLowerCase();
+  const canJoin = /^[a-z]{3}-[a-z]{3}-[a-z]{3}$/.test(normalizedRoomId);
+
+  function joinRoom(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!canJoin) {
+      return;
+    }
+
+    router.push(`/meet/${normalizedRoomId}`);
+  }
+
   return (
     <section className="mx-auto flex min-h-[calc(100vh-12rem)] max-w-4xl flex-col justify-center py-10">
       <div className="space-y-7">
@@ -34,6 +54,26 @@ export default function HomePage() {
             Login
           </Link>
         </div>
+        <form
+          className="flex max-w-md flex-col gap-2 sm:flex-row"
+          onSubmit={joinRoom}
+        >
+          <input
+            className="h-12 min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-sm font-semibold lowercase tracking-normal text-foreground outline-none transition focus:border-primary"
+            inputMode="text"
+            onChange={(event) => setRoomId(event.target.value)}
+            pattern="[A-Za-z]{3}-[A-Za-z]{3}-[A-Za-z]{3}"
+            placeholder="aaa-aaa-aaa"
+            value={roomId}
+          />
+          <button
+            className="inline-flex h-12 items-center justify-center rounded-md bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+            disabled={!canJoin}
+            type="submit"
+          >
+            Join room
+          </button>
+        </form>
       </div>
     </section>
   );

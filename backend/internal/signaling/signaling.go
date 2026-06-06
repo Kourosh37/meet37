@@ -39,12 +39,67 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+func defaultPeerPermissions() models.PeerPermissions {
+	return models.PeerPermissions{
+		CanUseMic:      true,
+		CanUseCamera:   true,
+		CanShareScreen: true,
+		CanChat:        true,
+		CanReact:       true,
+	}
+}
+
+func intFromBool(value bool) int {
+	if value {
+		return 1
+	}
+	return 0
+}
+
+func boolFromInt(value int) bool {
+	return value != 0
+}
+
+func identityKey(userID, displayName string) string {
+	if userID != "" {
+		return "user:" + userID
+	}
+	return "name:" + strings.ToLower(strings.TrimSpace(displayName))
+}
+
+func canKickPeer(peer *Peer) bool {
+	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanKick)
+}
+
+func canMuteMic(peer *Peer) bool {
+	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanMuteMic)
+}
+
+func canDisableCamera(peer *Peer) bool {
+	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanDisableCamera)
+}
+
+func canDisableScreen(peer *Peer) bool {
+	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanDisableScreen)
+}
+
+func canDisableChat(peer *Peer) bool {
+	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanDisableChat)
+}
+
+func canDisableEmoji(peer *Peer) bool {
+	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanDisableEmoji)
+}
+
 type Peer struct {
 	id          string
 	userID      string
 	displayName string
 	roomID      string
 	isHost      bool
+	isAdmin     bool
+	permissions models.PeerPermissions
+	adminPerms  models.AdminPermissions
 	conn        *websocket.Conn
 	send        chan []byte
 	mode        string
@@ -54,11 +109,15 @@ type Peer struct {
 }
 
 type Room struct {
-	id         string
-	peers      map[string]*Peer
-	pending    map[string]*Peer
-	sfuSession *sfu.Session
-	mu         sync.RWMutex
+	id                 string
+	peers              map[string]*Peer
+	pending            map[string]*Peer
+	sfuSession         *sfu.Session
+	permissions        map[string]models.PeerPermissions
+	adminPermissions   map[string]models.AdminPermissions
+	bans               map[string]int64
+	defaultPermissions models.PeerPermissions
+	mu                 sync.RWMutex
 }
 
 func (r *Room) displayNameTaken(displayName, exceptPeerID string) bool {
@@ -185,12 +244,22 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 	case "offer", "answer", "ice-candidate":
 		p.sendMsg(errMsg("direct browser signaling is disabled"))
 	case "media-state", "audio-level":
+		if msg.Type == "media-state" {
+			h.handleMediaState(p, msg)
+			return
+		}
 		h.broadcast(p.roomID, msg, p.id)
 	case "reaction":
+		if !p.permissions.CanReact {
+			return
+		}
 		h.handleReaction(p, msg)
 	case "chat":
-		h.broadcast(p.roomID, msg, p.id)
+		if !p.permissions.CanChat {
+			return
+		}
 		h.persistChat(p, msg)
+		h.broadcast(p.roomID, msg, p.id)
 	case "file-offer":
 		h.persistFileTransfer(p, msg, "offered")
 		h.relay(p, msg)
@@ -213,6 +282,12 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.handleKickPeer(p, msg)
 	case "mute-peer":
 		h.handleMutePeer(p, msg)
+	case "set-peer-permissions":
+		h.handlePeerPermissions(p, msg)
+	case "set-admin-permissions":
+		h.handleAdminPermissions(p, msg)
+	case "set-room-settings":
+		h.handleRoomSettings(p, msg)
 	default:
 		p.sendMsg(errMsg("unknown message type"))
 	}
@@ -255,6 +330,228 @@ func (h *Hub) handleReaction(p *Peer, msg models.SignalMessage) {
 			"peer_id":      p.id,
 		},
 	}, p.id)
+}
+
+func (h *Hub) handleMediaState(p *Peer, msg models.SignalMessage) {
+	if p.roomID == "" {
+		return
+	}
+	var body struct {
+		AudioEnabled      bool   `json:"audio_enabled"`
+		AudioStatus       string `json:"audio_status,omitempty"`
+		ScreenSharing     bool   `json:"screen_sharing,omitempty"`
+		ScreenShareStatus string `json:"screen_share_status,omitempty"`
+		VideoEnabled      bool   `json:"video_enabled"`
+		VideoStatus       string `json:"video_status,omitempty"`
+	}
+	if !decodePayload(msg.Payload, &body) {
+		return
+	}
+	if !p.permissions.CanUseMic {
+		body.AudioEnabled = false
+		body.AudioStatus = "off"
+	}
+	if !p.permissions.CanUseCamera {
+		body.VideoEnabled = false
+		body.VideoStatus = "off"
+	}
+	if !p.permissions.CanShareScreen {
+		body.ScreenSharing = false
+		body.ScreenShareStatus = "off"
+	}
+	h.broadcast(p.roomID, models.SignalMessage{Type: "media-state", From: p.id, Payload: body}, p.id)
+}
+
+func (h *Hub) handlePeerPermissions(actor *Peer, msg models.SignalMessage) {
+	if actor.roomID == "" {
+		return
+	}
+	var req struct {
+		PeerID      string                 `json:"peer_id"`
+		Permissions models.PeerPermissions `json:"permissions"`
+	}
+	if !decodePayload(msg.Payload, &req) || req.PeerID == "" {
+		actor.sendMsg(errMsg("invalid permissions payload"))
+		return
+	}
+	h.mu.RLock()
+	room := h.rooms[actor.roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+	room.mu.Lock()
+	target := room.peers[req.PeerID]
+	room.mu.Unlock()
+	if target == nil {
+		actor.sendMsg(errMsg("peer not found"))
+		return
+	}
+	if target.isHost && !actor.isHost {
+		actor.sendMsg(errMsg("host permission required"))
+		return
+	}
+	if !actor.isHost && !actor.isAdmin {
+		actor.sendMsg(errMsg("permission denied"))
+		return
+	}
+	if !actor.isHost {
+		current := target.permissions
+		if current.CanUseMic != req.Permissions.CanUseMic && !canMuteMic(actor) {
+			actor.sendMsg(errMsg("permission denied"))
+			return
+		}
+		if current.CanUseCamera != req.Permissions.CanUseCamera && !canDisableCamera(actor) {
+			actor.sendMsg(errMsg("permission denied"))
+			return
+		}
+		if current.CanShareScreen != req.Permissions.CanShareScreen && !canDisableScreen(actor) {
+			actor.sendMsg(errMsg("permission denied"))
+			return
+		}
+		if current.CanChat != req.Permissions.CanChat && !canDisableChat(actor) {
+			actor.sendMsg(errMsg("permission denied"))
+			return
+		}
+		if current.CanReact != req.Permissions.CanReact && !canDisableEmoji(actor) {
+			actor.sendMsg(errMsg("permission denied"))
+			return
+		}
+	}
+	room.mu.Lock()
+	identity := identityKey(target.userID, target.displayName)
+	room.permissions[identity] = req.Permissions
+	target.permissions = req.Permissions
+	room.mu.Unlock()
+	h.persistPeerPermissions(actor.roomID, identity, req.Permissions)
+	h.broadcast(actor.roomID, models.SignalMessage{Type: "peer-permissions-updated", Payload: map[string]interface{}{"peer_id": target.id, "permissions": req.Permissions}}, "")
+}
+
+func (h *Hub) handleAdminPermissions(actor *Peer, msg models.SignalMessage) {
+	if !actor.isHost || actor.roomID == "" {
+		actor.sendMsg(errMsg("host permission required"))
+		return
+	}
+	var req struct {
+		PeerID           string                  `json:"peer_id"`
+		IsAdmin          bool                    `json:"is_admin"`
+		AdminPermissions models.AdminPermissions `json:"admin_permissions"`
+	}
+	if !decodePayload(msg.Payload, &req) || req.PeerID == "" {
+		actor.sendMsg(errMsg("invalid admin payload"))
+		return
+	}
+	h.mu.RLock()
+	room := h.rooms[actor.roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+	room.mu.Lock()
+	target := room.peers[req.PeerID]
+	if target == nil {
+		room.mu.Unlock()
+		actor.sendMsg(errMsg("peer not found"))
+		return
+	}
+	if target.isHost {
+		room.mu.Unlock()
+		actor.sendMsg(errMsg("peer not found"))
+		return
+	}
+	identity := identityKey(target.userID, target.displayName)
+	if req.IsAdmin {
+		room.adminPermissions[identity] = req.AdminPermissions
+		target.isAdmin = true
+		target.adminPerms = req.AdminPermissions
+		h.persistAdminPermissions(actor.roomID, identity, req.AdminPermissions)
+	} else {
+		delete(room.adminPermissions, identity)
+		target.isAdmin = false
+		target.adminPerms = models.AdminPermissions{}
+		h.deleteAdminPermissions(actor.roomID, identity)
+	}
+	room.mu.Unlock()
+	h.broadcast(actor.roomID, models.SignalMessage{Type: "admin-updated", Payload: map[string]interface{}{"peer_id": target.id, "is_admin": target.isAdmin, "admin_permissions": target.adminPerms}}, "")
+}
+
+func (h *Hub) handleRoomSettings(actor *Peer, msg models.SignalMessage) {
+	if !actor.isHost || actor.roomID == "" {
+		actor.sendMsg(errMsg("host permission required"))
+		return
+	}
+	var req struct {
+		JoinPolicy      string                  `json:"join_policy,omitempty"`
+		Password        *string                 `json:"password,omitempty"`
+		Permissions     *models.PeerPermissions `json:"permissions,omitempty"`
+		ApplyToExisting *bool                   `json:"apply_to_existing,omitempty"`
+	}
+	if !decodePayload(msg.Payload, &req) {
+		actor.sendMsg(errMsg("invalid settings payload"))
+		return
+	}
+	if req.JoinPolicy != "" && req.JoinPolicy != "open" && req.JoinPolicy != "approval" {
+		actor.sendMsg(errMsg("invalid join policy"))
+		return
+	}
+	if req.JoinPolicy != "" {
+		_, _ = h.db.Exec(`UPDATE rooms SET join_policy = ? WHERE id = ?`, req.JoinPolicy, actor.roomID)
+	}
+	if req.Password != nil {
+		passHash := ""
+		if *req.Password != "" {
+			hash, err := bcrypt.GenerateFromPassword([]byte(*req.Password), bcrypt.DefaultCost)
+			if err != nil {
+				actor.sendMsg(errMsg("could not update room password"))
+				return
+			}
+			passHash = string(hash)
+		}
+		_, _ = h.db.Exec(`UPDATE rooms SET password = ? WHERE id = ?`, nullableString(passHash), actor.roomID)
+	}
+	applyToExisting := true
+	if req.ApplyToExisting != nil {
+		applyToExisting = *req.ApplyToExisting
+	}
+	if req.Permissions != nil {
+		h.mu.RLock()
+		room := h.rooms[actor.roomID]
+		h.mu.RUnlock()
+		if room != nil {
+			updates := make(map[string]models.PeerPermissions)
+			room.mu.Lock()
+			room.defaultPermissions = *req.Permissions
+			if applyToExisting {
+				for _, peer := range room.peers {
+					if peer.isHost {
+						continue
+					}
+					identity := identityKey(peer.userID, peer.displayName)
+					room.permissions[identity] = *req.Permissions
+					peer.permissions = *req.Permissions
+					updates[peer.id] = peer.permissions
+					h.persistPeerPermissions(actor.roomID, identity, *req.Permissions)
+				}
+			}
+			room.mu.Unlock()
+			h.persistDefaultPermissions(actor.roomID, *req.Permissions)
+			if applyToExisting {
+				for peerID, permissions := range updates {
+					h.broadcast(actor.roomID, models.SignalMessage{Type: "peer-permissions-updated", Payload: map[string]interface{}{"peer_id": peerID, "permissions": permissions}}, "")
+				}
+			}
+		}
+	}
+	if req.JoinPolicy != "" || req.Password != nil {
+		payload := map[string]interface{}{}
+		if req.JoinPolicy != "" {
+			payload["join_policy"] = req.JoinPolicy
+		}
+		if req.Password != nil {
+			payload["has_password"] = *req.Password != ""
+		}
+		h.broadcast(actor.roomID, models.SignalMessage{Type: "room-settings-updated", Payload: payload}, "")
+	}
 }
 
 func (h *Hub) handleSFUOffer(p *Peer, msg models.SignalMessage) {
@@ -352,6 +649,27 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 
 	room := h.getOrCreateRoom(req.RoomID)
 	room.mu.Lock()
+	identity := identityKey(p.userID, req.DisplayName)
+	if bannedUntil, ok := room.bans[identity]; ok {
+		if bannedUntil == 0 || bannedUntil > time.Now().Unix() {
+			room.mu.Unlock()
+			p.sendMsg(errMsg("You are temporarily blocked from joining this meeting."))
+			return
+		}
+		delete(room.bans, identity)
+		_, _ = h.db.Exec(`DELETE FROM room_bans WHERE room_id = ? AND identity = ?`, req.RoomID, identity)
+	}
+	permissions, ok := room.permissions[identity]
+	if !ok {
+		permissions = room.defaultPermissions
+		room.permissions[identity] = permissions
+	}
+	adminPerms, isAdmin := room.adminPermissions[identity]
+	p.permissions = permissions
+	p.isAdmin = isAdmin
+	if isAdmin {
+		p.adminPerms = adminPerms
+	}
 	if room.displayNameTaken(req.DisplayName, p.id) {
 		room.mu.Unlock()
 		p.sendMsg(errMsg("That display name is already in this room. Choose another name."))
@@ -378,8 +696,8 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 	h.upsertClusterPeer(p)
 
 	go h.logEvent(req.RoomID, p.userID, "join")
-	p.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": p.id, "peers": h.getPeerList(req.RoomID, p.id), "mode": p.mode, "is_host": p.isHost, "turn_servers": h.sfuMgr.GetTURNCredentials(p.id)}})
-	h.broadcast(req.RoomID, models.SignalMessage{Type: "peer-joined", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName, "is_host": p.isHost}}, p.id)
+	p.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": p.id, "peers": h.getPeerList(req.RoomID, p.id), "mode": p.mode, "is_host": p.isHost, "is_admin": p.isAdmin, "permissions": p.permissions, "admin_permissions": p.adminPerms, "turn_servers": h.sfuMgr.GetTURNCredentials(p.id)}})
+	h.broadcast(req.RoomID, models.SignalMessage{Type: "peer-joined", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName, "is_host": p.isHost, "is_admin": p.isAdmin, "permissions": p.permissions, "admin_permissions": p.adminPerms}}, p.id)
 }
 
 func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
@@ -419,14 +737,26 @@ func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
 		}()
 		return
 	}
+	identity := identityKey(peer.userID, peer.displayName)
+	permissions, ok := room.permissions[identity]
+	if !ok {
+		permissions = room.defaultPermissions
+		room.permissions[identity] = permissions
+	}
+	adminPerms, isAdmin := room.adminPermissions[identity]
+	peer.permissions = permissions
+	peer.isAdmin = isAdmin
+	if isAdmin {
+		peer.adminPerms = adminPerms
+	}
 	room.peers[peer.id] = peer
 	room.mu.Unlock()
 	h.removeClusterPending(host.roomID, peer.id)
 	h.upsertClusterPeer(peer)
 
 	go h.logEvent(host.roomID, peer.userID, "join")
-	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(host.roomID, peer.id), "mode": peer.mode, "is_host": false, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
-	h.broadcast(host.roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false}}, peer.id)
+	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(host.roomID, peer.id), "mode": peer.mode, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
+	h.broadcast(host.roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms}}, peer.id)
 }
 
 func (h *Hub) handleRejectPeer(host *Peer, msg models.SignalMessage) {
@@ -434,13 +764,15 @@ func (h *Hub) handleRejectPeer(host *Peer, msg models.SignalMessage) {
 }
 
 func (h *Hub) handleKickPeer(host *Peer, msg models.SignalMessage) {
-	if !host.isHost || host.roomID == "" {
+	if !canKickPeer(host) || host.roomID == "" {
 		host.sendMsg(errMsg("host permission required"))
 		return
 	}
 	var req struct {
-		PeerID string `json:"peer_id"`
-		Reason string `json:"reason,omitempty"`
+		PeerID       string `json:"peer_id"`
+		Reason       string `json:"reason,omitempty"`
+		BanMinutes   int    `json:"ban_minutes,omitempty"`
+		BanPermanent bool   `json:"ban_permanent,omitempty"`
 	}
 	if !decodePayload(msg.Payload, &req) || req.PeerID == "" {
 		host.sendMsg(errMsg("invalid kick payload"))
@@ -465,12 +797,25 @@ func (h *Hub) handleKickPeer(host *Peer, msg models.SignalMessage) {
 		}
 		return
 	}
-	target.sendMsg(models.SignalMessage{Type: "kicked", Payload: map[string]string{"reason": req.Reason}})
+	banUntil := int64(0)
+	if req.BanPermanent {
+		banUntil = 0
+	} else if req.BanMinutes > 0 {
+		banUntil = time.Now().Add(time.Duration(req.BanMinutes) * time.Minute).Unix()
+	}
+	if req.BanPermanent || req.BanMinutes > 0 {
+		room.mu.Lock()
+		identity := identityKey(target.userID, target.displayName)
+		room.bans[identity] = banUntil
+		room.mu.Unlock()
+		h.persistBan(host.roomID, identity, banUntil)
+	}
+	target.sendMsg(models.SignalMessage{Type: "kicked", Payload: map[string]interface{}{"reason": req.Reason, "ban_until": banUntil, "ban_permanent": req.BanPermanent}})
 	h.removePeer(target)
 }
 
 func (h *Hub) handleMutePeer(host *Peer, msg models.SignalMessage) {
-	if !host.isHost || host.roomID == "" {
+	if host.roomID == "" {
 		host.sendMsg(errMsg("host permission required"))
 		return
 	}
@@ -484,6 +829,18 @@ func (h *Hub) handleMutePeer(host *Peer, msg models.SignalMessage) {
 	}
 	if req.Kind == "" {
 		req.Kind = "audio"
+	}
+	if req.Kind == "audio" && !canMuteMic(host) {
+		host.sendMsg(errMsg("host permission required"))
+		return
+	}
+	if req.Kind == "video" && !canDisableCamera(host) {
+		host.sendMsg(errMsg("host permission required"))
+		return
+	}
+	if req.Kind == "screen" && !canDisableScreen(host) {
+		host.sendMsg(errMsg("host permission required"))
+		return
 	}
 	h.mu.RLock()
 	room := h.rooms[host.roomID]
@@ -504,7 +861,23 @@ func (h *Hub) handleMutePeer(host *Peer, msg models.SignalMessage) {
 		}
 		return
 	}
+	room.mu.Lock()
+	permissions := target.permissions
+	switch req.Kind {
+	case "audio":
+		permissions.CanUseMic = false
+	case "video":
+		permissions.CanUseCamera = false
+	case "screen":
+		permissions.CanShareScreen = false
+	}
+	identity := identityKey(target.userID, target.displayName)
+	room.permissions[identity] = permissions
+	target.permissions = permissions
+	room.mu.Unlock()
+	h.persistPeerPermissions(host.roomID, identity, permissions)
 	target.sendMsg(models.SignalMessage{Type: "mute-request", From: host.id, Payload: map[string]string{"kind": req.Kind}})
+	h.broadcast(host.roomID, models.SignalMessage{Type: "peer-permissions-updated", Payload: map[string]interface{}{"peer_id": target.id, "permissions": permissions}}, "")
 }
 
 func (h *Hub) closePendingByHost(host *Peer, msg models.SignalMessage, eventType string) {
@@ -684,12 +1057,22 @@ func (h *Hub) GetSFUStats() sfu.Stats {
 
 func (h *Hub) getOrCreateRoom(roomID string) *Room {
 	h.mu.Lock()
-	defer h.mu.Unlock()
 	if room := h.rooms[roomID]; room != nil {
+		h.mu.Unlock()
 		return room
 	}
-	room := &Room{id: roomID, peers: make(map[string]*Peer), pending: make(map[string]*Peer)}
+	room := &Room{
+		id:                 roomID,
+		peers:              make(map[string]*Peer),
+		pending:            make(map[string]*Peer),
+		permissions:        make(map[string]models.PeerPermissions),
+		adminPermissions:   make(map[string]models.AdminPermissions),
+		bans:               make(map[string]int64),
+		defaultPermissions: defaultPeerPermissions(),
+	}
 	h.rooms[roomID] = room
+	h.mu.Unlock()
+	h.loadRoomModerationState(room)
 	return room
 }
 
@@ -705,7 +1088,23 @@ func (h *Hub) getPeerList(roomID, exceptID string) []models.PeerInfo {
 	peers := make([]models.PeerInfo, 0, len(room.peers))
 	for id, peer := range room.peers {
 		if id != exceptID {
-			peers = append(peers, models.PeerInfo{ID: peer.id, UserID: peer.userID, DisplayName: peer.displayName, Mode: peer.mode, IsHost: peer.isHost})
+			permissions := peer.permissions
+			adminPerms := peer.adminPerms
+			peers = append(peers, models.PeerInfo{
+				ID:          peer.id,
+				UserID:      peer.userID,
+				DisplayName: peer.displayName,
+				Mode:        peer.mode,
+				IsHost:      peer.isHost,
+				IsAdmin:     peer.isAdmin,
+				Permissions: &permissions,
+				Admin: func() *models.AdminPermissions {
+					if peer.isAdmin {
+						return &adminPerms
+					}
+					return nil
+				}(),
+			})
 		}
 	}
 	if h.bus != nil && h.bus.Enabled() {
@@ -831,6 +1230,184 @@ func (h *Hub) deliverClusterRelay(event cluster.Message) {
 	}
 }
 
+func (h *Hub) loadRoomModerationState(room *Room) {
+	var defaults models.PeerPermissions
+	var canUseMic, canUseCamera, canShareScreen, canChat, canReact int
+	if err := h.db.QueryRow(
+		`SELECT can_use_mic, can_use_camera, can_share_screen, can_chat, can_react
+		 FROM room_default_permissions WHERE room_id = ?`,
+		room.id,
+	).Scan(&canUseMic, &canUseCamera, &canShareScreen, &canChat, &canReact); err == nil {
+		defaults = models.PeerPermissions{
+			CanUseMic:      boolFromInt(canUseMic),
+			CanUseCamera:   boolFromInt(canUseCamera),
+			CanShareScreen: boolFromInt(canShareScreen),
+			CanChat:        boolFromInt(canChat),
+			CanReact:       boolFromInt(canReact),
+		}
+		room.mu.Lock()
+		room.defaultPermissions = defaults
+		room.mu.Unlock()
+	}
+
+	if rows, err := h.db.Query(
+		`SELECT identity, can_use_mic, can_use_camera, can_share_screen, can_chat, can_react
+		 FROM room_peer_permissions WHERE room_id = ?`,
+		room.id,
+	); err == nil {
+		defer rows.Close()
+		room.mu.Lock()
+		for rows.Next() {
+			var identity string
+			var mic, camera, screen, chat, react int
+			if rows.Scan(&identity, &mic, &camera, &screen, &chat, &react) == nil {
+				room.permissions[identity] = models.PeerPermissions{
+					CanUseMic:      boolFromInt(mic),
+					CanUseCamera:   boolFromInt(camera),
+					CanShareScreen: boolFromInt(screen),
+					CanChat:        boolFromInt(chat),
+					CanReact:       boolFromInt(react),
+				}
+			}
+		}
+		room.mu.Unlock()
+	}
+
+	if rows, err := h.db.Query(
+		`SELECT identity, can_kick, can_mute_mic, can_disable_camera, can_disable_screen, can_disable_chat, can_disable_emoji
+		 FROM room_admin_permissions WHERE room_id = ?`,
+		room.id,
+	); err == nil {
+		defer rows.Close()
+		room.mu.Lock()
+		for rows.Next() {
+			var identity string
+			var canKick, canMuteMic, canDisableCamera, canDisableScreen, canDisableChat, canDisableEmoji int
+			if rows.Scan(&identity, &canKick, &canMuteMic, &canDisableCamera, &canDisableScreen, &canDisableChat, &canDisableEmoji) == nil {
+				room.adminPermissions[identity] = models.AdminPermissions{
+					CanKick:          boolFromInt(canKick),
+					CanMuteMic:       boolFromInt(canMuteMic),
+					CanDisableCamera: boolFromInt(canDisableCamera),
+					CanDisableScreen: boolFromInt(canDisableScreen),
+					CanDisableChat:   boolFromInt(canDisableChat),
+					CanDisableEmoji:  boolFromInt(canDisableEmoji),
+				}
+			}
+		}
+		room.mu.Unlock()
+	}
+
+	if rows, err := h.db.Query(
+		`SELECT identity, banned_until FROM room_bans WHERE room_id = ? AND (banned_until = 0 OR banned_until > ?)`,
+		room.id,
+		time.Now().Unix(),
+	); err == nil {
+		defer rows.Close()
+		room.mu.Lock()
+		for rows.Next() {
+			var identity string
+			var bannedUntil int64
+			if rows.Scan(&identity, &bannedUntil) == nil {
+				room.bans[identity] = bannedUntil
+			}
+		}
+		room.mu.Unlock()
+	}
+	_, _ = h.db.Exec(`DELETE FROM room_bans WHERE room_id = ? AND banned_until > 0 AND banned_until <= ?`, room.id, time.Now().Unix())
+}
+
+func (h *Hub) persistPeerPermissions(roomID, identity string, permissions models.PeerPermissions) {
+	_, _ = h.db.Exec(
+		`INSERT INTO room_peer_permissions (room_id, identity, can_use_mic, can_use_camera, can_share_screen, can_chat, can_react, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(room_id, identity) DO UPDATE SET
+		 can_use_mic = excluded.can_use_mic,
+		 can_use_camera = excluded.can_use_camera,
+		 can_share_screen = excluded.can_share_screen,
+		 can_chat = excluded.can_chat,
+		 can_react = excluded.can_react,
+		 updated_at = excluded.updated_at`,
+		roomID,
+		identity,
+		intFromBool(permissions.CanUseMic),
+		intFromBool(permissions.CanUseCamera),
+		intFromBool(permissions.CanShareScreen),
+		intFromBool(permissions.CanChat),
+		intFromBool(permissions.CanReact),
+		time.Now().Unix(),
+	)
+}
+
+func (h *Hub) persistDefaultPermissions(roomID string, permissions models.PeerPermissions) {
+	_, _ = h.db.Exec(
+		`INSERT INTO room_default_permissions (room_id, can_use_mic, can_use_camera, can_share_screen, can_chat, can_react, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(room_id) DO UPDATE SET
+		 can_use_mic = excluded.can_use_mic,
+		 can_use_camera = excluded.can_use_camera,
+		 can_share_screen = excluded.can_share_screen,
+		 can_chat = excluded.can_chat,
+		 can_react = excluded.can_react,
+		 updated_at = excluded.updated_at`,
+		roomID,
+		intFromBool(permissions.CanUseMic),
+		intFromBool(permissions.CanUseCamera),
+		intFromBool(permissions.CanShareScreen),
+		intFromBool(permissions.CanChat),
+		intFromBool(permissions.CanReact),
+		time.Now().Unix(),
+	)
+}
+
+func (h *Hub) persistAdminPermissions(roomID, identity string, permissions models.AdminPermissions) {
+	_, _ = h.db.Exec(
+		`INSERT INTO room_admin_permissions (room_id, identity, can_kick, can_mute_mic, can_disable_camera, can_disable_screen, can_disable_chat, can_disable_emoji, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(room_id, identity) DO UPDATE SET
+		 can_kick = excluded.can_kick,
+		 can_mute_mic = excluded.can_mute_mic,
+		 can_disable_camera = excluded.can_disable_camera,
+		 can_disable_screen = excluded.can_disable_screen,
+		 can_disable_chat = excluded.can_disable_chat,
+		 can_disable_emoji = excluded.can_disable_emoji,
+		 updated_at = excluded.updated_at`,
+		roomID,
+		identity,
+		intFromBool(permissions.CanKick),
+		intFromBool(permissions.CanMuteMic),
+		intFromBool(permissions.CanDisableCamera),
+		intFromBool(permissions.CanDisableScreen),
+		intFromBool(permissions.CanDisableChat),
+		intFromBool(permissions.CanDisableEmoji),
+		time.Now().Unix(),
+	)
+}
+
+func (h *Hub) deleteAdminPermissions(roomID, identity string) {
+	_, _ = h.db.Exec(`DELETE FROM room_admin_permissions WHERE room_id = ? AND identity = ?`, roomID, identity)
+}
+
+func (h *Hub) persistBan(roomID, identity string, bannedUntil int64) {
+	_, _ = h.db.Exec(
+		`INSERT INTO room_bans (room_id, identity, banned_until, created_at)
+		 VALUES (?, ?, ?, ?)
+		 ON CONFLICT(room_id, identity) DO UPDATE SET
+		 banned_until = excluded.banned_until,
+		 created_at = excluded.created_at`,
+		roomID,
+		identity,
+		bannedUntil,
+		time.Now().Unix(),
+	)
+}
+
+func nullableString(value string) interface{} {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
 func (h *Hub) deliverClusterBroadcast(event cluster.Message) {
 	h.mu.RLock()
 	room := h.rooms[event.RoomID]
@@ -903,13 +1480,25 @@ func (h *Hub) approvePendingPeer(roomID, peerID string) {
 		}()
 		return
 	}
+	identity := identityKey(peer.userID, peer.displayName)
+	permissions, ok := room.permissions[identity]
+	if !ok {
+		permissions = room.defaultPermissions
+		room.permissions[identity] = permissions
+	}
+	adminPerms, isAdmin := room.adminPermissions[identity]
+	peer.permissions = permissions
+	peer.isAdmin = isAdmin
+	if isAdmin {
+		peer.adminPerms = adminPerms
+	}
 	room.peers[peerID] = peer
 	room.mu.Unlock()
 	h.removeClusterPending(roomID, peerID)
 	h.upsertClusterPeer(peer)
 	go h.logEvent(roomID, peer.userID, "join")
-	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(roomID, peer.id), "mode": peer.mode, "is_host": false, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
-	h.broadcast(roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false}}, peer.id)
+	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(roomID, peer.id), "mode": peer.mode, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
+	h.broadcast(roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms}}, peer.id)
 }
 
 func (h *Hub) closePendingPeer(roomID, peerID string, signal models.SignalMessage) {

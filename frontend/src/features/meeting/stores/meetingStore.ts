@@ -7,6 +7,14 @@ import type {
 import type { MeetingPeer, PendingPeer } from "@/features/meeting/types/peer";
 import { create } from "zustand";
 
+const defaultPermissions = {
+  can_use_mic: true,
+  can_use_camera: true,
+  can_share_screen: true,
+  can_chat: true,
+  can_react: true
+};
+
 export type MeetingPhase =
   | "idle"
   | "joining"
@@ -21,6 +29,9 @@ export type MeetingPhase =
 export interface MeetingState {
   error: string | null;
   isHost: boolean;
+  isAdmin: boolean;
+  localPermissions: MeetingPeer["permissions"];
+  localAdminPermissions: MeetingPeer["adminPermissions"];
   localPeerId: string | null;
   pendingPeers: PendingPeer[];
   peers: Record<string, MeetingPeer>;
@@ -40,6 +51,20 @@ export interface MeetingState {
     peerId: string,
     mode: MeetingPeer["connection"]["mode"]
   ) => void;
+  setPeerPermissions: (
+    peerId: string,
+    permissions: MeetingPeer["permissions"]
+  ) => void;
+  setPeerAdmin: (
+    peerId: string,
+    isAdmin: boolean,
+    adminPermissions?: MeetingPeer["adminPermissions"]
+  ) => void;
+  setLocalPermissions: (permissions: MeetingPeer["permissions"]) => void;
+  setLocalAdmin: (
+    isAdmin: boolean,
+    adminPermissions?: MeetingPeer["adminPermissions"]
+  ) => void;
   setError: (message: string | null) => void;
   setPhase: (phase: MeetingPhase) => void;
   reset: () => void;
@@ -54,6 +79,9 @@ function peerFromJoined(payload: JoinedPayload["peers"][number]): MeetingPeer {
     displayName: payload.display_name,
     id: payload.id,
     isHost: payload.is_host,
+    isAdmin: payload.is_admin ?? false,
+    permissions: payload.permissions ?? defaultPermissions,
+    adminPermissions: payload.admin_permissions,
     media: {
       audioEnabled: false,
       audioStatus: "off",
@@ -69,6 +97,9 @@ function peerFromJoined(payload: JoinedPayload["peers"][number]): MeetingPeer {
 export const useMeetingStore = create<MeetingState>((set) => ({
   error: null,
   isHost: false,
+  isAdmin: false,
+  localPermissions: defaultPermissions,
+  localAdminPermissions: undefined,
   localPeerId: null,
   pendingPeers: [],
   peers: {},
@@ -93,6 +124,9 @@ export const useMeetingStore = create<MeetingState>((set) => ({
     set({
       error: null,
       isHost: payload.is_host,
+      isAdmin: payload.is_admin ?? false,
+      localPermissions: payload.permissions ?? defaultPermissions,
+      localAdminPermissions: payload.admin_permissions,
       localPeerId: payload.your_id,
       peers: Object.fromEntries(
         payload.peers.map((peer) => [peer.id, peerFromJoined(peer)])
@@ -131,6 +165,9 @@ export const useMeetingStore = create<MeetingState>((set) => ({
           displayName: payload.display_name,
           id: payload.peer_id,
           isHost: payload.is_host,
+          isAdmin: payload.is_admin ?? false,
+          permissions: payload.permissions ?? defaultPermissions,
+          adminPermissions: payload.admin_permissions,
           media: {
             audioEnabled: false,
             audioStatus: "off",
@@ -203,10 +240,58 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       };
     }),
 
+  setPeerPermissions: (peerId, permissions) =>
+    set((state) => {
+      const peer = state.peers[peerId];
+
+      if (!peer) {
+        return state;
+      }
+
+      return {
+        peers: {
+          ...state.peers,
+          [peerId]: {
+            ...peer,
+            permissions: permissions ?? defaultPermissions
+          }
+        }
+      };
+    }),
+
+  setPeerAdmin: (peerId, isAdmin, adminPermissions) =>
+    set((state) => {
+      const peer = state.peers[peerId];
+
+      if (!peer) {
+        return state;
+      }
+
+      return {
+        peers: {
+          ...state.peers,
+          [peerId]: {
+            ...peer,
+            isAdmin,
+            adminPermissions
+          }
+        }
+      };
+    }),
+
+  setLocalPermissions: (permissions) =>
+    set({ localPermissions: permissions ?? defaultPermissions }),
+
+  setLocalAdmin: (isAdmin, adminPermissions) =>
+    set({ isAdmin, localAdminPermissions: adminPermissions }),
+
   reset: () =>
     set({
       error: null,
       isHost: false,
+      isAdmin: false,
+      localPermissions: defaultPermissions,
+      localAdminPermissions: undefined,
       localPeerId: null,
       pendingPeers: [],
       peers: {},

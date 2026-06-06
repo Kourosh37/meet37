@@ -26,11 +26,31 @@ type Room struct {
 }
 
 type PeerInfo struct {
-	ID          string `json:"id"`
-	UserID      string `json:"user_id,omitempty"`
-	DisplayName string `json:"display_name"`
-	Mode        string `json:"mode"`
-	IsHost      bool   `json:"is_host"`
+	ID          string            `json:"id"`
+	UserID      string            `json:"user_id,omitempty"`
+	DisplayName string            `json:"display_name"`
+	Mode        string            `json:"mode"`
+	IsHost      bool              `json:"is_host"`
+	IsAdmin     bool              `json:"is_admin"`
+	Permissions *PeerPermissions  `json:"permissions,omitempty"`
+	Admin       *AdminPermissions `json:"admin_permissions,omitempty"`
+}
+
+type PeerPermissions struct {
+	CanUseMic      bool `json:"can_use_mic"`
+	CanUseCamera   bool `json:"can_use_camera"`
+	CanShareScreen bool `json:"can_share_screen"`
+	CanChat        bool `json:"can_chat"`
+	CanReact       bool `json:"can_react"`
+}
+
+type AdminPermissions struct {
+	CanKick          bool `json:"can_kick"`
+	CanMuteMic       bool `json:"can_mute_mic"`
+	CanDisableCamera bool `json:"can_disable_camera"`
+	CanDisableScreen bool `json:"can_disable_screen"`
+	CanDisableChat   bool `json:"can_disable_chat"`
+	CanDisableEmoji  bool `json:"can_disable_emoji"`
 }
 
 type SignalMessage struct {

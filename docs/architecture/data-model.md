@@ -31,7 +31,7 @@ Stores non-admin users created through registration/admin flows.
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| `id` | text | UUID |
+| `id` | text | Meet-style room ID, `aaa-aaa-aaa` |
 | `username` | text | Unique, case-insensitive |
 | `password` | text | bcrypt hash |
 | `created_at` | integer | Unix timestamp |
@@ -114,6 +114,62 @@ Stores file-transfer metadata.
 | `reason` | text | Optional rejection/failure reason |
 | `ts` | integer | Unix timestamp |
 
+### `room_peer_permissions`
+
+Stores durable per-participant room permissions. The `identity` is `user:{user_id}` for authenticated users and `name:{display_name}` for guests.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `room_id` | text | Room ID |
+| `identity` | text | Durable participant identity key |
+| `can_use_mic` | integer | Boolean flag |
+| `can_use_camera` | integer | Boolean flag |
+| `can_share_screen` | integer | Boolean flag |
+| `can_chat` | integer | Boolean flag |
+| `can_react` | integer | Boolean flag |
+| `updated_at` | integer | Unix timestamp |
+
+### `room_admin_permissions`
+
+Stores durable in-room admin grants assigned by the host.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `room_id` | text | Room ID |
+| `identity` | text | Durable participant identity key |
+| `can_kick` | integer | Boolean flag |
+| `can_mute_mic` | integer | Boolean flag |
+| `can_disable_camera` | integer | Boolean flag |
+| `can_disable_screen` | integer | Boolean flag |
+| `can_disable_chat` | integer | Boolean flag |
+| `can_disable_emoji` | integer | Boolean flag |
+| `updated_at` | integer | Unix timestamp |
+
+### `room_bans`
+
+Stores active temporary or permanent rejoin blocks.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `room_id` | text | Room ID |
+| `identity` | text | Durable participant identity key |
+| `banned_until` | integer | Unix timestamp, or `0` for permanent |
+| `created_at` | integer | Unix timestamp |
+
+### `room_default_permissions`
+
+Stores room-level default permissions used for future joins and optionally applied to current participants.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `room_id` | text | Room ID |
+| `can_use_mic` | integer | Boolean flag |
+| `can_use_camera` | integer | Boolean flag |
+| `can_share_screen` | integer | Boolean flag |
+| `can_chat` | integer | Boolean flag |
+| `can_react` | integer | Boolean flag |
+| `updated_at` | integer | Unix timestamp |
+
 ## In-Memory State
 
 The signaling hub stores:
@@ -124,9 +180,10 @@ The signaling hub stores:
 - Peer WebSocket connection and send queue.
 - Peer display name, user ID, host flag, and media mode.
 - Room SFU session pointer.
+- Runtime copies of durable participant permissions, admin permissions, room defaults, and active bans.
 
-This state is intentionally transient and is rebuilt as participants reconnect.
+Live connection state is transient. Moderation state is rebuilt from SQLite when a room runtime is created.
 
 ## Indexes
 
-Indexes are created for room events, room host lookup, room expiration, refresh token lookup, chat history lookup, and file transfer history lookup.
+Indexes are created for room events, room host lookup, room expiration, refresh token lookup, chat history lookup, file transfer history lookup, and active room ban lookup.

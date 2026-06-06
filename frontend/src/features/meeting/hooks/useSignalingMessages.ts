@@ -33,6 +33,25 @@ export function useSignalingMessages() {
       webSocketManager.subscribe("peer-mode-changed", (message) =>
         store.setPeerMode(message.payload.peer_id, message.payload.mode)
       ),
+      webSocketManager.subscribe("peer-permissions-updated", (message) => {
+        store.setPeerPermissions(message.payload.peer_id, message.payload.permissions);
+        if (message.payload.peer_id === store.localPeerId) {
+          store.setLocalPermissions(message.payload.permissions);
+        }
+      }),
+      webSocketManager.subscribe("admin-updated", (message) => {
+        store.setPeerAdmin(
+          message.payload.peer_id,
+          message.payload.is_admin,
+          message.payload.admin_permissions
+        );
+        if (message.payload.peer_id === store.localPeerId) {
+          store.setLocalAdmin(
+            message.payload.is_admin,
+            message.payload.admin_permissions
+          );
+        }
+      }),
       webSocketManager.subscribe("media-state", (message) => {
         if (!message.from) {
           return;

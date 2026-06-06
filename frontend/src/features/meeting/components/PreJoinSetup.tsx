@@ -119,10 +119,9 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
           isConnected={websocket.status === "open"}
           participantCount={data?.live.peer_count}
           pingMs={pingMs}
+          roomId={roomId}
           roomName={data?.room.name ?? "Meeting room"}
-          statusLabel={
-            websocket.status === "open" ? "Ready" : websocket.status
-          }
+          statusLabel={websocket.status === "open" ? "Ready" : websocket.status}
         />
         <div className="pt-20">{children}</div>
       </>

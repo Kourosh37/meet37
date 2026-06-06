@@ -2,6 +2,23 @@ export type PeerMode = "sfu";
 export type MediaKind = "audio" | "video" | string;
 export type MediaTrackStatus = "off" | "starting" | "ready" | "error";
 
+export interface PeerPermissions {
+  can_use_mic: boolean;
+  can_use_camera: boolean;
+  can_share_screen: boolean;
+  can_chat: boolean;
+  can_react: boolean;
+}
+
+export interface AdminPermissions {
+  can_kick: boolean;
+  can_mute_mic: boolean;
+  can_disable_camera: boolean;
+  can_disable_screen: boolean;
+  can_disable_chat: boolean;
+  can_disable_emoji: boolean;
+}
+
 export type SignalEnvelope<
   TType extends string = string,
   TPayload = unknown
@@ -19,6 +36,9 @@ export interface SignalPeer {
   display_name: string;
   mode: PeerMode;
   is_host: boolean;
+  is_admin?: boolean;
+  permissions?: PeerPermissions;
+  admin_permissions?: AdminPermissions;
 }
 
 export interface JoinPayload {
@@ -33,6 +53,9 @@ export interface JoinedPayload {
   peers: SignalPeer[];
   mode: PeerMode;
   is_host: boolean;
+  is_admin?: boolean;
+  permissions?: PeerPermissions;
+  admin_permissions?: AdminPermissions;
   turn_servers?: TurnServerConfig[];
 }
 
@@ -61,6 +84,9 @@ export interface PeerJoinedPayload {
   peer_id: string;
   display_name: string;
   is_host: boolean;
+  is_admin?: boolean;
+  permissions?: PeerPermissions;
+  admin_permissions?: AdminPermissions;
 }
 
 export interface SessionDescriptionPayload {
@@ -177,10 +203,31 @@ export interface MuteRequestPayload {
 
 export interface KickPeerPayload extends PeerIdPayload {
   reason?: string;
+  ban_minutes?: number;
+  ban_permanent?: boolean;
 }
 
 export interface KickedPayload {
   reason?: string;
+  ban_until?: number;
+  ban_permanent?: boolean;
+}
+
+export interface PeerPermissionsPayload extends PeerIdPayload {
+  permissions: PeerPermissions;
+}
+
+export interface AdminPermissionsPayload extends PeerIdPayload {
+  is_admin: boolean;
+  admin_permissions: AdminPermissions;
+}
+
+export interface RoomSettingsPayload {
+  join_policy?: "open" | "approval";
+  password?: string;
+  has_password?: boolean;
+  permissions?: PeerPermissions;
+  apply_to_existing?: boolean;
 }
 
 export interface SignalErrorPayload {
@@ -206,7 +253,10 @@ export type OutgoingSignalMessage =
   | SignalEnvelope<"file-complete", FileCompletePayload>
   | SignalEnvelope<"stats", StatsPayload>
   | SignalEnvelope<"mute-peer", MutePeerPayload>
-  | SignalEnvelope<"kick-peer", KickPeerPayload>;
+  | SignalEnvelope<"kick-peer", KickPeerPayload>
+  | SignalEnvelope<"set-peer-permissions", PeerPermissionsPayload>
+  | SignalEnvelope<"set-admin-permissions", AdminPermissionsPayload>
+  | SignalEnvelope<"set-room-settings", RoomSettingsPayload>;
 
 export type IncomingSignalMessage =
   | SignalEnvelope<"joined", JoinedPayload>
@@ -233,4 +283,7 @@ export type IncomingSignalMessage =
   | SignalEnvelope<"file-complete", FileCompletePayload>
   | SignalEnvelope<"mute-request", MuteRequestPayload>
   | SignalEnvelope<"kicked", KickedPayload>
+  | SignalEnvelope<"peer-permissions-updated", PeerPermissionsPayload>
+  | SignalEnvelope<"admin-updated", AdminPermissionsPayload>
+  | SignalEnvelope<"room-settings-updated", RoomSettingsPayload>
   | SignalEnvelope<"error", SignalErrorPayload>;

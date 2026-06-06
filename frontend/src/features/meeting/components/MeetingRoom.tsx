@@ -46,7 +46,11 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const startLocalMedia = localMedia.start;
   const stopLocalMedia = localMedia.stop;
   const audioEnabled = localMedia.audioEnabled;
+  const screenSharing = localMedia.screenSharing;
   const toggleAudio = localMedia.toggleAudio;
+  const toggleScreenShare = localMedia.toggleScreenShare;
+  const toggleVideo = localMedia.toggleVideo;
+  const videoEnabled = localMedia.videoEnabled;
   const localAudioLevel = useAudioLevel(
     localMedia.stream,
     localMedia.audioEnabled && localMedia.audioStatus === "ready",
@@ -68,6 +72,12 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     enabled: meeting.phase === "in-call" && Boolean(meeting.localPeerId),
     turnServers: meeting.turnServers ?? []
   });
+  const localPermissions = meeting.localPermissions;
+  const canUseMic = localPermissions?.can_use_mic ?? true;
+  const canUseCamera = localPermissions?.can_use_camera ?? true;
+  const canShareScreen = localPermissions?.can_share_screen ?? true;
+  const canChat = localPermissions?.can_chat ?? true;
+  const canReact = localPermissions?.can_react ?? true;
   const connectionQuality = useQualityStats(sfu.connections);
   const remoteStreams = sfu.remoteStreams;
   const localPeer = useMemo(
@@ -80,6 +90,9 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         displayName,
         id: meeting.localPeerId ?? "local",
         isHost: meeting.isHost,
+        isAdmin: meeting.isAdmin,
+        permissions: meeting.localPermissions,
+        adminPermissions: meeting.localAdminPermissions,
         media: {
           audioEnabled: localMedia.audioEnabled,
           audioStatus: localMedia.audioStatus,
@@ -97,21 +110,59 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       localMedia.screenShareStatus,
       localMedia.videoEnabled,
       localMedia.videoStatus,
+      meeting.isAdmin,
       meeting.isHost,
+      meeting.localAdminPermissions,
+      meeting.localPermissions,
       meeting.localPeerId
     ]
   );
   const shortcuts = useMemo(
     () => [
-      { handler: localMedia.toggleAudio, key: "m" },
-      { handler: localMedia.toggleVideo, key: "v" },
-      { handler: localMedia.toggleScreenShare, key: "s" },
-      { handler: () => ui.togglePanel("chat"), key: "c" }
+      {
+        handler: () => {
+          if (audioEnabled || canUseMic) {
+            toggleAudio();
+          }
+        },
+        key: "m"
+      },
+      {
+        handler: () => {
+          if (videoEnabled || canUseCamera) {
+            toggleVideo();
+          }
+        },
+        key: "v"
+      },
+      {
+        handler: () => {
+          if (screenSharing || canShareScreen) {
+            toggleScreenShare();
+          }
+        },
+        key: "s"
+      },
+      {
+        handler: () => {
+          if (canChat) {
+            ui.togglePanel("chat");
+          }
+        },
+        key: "c"
+      }
     ],
     [
-      localMedia.toggleAudio,
-      localMedia.toggleScreenShare,
-      localMedia.toggleVideo,
+      canChat,
+      canShareScreen,
+      canUseCamera,
+      canUseMic,
+      audioEnabled,
+      screenSharing,
+      toggleAudio,
+      toggleScreenShare,
+      toggleVideo,
+      videoEnabled,
       ui
     ]
   );
@@ -132,8 +183,43 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         toggleAudio();
         toast.info("The host requested that your microphone be muted.");
       }
+      if (message.payload.kind === "video" && localMedia.videoEnabled) {
+        localMedia.toggleVideo();
+        toast.info("The host disabled your camera.");
+      }
+      if (message.payload.kind === "screen" && localMedia.screenSharing) {
+        localMedia.toggleScreenShare();
+        toast.info("The host disabled your screen share.");
+      }
     });
-  }, [audioEnabled, toggleAudio]);
+  }, [audioEnabled, localMedia, toggleAudio]);
+
+  useEffect(() => {
+    if (!canUseMic && localMedia.audioEnabled) {
+      localMedia.toggleAudio();
+      toast.info("Microphone permission was disabled.");
+    }
+  }, [canUseMic, localMedia]);
+
+  useEffect(() => {
+    if (!canUseCamera && localMedia.videoEnabled) {
+      localMedia.toggleVideo();
+      toast.info("Camera permission was disabled.");
+    }
+  }, [canUseCamera, localMedia]);
+
+  useEffect(() => {
+    if (!canShareScreen && localMedia.screenSharing) {
+      localMedia.toggleScreenShare();
+      toast.info("Screen sharing permission was disabled.");
+    }
+  }, [canShareScreen, localMedia]);
+
+  useEffect(() => {
+    if (!canChat && ui.chatOpen) {
+      ui.closePanel("chat");
+    }
+  }, [canChat, ui]);
 
   useEffect(() => {
     if (meeting.phase !== "in-call") {
@@ -331,10 +417,14 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
 
   const handleReaction = useCallback(
     (emoji: string) => {
+      if (!canReact) {
+        toast.info("Reactions are disabled in this meeting.");
+        return;
+      }
       addReaction(emoji, displayName);
       webSocketManager.send({ payload: { emoji }, type: "reaction" });
     },
-    [addReaction, displayName]
+    [addReaction, canReact, displayName]
   );
 
   useEffect(() => {
@@ -366,8 +456,11 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         isConnected={websocket.status === "open"}
         participantCount={Object.keys(meeting.peers).length + 1}
         pingMs={pingMs}
+        roomId={meeting.roomId ?? undefined}
         roomName={roomName}
-        statusLabel={websocket.status === "open" ? "Connected" : websocket.status}
+        statusLabel={
+          websocket.status === "open" ? "Connected" : websocket.status
+        }
       />
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-32 pt-24">
@@ -406,12 +499,15 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
 
             {ui.participantsOpen ? (
               <ParticipantsPanel
+                canAssignAdmin={meeting.isHost}
+                canKick={moderation.canKick}
                 canModerate={moderation.canModerate}
                 localPeer={localPeer}
                 onApprove={moderation.approvePeer}
                 onKick={moderation.kickPeer}
-                onMute={moderation.mutePeer}
                 onReject={moderation.rejectPeer}
+                onSetAdminPermissions={moderation.setAdminPermissions}
+                onSetPeerPermissions={moderation.setPeerPermissions}
                 peers={meeting.peers}
                 pendingPeers={moderation.pendingPeers}
               />
@@ -429,31 +525,57 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       />
       <SettingsDrawer
         audioEnabled={localMedia.audioEnabled}
+        canShareScreen={canShareScreen}
+        canUseCamera={canUseCamera}
+        canUseMic={canUseMic}
+        isHost={meeting.isHost}
         isOpen={ui.settingsOpen}
         onClose={() => ui.closePanel("settings")}
         onToggleAudio={localMedia.toggleAudio}
         onToggleScreenShare={localMedia.toggleScreenShare}
         onToggleVideo={localMedia.toggleVideo}
+        onUpdateRoomSettings={moderation.updateRoomSettings}
         screenSharing={localMedia.screenSharing}
         screenShareSupported={localMedia.screenShareSupported}
         screenShareUnavailableReason={localMedia.screenShareUnavailableReason}
         videoEnabled={localMedia.videoEnabled}
       />
       <ChatPanel
-        isOpen={ui.chatOpen}
+        isOpen={ui.chatOpen && canChat}
         onClose={() => ui.closePanel("chat")}
         roomId={meeting.roomId}
       />
       <ControlBar
         audioEnabled={localMedia.audioEnabled}
+        canChat={canChat}
+        canReact={canReact}
+        canShareScreen={canShareScreen}
+        canUseCamera={canUseCamera}
+        canUseMic={canUseMic}
         onCopyInvite={() => void handleCopyInvite()}
         onLeave={handleLeave}
         onOpenSettings={() => ui.togglePanel("settings")}
         onReaction={handleReaction}
-        onToggleAudio={localMedia.toggleAudio}
-        onToggleChat={() => ui.togglePanel("chat")}
-        onToggleScreenShare={localMedia.toggleScreenShare}
-        onToggleVideo={localMedia.toggleVideo}
+        onToggleAudio={() => {
+          if (localMedia.audioEnabled || canUseMic) {
+            localMedia.toggleAudio();
+          }
+        }}
+        onToggleChat={() => {
+          if (canChat) {
+            ui.togglePanel("chat");
+          }
+        }}
+        onToggleScreenShare={() => {
+          if (localMedia.screenSharing || canShareScreen) {
+            localMedia.toggleScreenShare();
+          }
+        }}
+        onToggleVideo={() => {
+          if (localMedia.videoEnabled || canUseCamera) {
+            localMedia.toggleVideo();
+          }
+        }}
         screenSharing={localMedia.screenSharing}
         screenShareSupported={localMedia.screenShareSupported}
         screenShareUnavailableReason={localMedia.screenShareUnavailableReason}

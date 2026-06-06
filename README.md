@@ -7,8 +7,10 @@ This README is intentionally short. The complete project documentation lives in 
 ## What It Includes
 
 - Public and private meeting rooms.
+- Meet-style room IDs and landing-page room joining.
 - Real-time camera, microphone, and screen sharing.
 - WebRTC peer/media coordination with server-side signaling.
+- Host and admin moderation for media, chat, reactions, kicking, and rejoin blocks.
 - Chat and file transfer inside rooms.
 - Responsive desktop and mobile meeting UI.
 - Docker and production deployment support.

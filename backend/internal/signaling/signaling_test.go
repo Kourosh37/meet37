@@ -50,7 +50,7 @@ func TestHandleMessageRejectsDirectPeerSignaling(t *testing.T) {
 func TestHandleMessagePersistsChatAndFileMetadata(t *testing.T) {
 	hub, database := testHub(t)
 	roomID := "room-1"
-	peer := &Peer{id: "peer-1", roomID: roomID, displayName: "Alice", send: make(chan []byte, 4), hub: hub}
+	peer := &Peer{id: "peer-1", roomID: roomID, displayName: "Alice", permissions: defaultPeerPermissions(), send: make(chan []byte, 4), hub: hub}
 	_, err := database.Exec(
 		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
 		roomID, "Room", "host", "open", 50, time.Now().Unix(),
@@ -58,7 +58,7 @@ func TestHandleMessagePersistsChatAndFileMetadata(t *testing.T) {
 	if err != nil {
 		t.Fatalf("insert room: %v", err)
 	}
-	hub.rooms[roomID] = &Room{id: roomID, peers: map[string]*Peer{peer.id: peer}, pending: map[string]*Peer{}}
+	hub.rooms[roomID] = &Room{id: roomID, peers: map[string]*Peer{peer.id: peer}, pending: map[string]*Peer{}, permissions: map[string]models.PeerPermissions{}, adminPermissions: map[string]models.AdminPermissions{}, bans: map[string]int64{}, defaultPermissions: defaultPeerPermissions()}
 
 	hub.handleMessage(peer, []byte(`{"type":"chat","payload":{"text":"hello"}}`))
 	hub.handleMessage(peer, []byte(`{"type":"file-offer","to":"peer-2","payload":{"file_id":"file-1","name":"notes.txt","size":10,"mime":"text/plain"}}`))
@@ -84,12 +84,16 @@ func TestHandleMessagePersistsChatAndFileMetadata(t *testing.T) {
 func TestHandleMessageBroadcastsReactionWithDisplayName(t *testing.T) {
 	hub, _ := testHub(t)
 	roomID := "room-1"
-	sender := &Peer{id: "peer-1", roomID: roomID, displayName: "Alice", send: make(chan []byte, 4), hub: hub}
-	receiver := &Peer{id: "peer-2", roomID: roomID, displayName: "Bob", send: make(chan []byte, 4), hub: hub}
+	sender := &Peer{id: "peer-1", roomID: roomID, displayName: "Alice", permissions: defaultPeerPermissions(), send: make(chan []byte, 4), hub: hub}
+	receiver := &Peer{id: "peer-2", roomID: roomID, displayName: "Bob", permissions: defaultPeerPermissions(), send: make(chan []byte, 4), hub: hub}
 	hub.rooms[roomID] = &Room{
-		id:      roomID,
-		peers:   map[string]*Peer{sender.id: sender, receiver.id: receiver},
-		pending: map[string]*Peer{},
+		id:                 roomID,
+		peers:              map[string]*Peer{sender.id: sender, receiver.id: receiver},
+		pending:            map[string]*Peer{},
+		permissions:        map[string]models.PeerPermissions{},
+		adminPermissions:   map[string]models.AdminPermissions{},
+		bans:               map[string]int64{},
+		defaultPermissions: defaultPeerPermissions(),
 	}
 
 	hub.handleMessage(sender, []byte(`{"type":"reaction","payload":{"emoji":"👏"}}`))

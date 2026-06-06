@@ -1,6 +1,8 @@
 import type {
+  AdminPermissions,
   MediaTrackStatus,
-  PeerMode
+  PeerMode,
+  PeerPermissions
 } from "@/features/meeting/types/signaling";
 
 export type ConnectionQuality = "unknown" | "good" | "warning" | "poor";
@@ -10,6 +12,9 @@ export interface PeerIdentity {
   userId?: string;
   displayName: string;
   isHost: boolean;
+  isAdmin?: boolean;
+  permissions?: PeerPermissions;
+  adminPermissions?: AdminPermissions;
 }
 
 export interface PeerMediaState {

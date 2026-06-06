@@ -28,6 +28,11 @@ const REACTION_EMOJIS = [
 
 interface ControlBarProps {
   audioEnabled: boolean;
+  canChat?: boolean;
+  canReact?: boolean;
+  canShareScreen?: boolean;
+  canUseCamera?: boolean;
+  canUseMic?: boolean;
   onCopyInvite: () => void;
   onLeave: () => void;
   onOpenSettings: () => void;
@@ -44,6 +49,11 @@ interface ControlBarProps {
 
 export function ControlBar({
   audioEnabled,
+  canChat = true,
+  canReact = true,
+  canShareScreen = true,
+  canUseCamera = true,
+  canUseMic = true,
   onCopyInvite,
   onLeave,
   onOpenSettings,
@@ -61,13 +71,21 @@ export function ControlBar({
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
   const screenShareTitle = screenSharing
     ? "Stop screen sharing"
-    : screenShareSupported
-      ? "Share screen"
-      : screenShareUnavailableReason;
+    : !canShareScreen
+      ? "Screen sharing is disabled by meeting permissions"
+      : screenShareSupported
+        ? "Share screen"
+        : screenShareUnavailableReason;
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!canReact) {
+      setReactionMenuOpen(false);
+    }
+  }, [canReact]);
 
   const reactionPicker =
     mounted && reactionMenuOpen
@@ -98,9 +116,16 @@ export function ControlBar({
       <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-center gap-2 overflow-x-auto border-x border-t border-border bg-surface px-3 py-3 shadow-[0_-14px_36px_rgb(15_23_42/0.12)] backdrop-blur sm:px-6 sm:py-4">
         <button
           aria-label={audioEnabled ? "Mute microphone" : "Unmute microphone"}
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          disabled={!audioEnabled && !canUseMic}
           onClick={onToggleAudio}
-          title={audioEnabled ? "Mute microphone" : "Unmute microphone"}
+          title={
+            audioEnabled
+              ? "Mute microphone"
+              : canUseMic
+                ? "Unmute microphone"
+                : "Microphone is disabled by meeting permissions"
+          }
           type="button"
         >
           {audioEnabled ? (
@@ -117,6 +142,7 @@ export function ControlBar({
               : "grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
           }
           onClick={onToggleScreenShare}
+          disabled={!screenSharing && !canShareScreen}
           title={screenShareTitle}
           type="button"
         >
@@ -124,9 +150,16 @@ export function ControlBar({
         </button>
         <button
           aria-label={videoEnabled ? "Turn camera off" : "Turn camera on"}
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          disabled={!videoEnabled && !canUseCamera}
           onClick={onToggleVideo}
-          title={videoEnabled ? "Turn camera off" : "Turn camera on"}
+          title={
+            videoEnabled
+              ? "Turn camera off"
+              : canUseCamera
+                ? "Turn camera on"
+                : "Camera is disabled by meeting permissions"
+          }
           type="button"
         >
           {videoEnabled ? (
@@ -153,18 +186,26 @@ export function ControlBar({
         <button
           aria-expanded={reactionMenuOpen}
           aria-label="Send reaction"
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          disabled={!canReact}
           onClick={() => setReactionMenuOpen((open) => !open)}
-          title="Send reaction"
+          title={
+            canReact
+              ? "Send reaction"
+              : "Reactions are disabled by meeting permissions"
+          }
           type="button"
         >
           <SmilePlus className="size-5" />
         </button>
         <button
           aria-label="Open chat"
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          disabled={!canChat}
           onClick={onToggleChat}
-          title="Open chat"
+          title={
+            canChat ? "Open chat" : "Chat is disabled by meeting permissions"
+          }
           type="button"
         >
           <MessageSquare className="size-5" />

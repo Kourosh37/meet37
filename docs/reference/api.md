@@ -123,7 +123,7 @@ Returns:
 ```json
 [
   {
-    "id": "...",
+    "id": "abc-def-ghi",
     "name": "Daily",
     "host_id": "...",
     "is_locked": false,
@@ -138,6 +138,8 @@ Returns:
 ### `POST /api/rooms`
 
 Optional auth route. In private mode, authentication is required.
+
+Created room IDs use the `aaa-aaa-aaa` format with lowercase English letters.
 
 Request:
 
@@ -156,7 +158,7 @@ Returns `201 Created`:
 ```json
 {
   "room": {
-    "id": "...",
+    "id": "abc-def-ghi",
     "name": "Daily",
     "host_id": "...",
     "is_locked": false,
@@ -172,12 +174,14 @@ Returns `201 Created`:
 
 ### `GET /api/rooms/{roomId}`
 
+`roomId` uses the `aaa-aaa-aaa` format with lowercase English letters.
+
 Returns:
 
 ```json
 {
   "room": {
-    "id": "...",
+    "id": "abc-def-ghi",
     "name": "Daily",
     "host_id": "...",
     "is_locked": false,
@@ -190,9 +194,8 @@ Returns:
     "active": true,
     "peer_count": 2,
     "pending_count": 0,
-    "p2p_peers": 2,
-    "sfu_peers": 0,
-    "has_sfu_session": false
+    "sfu_peers": 2,
+    "has_sfu_session": true
   }
 }
 ```

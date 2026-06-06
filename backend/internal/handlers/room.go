@@ -92,7 +92,12 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	room := models.Room{ID: uuid.NewString(), Name: req.Name, HostID: hostID, HasPass: passHash != "", JoinPolicy: req.JoinPolicy, MaxPeers: req.MaxPeers, CreatedAt: time.Now().Unix(), ExpiresAt: expiresAt}
+	roomID, err := h.generateUniqueRoomID()
+	if err != nil {
+		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	room := models.Room{ID: roomID, Name: req.Name, HostID: hostID, HasPass: passHash != "", JoinPolicy: req.JoinPolicy, MaxPeers: req.MaxPeers, CreatedAt: time.Now().Unix(), ExpiresAt: expiresAt}
 	_, err = h.db.Exec(
 		`INSERT INTO rooms (id, name, host_id, password, join_policy, host_secret_hash, max_peers, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		room.ID, room.Name, room.HostID, nullString(passHash), room.JoinPolicy, string(hostSecretHash), room.MaxPeers, room.CreatedAt, nullInt64(expiresAt),
@@ -297,6 +302,42 @@ func (h *RoomHandler) signHostToken(roomID, secret string) (string, error) {
 		"iat":         time.Now().Unix(),
 	}
 	return jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(h.cfg.JWTSecret))
+}
+
+func (h *RoomHandler) generateUniqueRoomID() (string, error) {
+	for attempts := 0; attempts < 20; attempts++ {
+		id, err := randomMeetingID()
+		if err != nil {
+			return "", err
+		}
+		var exists int
+		err = h.db.QueryRow(`SELECT 1 FROM rooms WHERE id = ?`, id).Scan(&exists)
+		if err == sql.ErrNoRows {
+			return id, nil
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	return "", sql.ErrNoRows
+}
+
+func randomMeetingID() (string, error) {
+	buf := make([]byte, 9)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	out := make([]byte, 11)
+	out[3] = '-'
+	out[7] = '-'
+	for source, target := 0, 0; source < len(buf); source++ {
+		if target == 3 || target == 7 {
+			target++
+		}
+		out[target] = byte('a' + int(buf[source])%26)
+		target++
+	}
+	return string(out), nil
 }
 
 func randomSecret() (string, error) {

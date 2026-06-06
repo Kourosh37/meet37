@@ -38,6 +38,29 @@ export class SFUClient {
       onIceCandidate: this.options.onIceCandidate,
       onTrack: this.options.onTrack
     });
+    this.connection.onnegotiationneeded = () => {
+      void this.createOffer().then((offer) => {
+        if (offer) {
+          this.options.onOffer?.(offer);
+        }
+      });
+    };
+    this.connection.onsignalingstatechange = () => {
+      if (!this.connection) {
+        return;
+      }
+
+      if (this.connection.signalingState !== "stable" || !this.pendingOffer) {
+        return;
+      }
+
+      this.pendingOffer = false;
+      void this.createOffer().then((offer) => {
+        if (offer) {
+          this.options.onOffer?.(offer);
+        }
+      });
+    };
     this.connection.oniceconnectionstatechange = () => {
       if (
         !this.connection ||

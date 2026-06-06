@@ -54,7 +54,9 @@ export function useSFUConnection(
         remoteStreamRefs.current.set(ownerId, ownerStream);
       }
 
-      if (!ownerStream.getTracks().some((existing) => existing.id === track.id)) {
+      if (
+        !ownerStream.getTracks().some((existing) => existing.id === track.id)
+      ) {
         ownerStream.addTrack(track);
       }
 
@@ -85,6 +87,34 @@ export function useSFUConnection(
     },
     [publishOwnerTrack]
   );
+
+  const removeOwnerTracks = useCallback((ownerId: string) => {
+    remoteStreamRefs.current.delete(ownerId);
+    for (const [trackId, pending] of pendingTracksRef.current.entries()) {
+      if (trackOwnersRef.current.get(trackId) === ownerId) {
+        pendingTracksRef.current.delete(trackId);
+        pending.track.stop();
+      }
+    }
+    for (const [streamId, mappedOwner] of streamOwnersRef.current.entries()) {
+      if (mappedOwner === ownerId) {
+        streamOwnersRef.current.delete(streamId);
+      }
+    }
+    for (const [trackId, mappedOwner] of trackOwnersRef.current.entries()) {
+      if (mappedOwner === ownerId) {
+        trackOwnersRef.current.delete(trackId);
+      }
+    }
+    setRemoteStreams((current) => {
+      if (!(ownerId in current)) {
+        return current;
+      }
+      const next = { ...current };
+      delete next[ownerId];
+      return next;
+    });
+  }, []);
 
   const getClient = useCallback(() => {
     if (!clientRef.current) {
@@ -173,20 +203,34 @@ export function useSFUConnection(
         if (offer) {
           webSocketManager.send({ payload: offer, type: "sfu-offer" });
         }
+      }),
+      webSocketManager.subscribe("peer-left", (message) => {
+        removeOwnerTracks(message.payload.peer_id);
       })
     ];
 
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [getClient, publishConnection, publishPendingOwnerTracks, startSFU]);
+  }, [
+    getClient,
+    publishConnection,
+    publishPendingOwnerTracks,
+    removeOwnerTracks,
+    startSFU
+  ]);
 
   useEffect(() => {
     if (!enabled) {
       clientRef.current?.close();
+      remoteStreamRefs.current.clear();
+      pendingTracksRef.current.clear();
+      streamOwnersRef.current.clear();
+      trackOwnersRef.current.clear();
       startedRef.current = false;
       setConnections(new Map());
       setSessionId(null);
+      setRemoteStreams({});
       return;
     }
 

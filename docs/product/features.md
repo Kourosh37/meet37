@@ -5,6 +5,8 @@ This catalog describes the current meet37 product surface. Use it as the checkli
 ## Rooms
 
 - Create a room through the frontend room creation form or `POST /api/rooms`.
+- Create room IDs in the Google Meet-style `aaa-aaa-aaa` format using lowercase English letters.
+- Join a room from the landing page by entering its room ID.
 - List non-expired rooms through `GET /api/rooms`.
 - Load room metadata and live stats through `GET /api/rooms/{roomId}`.
 - Delete a room as the host or an admin through `DELETE /api/rooms/{roomId}`.
@@ -13,12 +15,14 @@ This catalog describes the current meet37 product surface. Use it as the checkli
 - Configure maximum peers; invalid or very high values are normalized by the backend.
 - Configure expiration using `expires_in`.
 - Store a host token for host-level actions when the creator is anonymous.
+- Show the room ID in meeting headers and allow copying it.
 
 ## Joining
 
 - Join with a display name.
 - Join with a room password when required.
 - Join as host using the returned `host_token`.
+- Rejoin as the same host while the saved host token is available.
 - Stop joining when the display name is already used in the room.
 - Enter waiting state when the room requires host approval.
 - Receive approval or rejection from the host.
@@ -29,6 +33,7 @@ This catalog describes the current meet37 product surface. Use it as the checkli
 - Toggle microphone.
 - Toggle camera.
 - Toggle screen share.
+- Enforce host-assigned permissions for microphone, camera, screen sharing, chat, and reactions.
 - Keep camera and screen share mutually exclusive when required by UI flow.
 - Show per-tile loading states while media is starting or waiting for remote tracks.
 - Show media-ready states when remote audio/video/screen tracks arrive.
@@ -45,10 +50,15 @@ This catalog describes the current meet37 product surface. Use it as the checkli
 - Keep maximized mobile media inside the viewport.
 - Fit camera and screen share without cropping when the UI requires full media visibility.
 - Show participant list and participant status.
+- Let hosts edit participant permissions from a modal.
+- Let hosts promote participants to admins and choose whether each admin can kick, disable microphone, disable camera, disable screen share, disable chat, or disable reactions.
+- Let hosts remove participants with an optional temporary or permanent rejoin block.
+- Persist participant permissions, admin permissions, default room permissions, and active room bans so reconnecting participants keep the same restrictions.
 
 ## Chat
 
 - Send chat messages through WebSocket `chat` signals.
+- Block chat sends when chat permission is disabled.
 - Persist chat messages in SQLite.
 - Load the last 500 room chat messages through `GET /api/rooms/{roomId}/chat`.
 
@@ -70,6 +80,7 @@ This catalog describes the current meet37 product surface. Use it as the checkli
 - Create, update, list, and delete users.
 - View live room stats.
 - View SFU stats.
+- Use in-room host settings to update join policy, change or remove the room password, and apply default permissions to current or future participants.
 
 ## Deployment And Operations
 

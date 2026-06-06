@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -104,6 +105,9 @@ func TestRoomCreationValidatesInputsAndCapsMaxPeers(t *testing.T) {
 	room := response["room"].(map[string]interface{})
 	if room["max_peers"].(float64) != 50 {
 		t.Fatalf("expected max_peers fallback to 50, got %#v", room["max_peers"])
+	}
+	if !regexp.MustCompile(`^[a-z]{3}-[a-z]{3}-[a-z]{3}$`).MatchString(room["id"].(string)) {
+		t.Fatalf("expected meet-style room id, got %#v", room["id"])
 	}
 }
 

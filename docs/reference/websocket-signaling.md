@@ -183,6 +183,84 @@ Host-only:
 - `reject-peer`
 - `kick-peer`
 - `mute-peer`
+- `set-admin-permissions`
+- `set-room-settings`
+
+Host or permitted admin:
+
+- `set-peer-permissions`
+
+`kick-peer` can include a rejoin block:
+
+```json
+{
+  "type": "kick-peer",
+  "payload": {
+    "peer_id": "peer-id",
+    "reason": "Removed by a moderator.",
+    "ban_minutes": 15,
+    "ban_permanent": false
+  }
+}
+```
+
+Participant permissions:
+
+```json
+{
+  "type": "set-peer-permissions",
+  "payload": {
+    "peer_id": "peer-id",
+    "permissions": {
+      "can_use_mic": true,
+      "can_use_camera": true,
+      "can_share_screen": false,
+      "can_chat": true,
+      "can_react": true
+    }
+  }
+}
+```
+
+Admin permissions:
+
+```json
+{
+  "type": "set-admin-permissions",
+  "payload": {
+    "peer_id": "peer-id",
+    "is_admin": true,
+    "admin_permissions": {
+      "can_kick": true,
+      "can_mute_mic": true,
+      "can_disable_camera": true,
+      "can_disable_screen": true,
+      "can_disable_chat": true,
+      "can_disable_emoji": true
+    }
+  }
+}
+```
+
+Room settings:
+
+```json
+{
+  "type": "set-room-settings",
+  "payload": {
+    "join_policy": "approval",
+    "password": "optional-new-password",
+    "apply_to_existing": true,
+    "permissions": {
+      "can_use_mic": true,
+      "can_use_camera": true,
+      "can_share_screen": true,
+      "can_chat": true,
+      "can_react": true
+    }
+  }
+}
+```
 
 ## Incoming Server Messages
 
@@ -194,8 +272,24 @@ Host-only:
   "payload": {
     "your_id": "...",
     "peers": [],
-    "mode": "p2p",
+    "mode": "sfu",
     "is_host": true,
+    "is_admin": false,
+    "permissions": {
+      "can_use_mic": true,
+      "can_use_camera": true,
+      "can_share_screen": true,
+      "can_chat": true,
+      "can_react": true
+    },
+    "admin_permissions": {
+      "can_kick": false,
+      "can_mute_mic": false,
+      "can_disable_camera": false,
+      "can_disable_screen": false,
+      "can_disable_chat": false,
+      "can_disable_emoji": false
+    },
     "turn_servers": []
   }
 }
@@ -266,6 +360,11 @@ The client should tolerate tracks arriving before this owner mapping. In that ca
 
 - `mute-request`
 - `kicked`
+- `peer-permissions-updated`
+- `admin-updated`
+- `room-settings-updated`
+
+`kicked` can include `ban_until` and `ban_permanent`. `ban_until` is a Unix timestamp; `0` with `ban_permanent=true` means the block does not expire automatically.
 
 ### Error
 

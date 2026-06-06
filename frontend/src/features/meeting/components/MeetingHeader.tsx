@@ -5,12 +5,15 @@ import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { ConnectionQualityIndicator } from "@/features/meeting/components/ConnectionQualityIndicator";
 import type { ConnectionQuality } from "@/features/meeting/types/peer";
 import { cn } from "@/lib/utils/cn";
+import { Copy } from "lucide-react";
+import { toast } from "sonner";
 
 interface MeetingHeaderProps {
   connectionQuality?: ConnectionQuality;
   isConnected?: boolean;
   participantCount?: number;
   pingMs?: number | null;
+  roomId?: string;
   roomName?: string;
   statusLabel?: string;
 }
@@ -42,16 +45,43 @@ export function MeetingHeader({
   isConnected = false,
   participantCount,
   pingMs,
+  roomId,
   roomName = "Meeting room",
   statusLabel
 }: MeetingHeaderProps) {
+  async function copyRoomId() {
+    if (!roomId) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(roomId);
+      toast.success("Room ID copied");
+    } catch {
+      toast.error("Could not copy room ID");
+    }
+  }
+
   return (
     <header className="fixed inset-x-0 top-0 z-30 mx-auto flex h-16 w-full max-w-7xl items-center gap-3 overflow-hidden border-x border-b border-border bg-surface px-3 shadow-md shadow-slate-950/10 backdrop-blur sm:px-6">
       <BrandMark className="h-10 w-10 shrink-0" size={40} />
 
-      <h1 className="flex h-10 min-w-0 flex-1 items-center truncate text-base font-semibold tracking-normal text-surface-foreground sm:text-lg">
-        {roomName}
-      </h1>
+      <div className="flex h-10 min-w-0 flex-1 items-center gap-2">
+        <h1 className="min-w-0 truncate text-base font-semibold tracking-normal text-surface-foreground sm:text-lg">
+          {roomName}
+        </h1>
+        {roomId ? (
+          <button
+            className="hidden h-8 shrink-0 items-center gap-1 rounded-md border border-border bg-background px-2 text-xs font-semibold text-muted-foreground transition hover:bg-muted sm:inline-flex"
+            onClick={copyRoomId}
+            title="Copy room ID"
+            type="button"
+          >
+            {roomId}
+            <Copy className="size-3.5" />
+          </button>
+        ) : null}
+      </div>
 
       {statusLabel ? (
         <span

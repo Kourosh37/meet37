@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Shield,
   Crown,
   Mic,
   MicOff,
@@ -12,17 +13,23 @@ import type { MeetingPeer } from "@/features/meeting/types/peer";
 
 interface ParticipantItemProps {
   canModerate?: boolean;
+  canAssignAdmin?: boolean;
+  canKick?: boolean;
   isLocal?: boolean;
+  onAdmin?: (peer: MeetingPeer) => void;
   onKick?: (peerId: string) => void;
-  onMute?: (peerId: string) => void;
+  onPermissions?: (peer: MeetingPeer) => void;
   peer: MeetingPeer;
 }
 
 export function ParticipantItem({
   canModerate = false,
+  canAssignAdmin = false,
+  canKick = false,
   isLocal = false,
+  onAdmin,
   onKick,
-  onMute,
+  onPermissions,
   peer
 }: ParticipantItemProps) {
   return (
@@ -32,13 +39,21 @@ export function ParticipantItem({
           {peer.displayName.slice(0, 1).toUpperCase()}
         </div>
         <div className="min-w-0">
-          <p className="truncate text-sm font-semibold text-foreground">
+          <button
+            className="block max-w-full truncate text-left text-sm font-semibold text-foreground transition hover:text-primary disabled:hover:text-foreground"
+            disabled={!canAssignAdmin || isLocal || peer.isHost}
+            onClick={() => onAdmin?.(peer)}
+            type="button"
+          >
             {peer.displayName}
             {isLocal ? " (You)" : ""}
-          </p>
+          </button>
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
             {peer.isHost ? (
               <Crown className="size-3.5" aria-label="Host" />
+            ) : null}
+            {peer.isAdmin ? (
+              <Shield className="size-3.5" aria-label="Admin" />
             ) : null}
             {peer.media.audioEnabled ? (
               <Mic className="size-3.5" />
@@ -58,18 +73,20 @@ export function ParticipantItem({
         <div className="flex shrink-0 items-center gap-1">
           <button
             className="rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
-            onClick={() => onMute?.(peer.id)}
+            onClick={() => onPermissions?.(peer)}
             type="button"
           >
-            Mute
+            Permissions
           </button>
-          <button
-            className="rounded-md border border-danger/30 px-2 py-1 text-xs font-medium text-danger transition hover:bg-danger/10"
-            onClick={() => onKick?.(peer.id)}
-            type="button"
-          >
-            Kick
-          </button>
+          {canKick ? (
+            <button
+              className="rounded-md border border-danger/30 px-2 py-1 text-xs font-medium text-danger transition hover:bg-danger/10"
+              onClick={() => onKick?.(peer.id)}
+              type="button"
+            >
+              Kick
+            </button>
+          ) : null}
         </div>
       ) : (
         <MoreVertical

@@ -17,8 +17,8 @@
   <rect x="40" y="40" width="432" height="432" rx="96" fill="url(#outer)"/>
   <g filter="url(#shadow)">
     <rect x="92" y="92" width="328" height="328" rx="88" fill="url(#tile)"/>
-    <path d="M142 229c0-35.9 29.1-65 65-65h62c35.9 0 65 29.1 65 65v20l54-33v112l-54-33v20c0 35.9-29.1 65-65 65h-62c-35.9 0-65-29.1-65-65v-86Z" fill="#f8fafc"/>
-    <circle cx="238" cy="272" r="38" fill="#0f766e"/>
-    <circle cx="238" cy="272" r="19" fill="#99f6e4"/>
+    <path d="M142 213c0-35.9 29.1-65 65-65h62c35.9 0 65 29.1 65 65v20l54-33v112l-54-33v20c0 35.9-29.1 65-65 65h-62c-35.9 0-65-29.1-65-65v-86Z" fill="#f8fafc"/>
+    <circle cx="238" cy="256" r="38" fill="#0f766e"/>
+    <circle cx="238" cy="256" r="19" fill="#99f6e4"/>
   </g>
 </svg>

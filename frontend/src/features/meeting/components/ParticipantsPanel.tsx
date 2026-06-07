@@ -22,6 +22,7 @@ const defaultAdminPermissions: AdminPermissions = {
   can_disable_emoji: false,
   can_disable_screen: false,
   can_kick: false,
+  can_manage_bans: false,
   can_mute_mic: false
 };
 
@@ -196,7 +197,8 @@ export function ParticipantsPanel({
                     ["can_disable_camera", "Can disable cameras"],
                     ["can_disable_screen", "Can disable screen share"],
                     ["can_disable_chat", "Can disable chat"],
-                    ["can_disable_emoji", "Can disable reactions"]
+                    ["can_disable_emoji", "Can disable reactions"],
+                    ["can_manage_bans", "Can manage ban list"]
                   ].map(([key, label]) => (
                     <label
                       className="flex items-center justify-between gap-3 text-sm text-foreground"

@@ -237,7 +237,8 @@ Admin permissions:
       "can_disable_camera": true,
       "can_disable_screen": true,
       "can_disable_chat": true,
-      "can_disable_emoji": true
+      "can_disable_emoji": true,
+      "can_manage_bans": true
     }
   }
 }
@@ -259,6 +260,25 @@ Room settings:
       "can_chat": true,
       "can_react": true
     }
+  }
+}
+```
+
+Ban list:
+
+```json
+{
+  "type": "list-bans"
+}
+```
+
+Unban:
+
+```json
+{
+  "type": "unban-peer",
+  "payload": {
+    "ban_id": "ban:..."
   }
 }
 ```
@@ -289,7 +309,8 @@ Room settings:
       "can_disable_camera": false,
       "can_disable_screen": false,
       "can_disable_chat": false,
-      "can_disable_emoji": false
+      "can_disable_emoji": false,
+      "can_manage_bans": false
     },
     "turn_servers": []
   }
@@ -304,6 +325,25 @@ Room settings:
 - `peer-joined`
 - `peer-left`
 - `room-closed`
+
+### Ban List
+
+```json
+{
+  "type": "ban-list",
+  "payload": {
+    "bans": [
+      {
+        "id": "ban:...",
+        "display_name": "Alice",
+        "banned_until": 0,
+        "permanent": true,
+        "identity_count": 3
+      }
+    ]
+  }
+}
+```
 
 ### WebRTC
 

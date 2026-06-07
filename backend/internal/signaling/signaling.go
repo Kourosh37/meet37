@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -149,6 +150,10 @@ func canDisableEmoji(peer *Peer) bool {
 	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanDisableEmoji)
 }
 
+func canManageBans(peer *Peer) bool {
+	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanManageBans)
+}
+
 type Peer struct {
 	id          string
 	userID      string
@@ -177,8 +182,18 @@ type Room struct {
 	permissions        map[string]models.PeerPermissions
 	adminPermissions   map[string]models.AdminPermissions
 	bans               map[string]int64
+	banGroups          map[string]string
+	banLabels          map[string]string
 	defaultPermissions models.PeerPermissions
 	mu                 sync.RWMutex
+}
+
+type banListEntry struct {
+	ID            string `json:"id"`
+	DisplayName   string `json:"display_name"`
+	BannedUntil   int64  `json:"banned_until"`
+	Permanent     bool   `json:"permanent"`
+	IdentityCount int    `json:"identity_count"`
 }
 
 func (r *Room) displayNameTaken(displayName, exceptPeerID string) bool {
@@ -359,6 +374,10 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 		h.handleAdminPermissions(p, msg)
 	case "set-room-settings":
 		h.handleRoomSettings(p, msg)
+	case "list-bans":
+		h.handleListBans(p)
+	case "unban-peer":
+		h.handleUnbanPeer(p, msg)
 	default:
 		p.sendMsg(errMsg("unknown message type"))
 	}
@@ -625,6 +644,136 @@ func (h *Hub) handleRoomSettings(actor *Peer, msg models.SignalMessage) {
 	}
 }
 
+func (h *Hub) handleListBans(actor *Peer) {
+	if !canManageBans(actor) || actor.roomID == "" {
+		actor.sendMsg(errMsg("host permission required"))
+		return
+	}
+	h.sendBanList(actor)
+}
+
+func (h *Hub) handleUnbanPeer(actor *Peer, msg models.SignalMessage) {
+	if !canManageBans(actor) || actor.roomID == "" {
+		actor.sendMsg(errMsg("host permission required"))
+		return
+	}
+	var req struct {
+		BanID string `json:"ban_id"`
+	}
+	if !decodePayload(msg.Payload, &req) || strings.TrimSpace(req.BanID) == "" {
+		actor.sendMsg(errMsg("invalid unban payload"))
+		return
+	}
+	req.BanID = strings.TrimSpace(req.BanID)
+
+	h.mu.RLock()
+	room := h.rooms[actor.roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+
+	room.mu.Lock()
+	for identity, groupKey := range room.banGroups {
+		if identity == req.BanID || groupKey == req.BanID {
+			delete(room.bans, identity)
+			delete(room.banGroups, identity)
+			delete(room.banLabels, identity)
+		}
+	}
+	if _, ok := room.bans[req.BanID]; ok {
+		delete(room.bans, req.BanID)
+		delete(room.banGroups, req.BanID)
+		delete(room.banLabels, req.BanID)
+	}
+	room.mu.Unlock()
+
+	_, _ = h.db.Exec(
+		`DELETE FROM room_bans WHERE room_id = ? AND (identity = ? OR group_key = ?)`,
+		actor.roomID,
+		req.BanID,
+		req.BanID,
+	)
+	h.sendBanList(actor)
+}
+
+func (h *Hub) sendBanList(actor *Peer) {
+	h.mu.RLock()
+	room := h.rooms[actor.roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+
+	entries := h.banList(room)
+	actor.sendMsg(models.SignalMessage{
+		Type:    "ban-list",
+		Payload: map[string]interface{}{"bans": entries},
+	})
+}
+
+func (h *Hub) banList(room *Room) []banListEntry {
+	now := time.Now().Unix()
+	room.mu.RLock()
+	defer room.mu.RUnlock()
+
+	byGroup := make(map[string]*banListEntry)
+	for identity, bannedUntil := range room.bans {
+		if bannedUntil > 0 && bannedUntil <= now {
+			continue
+		}
+		groupKey := room.banGroups[identity]
+		if groupKey == "" {
+			groupKey = identity
+		}
+		entry := byGroup[groupKey]
+		if entry == nil {
+			label := room.banLabels[identity]
+			if label == "" {
+				label = labelForBanIdentity(identity)
+			}
+			entry = &banListEntry{
+				ID:          groupKey,
+				DisplayName: label,
+				BannedUntil: bannedUntil,
+				Permanent:   bannedUntil == 0,
+			}
+			byGroup[groupKey] = entry
+		}
+		entry.IdentityCount++
+		if bannedUntil == 0 {
+			entry.Permanent = true
+			entry.BannedUntil = 0
+		} else if !entry.Permanent && bannedUntil > entry.BannedUntil {
+			entry.BannedUntil = bannedUntil
+		}
+	}
+
+	entries := make([]banListEntry, 0, len(byGroup))
+	for _, entry := range byGroup {
+		entries = append(entries, *entry)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return strings.ToLower(entries[i].DisplayName) < strings.ToLower(entries[j].DisplayName)
+	})
+	return entries
+}
+
+func labelForBanIdentity(identity string) string {
+	switch {
+	case strings.HasPrefix(identity, "name:"):
+		return strings.TrimPrefix(identity, "name:")
+	case strings.HasPrefix(identity, "user:"):
+		return "User " + strings.TrimPrefix(identity, "user:")
+	case strings.HasPrefix(identity, "client:"):
+		return "Browser " + strings.TrimPrefix(identity, "client:")
+	case strings.HasPrefix(identity, "ip:"):
+		return "IP " + strings.TrimPrefix(identity, "ip:")
+	default:
+		return "Blocked participant"
+	}
+}
+
 func (h *Hub) handleSFUOffer(p *Peer, msg models.SignalMessage) {
 	if p.roomID == "" {
 		p.sendMsg(errMsg("join a room before using sfu"))
@@ -736,6 +885,8 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 			return
 		}
 		delete(room.bans, banIdentity)
+		delete(room.banGroups, banIdentity)
+		delete(room.banLabels, banIdentity)
 		_, _ = h.db.Exec(`DELETE FROM room_bans WHERE room_id = ? AND identity = ?`, req.RoomID, banIdentity)
 	}
 	permissions, ok := room.permissions[identity]
@@ -883,14 +1034,23 @@ func (h *Hub) handleKickPeer(host *Peer, msg models.SignalMessage) {
 		banUntil = time.Now().Add(time.Duration(req.BanMinutes) * time.Minute).Unix()
 	}
 	if req.BanPermanent || req.BanMinutes > 0 {
+		groupKey := "ban:" + uuid.NewString()
 		room.mu.Lock()
+		if room.banGroups == nil {
+			room.banGroups = make(map[string]string)
+		}
+		if room.banLabels == nil {
+			room.banLabels = make(map[string]string)
+		}
 		identities := banIdentities(target.userID, target.displayName, target.clientID, target.remoteIP, target.userAgent)
 		for _, identity := range identities {
 			room.bans[identity] = banUntil
+			room.banGroups[identity] = groupKey
+			room.banLabels[identity] = target.displayName
 		}
 		room.mu.Unlock()
 		for _, identity := range identities {
-			h.persistBan(host.roomID, identity, banUntil)
+			h.persistBan(host.roomID, identity, banUntil, target.displayName, groupKey)
 		}
 	}
 	target.sendMsg(models.SignalMessage{Type: "kicked", Payload: map[string]interface{}{"reason": req.Reason, "ban_until": banUntil, "ban_permanent": req.BanPermanent}})
@@ -1151,6 +1311,8 @@ func (h *Hub) getOrCreateRoom(roomID string) *Room {
 		permissions:        make(map[string]models.PeerPermissions),
 		adminPermissions:   make(map[string]models.AdminPermissions),
 		bans:               make(map[string]int64),
+		banGroups:          make(map[string]string),
+		banLabels:          make(map[string]string),
 		defaultPermissions: defaultPeerPermissions(),
 	}
 	h.rooms[roomID] = room
@@ -1357,7 +1519,7 @@ func (h *Hub) loadRoomModerationState(room *Room) {
 	}
 
 	if rows, err := h.db.Query(
-		`SELECT identity, can_kick, can_mute_mic, can_disable_camera, can_disable_screen, can_disable_chat, can_disable_emoji
+		`SELECT identity, can_kick, can_mute_mic, can_disable_camera, can_disable_screen, can_disable_chat, can_disable_emoji, can_manage_bans
 		 FROM room_admin_permissions WHERE room_id = ?`,
 		room.id,
 	); err == nil {
@@ -1365,8 +1527,8 @@ func (h *Hub) loadRoomModerationState(room *Room) {
 		room.mu.Lock()
 		for rows.Next() {
 			var identity string
-			var canKick, canMuteMic, canDisableCamera, canDisableScreen, canDisableChat, canDisableEmoji int
-			if rows.Scan(&identity, &canKick, &canMuteMic, &canDisableCamera, &canDisableScreen, &canDisableChat, &canDisableEmoji) == nil {
+			var canKick, canMuteMic, canDisableCamera, canDisableScreen, canDisableChat, canDisableEmoji, canManageBans int
+			if rows.Scan(&identity, &canKick, &canMuteMic, &canDisableCamera, &canDisableScreen, &canDisableChat, &canDisableEmoji, &canManageBans) == nil {
 				room.adminPermissions[identity] = models.AdminPermissions{
 					CanKick:          boolFromInt(canKick),
 					CanMuteMic:       boolFromInt(canMuteMic),
@@ -1374,6 +1536,7 @@ func (h *Hub) loadRoomModerationState(room *Room) {
 					CanDisableScreen: boolFromInt(canDisableScreen),
 					CanDisableChat:   boolFromInt(canDisableChat),
 					CanDisableEmoji:  boolFromInt(canDisableEmoji),
+					CanManageBans:    boolFromInt(canManageBans),
 				}
 			}
 		}
@@ -1381,17 +1544,24 @@ func (h *Hub) loadRoomModerationState(room *Room) {
 	}
 
 	if rows, err := h.db.Query(
-		`SELECT identity, banned_until FROM room_bans WHERE room_id = ? AND (banned_until = 0 OR banned_until > ?)`,
+		`SELECT identity, banned_until, COALESCE(display_name, ''), COALESCE(group_key, '')
+		 FROM room_bans WHERE room_id = ? AND (banned_until = 0 OR banned_until > ?)`,
 		room.id,
 		time.Now().Unix(),
 	); err == nil {
 		defer rows.Close()
 		room.mu.Lock()
 		for rows.Next() {
-			var identity string
+			var identity, displayName, groupKey string
 			var bannedUntil int64
-			if rows.Scan(&identity, &bannedUntil) == nil {
+			if rows.Scan(&identity, &bannedUntil, &displayName, &groupKey) == nil {
 				room.bans[identity] = bannedUntil
+				if displayName != "" {
+					room.banLabels[identity] = displayName
+				}
+				if groupKey != "" {
+					room.banGroups[identity] = groupKey
+				}
 			}
 		}
 		room.mu.Unlock()
@@ -1444,8 +1614,8 @@ func (h *Hub) persistDefaultPermissions(roomID string, permissions models.PeerPe
 
 func (h *Hub) persistAdminPermissions(roomID, identity string, permissions models.AdminPermissions) {
 	_, _ = h.db.Exec(
-		`INSERT INTO room_admin_permissions (room_id, identity, can_kick, can_mute_mic, can_disable_camera, can_disable_screen, can_disable_chat, can_disable_emoji, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`INSERT INTO room_admin_permissions (room_id, identity, can_kick, can_mute_mic, can_disable_camera, can_disable_screen, can_disable_chat, can_disable_emoji, can_manage_bans, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(room_id, identity) DO UPDATE SET
 		 can_kick = excluded.can_kick,
 		 can_mute_mic = excluded.can_mute_mic,
@@ -1453,6 +1623,7 @@ func (h *Hub) persistAdminPermissions(roomID, identity string, permissions model
 		 can_disable_screen = excluded.can_disable_screen,
 		 can_disable_chat = excluded.can_disable_chat,
 		 can_disable_emoji = excluded.can_disable_emoji,
+		 can_manage_bans = excluded.can_manage_bans,
 		 updated_at = excluded.updated_at`,
 		roomID,
 		identity,
@@ -1462,6 +1633,7 @@ func (h *Hub) persistAdminPermissions(roomID, identity string, permissions model
 		intFromBool(permissions.CanDisableScreen),
 		intFromBool(permissions.CanDisableChat),
 		intFromBool(permissions.CanDisableEmoji),
+		intFromBool(permissions.CanManageBans),
 		time.Now().Unix(),
 	)
 }
@@ -1470,16 +1642,20 @@ func (h *Hub) deleteAdminPermissions(roomID, identity string) {
 	_, _ = h.db.Exec(`DELETE FROM room_admin_permissions WHERE room_id = ? AND identity = ?`, roomID, identity)
 }
 
-func (h *Hub) persistBan(roomID, identity string, bannedUntil int64) {
+func (h *Hub) persistBan(roomID, identity string, bannedUntil int64, displayName, groupKey string) {
 	_, _ = h.db.Exec(
-		`INSERT INTO room_bans (room_id, identity, banned_until, created_at)
-		 VALUES (?, ?, ?, ?)
+		`INSERT INTO room_bans (room_id, identity, banned_until, display_name, group_key, created_at)
+		 VALUES (?, ?, ?, ?, ?, ?)
 		 ON CONFLICT(room_id, identity) DO UPDATE SET
 		 banned_until = excluded.banned_until,
+		 display_name = excluded.display_name,
+		 group_key = excluded.group_key,
 		 created_at = excluded.created_at`,
 		roomID,
 		identity,
 		bannedUntil,
+		nullableString(displayName),
+		nullableString(groupKey),
 		time.Now().Unix(),
 	)
 }

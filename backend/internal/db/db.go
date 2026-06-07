@@ -129,6 +129,7 @@ CREATE TABLE IF NOT EXISTS room_admin_permissions (
 	can_disable_screen INTEGER NOT NULL,
 	can_disable_chat INTEGER NOT NULL,
 	can_disable_emoji INTEGER NOT NULL,
+	can_manage_bans INTEGER NOT NULL DEFAULT 0,
 	updated_at INTEGER NOT NULL,
 	PRIMARY KEY (room_id, identity)
 );
@@ -137,6 +138,8 @@ CREATE TABLE IF NOT EXISTS room_bans (
 	room_id TEXT NOT NULL,
 	identity TEXT NOT NULL,
 	banned_until INTEGER NOT NULL,
+	display_name TEXT,
+	group_key TEXT,
 	created_at INTEGER NOT NULL,
 	PRIMARY KEY (room_id, identity)
 );
@@ -165,6 +168,9 @@ CREATE INDEX IF NOT EXISTS idx_room_bans_expires ON room_bans(room_id, banned_un
 	}
 	_ = addColumnIfMissing(db.DB, "rooms", "join_policy", `TEXT NOT NULL DEFAULT 'open' CHECK (join_policy IN ('open', 'approval'))`)
 	_ = addColumnIfMissing(db.DB, "rooms", "host_secret_hash", `TEXT`)
+	_ = addColumnIfMissing(db.DB, "room_admin_permissions", "can_manage_bans", `INTEGER NOT NULL DEFAULT 0`)
+	_ = addColumnIfMissing(db.DB, "room_bans", "display_name", `TEXT`)
+	_ = addColumnIfMissing(db.DB, "room_bans", "group_key", `TEXT`)
 	_, err := db.Exec(`INSERT OR IGNORE INTO settings (id, app_mode) VALUES (1, ?)`, defaultMode)
 	return err
 }

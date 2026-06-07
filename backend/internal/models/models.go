@@ -51,6 +51,7 @@ type AdminPermissions struct {
 	CanDisableScreen bool `json:"can_disable_screen"`
 	CanDisableChat   bool `json:"can_disable_chat"`
 	CanDisableEmoji  bool `json:"can_disable_emoji"`
+	CanManageBans    bool `json:"can_manage_bans"`
 }
 
 type SignalMessage struct {

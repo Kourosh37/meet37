@@ -525,15 +525,19 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       />
       <SettingsDrawer
         audioEnabled={localMedia.audioEnabled}
+        bannedParticipants={moderation.bannedParticipants}
+        canManageBans={moderation.canManageBans}
         canShareScreen={canShareScreen}
         canUseCamera={canUseCamera}
         canUseMic={canUseMic}
         isHost={meeting.isHost}
         isOpen={ui.settingsOpen}
         onClose={() => ui.closePanel("settings")}
+        onListBans={moderation.listBans}
         onToggleAudio={localMedia.toggleAudio}
         onToggleScreenShare={localMedia.toggleScreenShare}
         onToggleVideo={localMedia.toggleVideo}
+        onUnbanPeer={moderation.unbanPeer}
         onUpdateRoomSettings={moderation.updateRoomSettings}
         screenSharing={localMedia.screenSharing}
         screenShareSupported={localMedia.screenShareSupported}

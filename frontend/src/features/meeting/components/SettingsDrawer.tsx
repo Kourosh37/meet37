@@ -2,7 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import type { PeerPermissions } from "@/features/meeting/types/signaling";
+import type {
+  BannedParticipant,
+  PeerPermissions
+} from "@/features/meeting/types/signaling";
 
 const defaultPermissions: PeerPermissions = {
   can_chat: true,
@@ -14,6 +17,8 @@ const defaultPermissions: PeerPermissions = {
 
 interface SettingsDrawerProps {
   audioEnabled: boolean;
+  bannedParticipants?: BannedParticipant[];
+  canManageBans?: boolean;
   canShareScreen?: boolean;
   canUseCamera?: boolean;
   canUseMic?: boolean;
@@ -23,6 +28,8 @@ interface SettingsDrawerProps {
   onToggleAudio: () => void;
   onToggleScreenShare: () => void;
   onToggleVideo: () => void;
+  onListBans?: () => void;
+  onUnbanPeer?: (banId: string) => void;
   onUpdateRoomSettings?: (settings: {
     joinPolicy?: "open" | "approval";
     password?: string;
@@ -37,15 +44,19 @@ interface SettingsDrawerProps {
 
 export function SettingsDrawer({
   audioEnabled,
+  bannedParticipants = [],
+  canManageBans = false,
   canShareScreen = true,
   canUseCamera = true,
   canUseMic = true,
   isHost = false,
   isOpen,
   onClose,
+  onListBans,
   onToggleAudio,
   onToggleScreenShare,
   onToggleVideo,
+  onUnbanPeer,
   onUpdateRoomSettings,
   screenSharing,
   screenShareSupported = true,
@@ -63,12 +74,15 @@ export function SettingsDrawer({
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
+      if (canManageBans) {
+        onListBans?.();
+      }
       return;
     }
 
     const timeout = window.setTimeout(() => setShouldRender(false), 260);
     return () => window.clearTimeout(timeout);
-  }, [isOpen]);
+  }, [canManageBans, isOpen, onListBans]);
 
   if (!shouldRender) {
     return null;
@@ -220,6 +234,59 @@ export function SettingsDrawer({
             >
               Save host controls
             </button>
+          </div>
+        </section>
+      ) : null}
+
+      {canManageBans ? (
+        <section className="mt-6 border-t border-border pt-5">
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Banned participants
+            </h3>
+            <button
+              className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-foreground transition hover:bg-muted"
+              onClick={onListBans}
+              type="button"
+            >
+              Refresh
+            </button>
+          </div>
+          <div className="mt-4 grid gap-2">
+            {bannedParticipants.length ? (
+              bannedParticipants.map((ban) => (
+                <div
+                  className="rounded-md border border-border bg-background p-3"
+                  key={ban.id}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-foreground">
+                        {ban.display_name}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {ban.permanent
+                          ? "Blocked permanently"
+                          : `Blocked until ${new Date(
+                              ban.banned_until * 1000
+                            ).toLocaleString()}`}
+                      </p>
+                    </div>
+                    <button
+                      className="shrink-0 rounded-md border border-danger/30 px-2 py-1 text-xs font-semibold text-danger transition hover:bg-danger/10"
+                      onClick={() => onUnbanPeer?.(ban.id)}
+                      type="button"
+                    >
+                      Unban
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="rounded-md border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
+                No banned participants.
+              </p>
+            )}
           </div>
         </section>
       ) : null}

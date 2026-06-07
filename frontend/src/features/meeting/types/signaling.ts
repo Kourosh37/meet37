@@ -17,6 +17,15 @@ export interface AdminPermissions {
   can_disable_screen: boolean;
   can_disable_chat: boolean;
   can_disable_emoji: boolean;
+  can_manage_bans: boolean;
+}
+
+export interface BannedParticipant {
+  id: string;
+  display_name: string;
+  banned_until: number;
+  permanent: boolean;
+  identity_count: number;
 }
 
 export type SignalEnvelope<
@@ -214,6 +223,14 @@ export interface KickedPayload {
   ban_permanent?: boolean;
 }
 
+export interface BanListPayload {
+  bans: BannedParticipant[];
+}
+
+export interface UnbanPeerPayload {
+  ban_id: string;
+}
+
 export interface PeerPermissionsPayload extends PeerIdPayload {
   permissions: PeerPermissions;
 }
@@ -255,6 +272,8 @@ export type OutgoingSignalMessage =
   | SignalEnvelope<"stats", StatsPayload>
   | SignalEnvelope<"mute-peer", MutePeerPayload>
   | SignalEnvelope<"kick-peer", KickPeerPayload>
+  | SignalEnvelope<"list-bans", undefined>
+  | SignalEnvelope<"unban-peer", UnbanPeerPayload>
   | SignalEnvelope<"set-peer-permissions", PeerPermissionsPayload>
   | SignalEnvelope<"set-admin-permissions", AdminPermissionsPayload>
   | SignalEnvelope<"set-room-settings", RoomSettingsPayload>;
@@ -284,6 +303,7 @@ export type IncomingSignalMessage =
   | SignalEnvelope<"file-complete", FileCompletePayload>
   | SignalEnvelope<"mute-request", MuteRequestPayload>
   | SignalEnvelope<"kicked", KickedPayload>
+  | SignalEnvelope<"ban-list", BanListPayload>
   | SignalEnvelope<"peer-permissions-updated", PeerPermissionsPayload>
   | SignalEnvelope<"admin-updated", AdminPermissionsPayload>
   | SignalEnvelope<"room-settings-updated", RoomSettingsPayload>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 import type {
   AdminPermissions,
+  BannedParticipant,
   MediaKind,
   PeerPermissions
 } from "@/features/meeting/types/signaling";
@@ -21,10 +22,26 @@ export function useModeration() {
 
   const canKick = isHost || Boolean(adminPermissions?.can_kick);
   const canMuteMic = isHost || Boolean(adminPermissions?.can_mute_mic);
-  const canDisableCamera = isHost || Boolean(adminPermissions?.can_disable_camera);
-  const canDisableScreen = isHost || Boolean(adminPermissions?.can_disable_screen);
+  const canDisableCamera =
+    isHost || Boolean(adminPermissions?.can_disable_camera);
+  const canDisableScreen =
+    isHost || Boolean(adminPermissions?.can_disable_screen);
   const canDisableChat = isHost || Boolean(adminPermissions?.can_disable_chat);
-  const canDisableEmoji = isHost || Boolean(adminPermissions?.can_disable_emoji);
+  const canDisableEmoji =
+    isHost || Boolean(adminPermissions?.can_disable_emoji);
+  const canManageBans = isHost || Boolean(adminPermissions?.can_manage_bans);
+  const [bannedParticipants, setBannedParticipants] = useState<
+    BannedParticipant[]
+  >([]);
+
+  useEffect(() => {
+    return webSocketManager.subscribe("ban-list", (message) => {
+      const bans = Array.isArray(message.payload?.bans)
+        ? (message.payload.bans as BannedParticipant[])
+        : [];
+      setBannedParticipants(bans);
+    });
+  }, []);
 
   const approvePeer = useCallback(
     (peerId: string) => {
@@ -159,22 +176,45 @@ export function useModeration() {
     [isHost]
   );
 
+  const listBans = useCallback(() => {
+    if (!canManageBans) {
+      return;
+    }
+    webSocketManager.send({ type: "list-bans" });
+  }, [canManageBans]);
+
+  const unbanPeer = useCallback(
+    (banId: string) => {
+      if (!canManageBans) {
+        return;
+      }
+      webSocketManager.send({
+        payload: { ban_id: banId },
+        type: "unban-peer"
+      });
+    },
+    [canManageBans]
+  );
+
   return {
     approvePeer,
+    bannedParticipants,
     canModerate: isHost || isAdmin,
     canDisableCamera,
     canDisableChat,
     canDisableEmoji,
     canDisableScreen,
     canKick,
+    canManageBans,
     canMuteMic,
     kickPeer,
+    listBans,
     mutePeer,
     pendingPeers,
-    rejectPeer
-    ,
+    rejectPeer,
     setAdminPermissions,
     setPeerPermissions,
+    unbanPeer,
     updateRoomSettings
   };
 }

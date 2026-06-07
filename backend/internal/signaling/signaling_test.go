@@ -206,6 +206,124 @@ func TestHandleJoinRejectsBannedConnectionAfterDisplayNameChange(t *testing.T) {
 	}
 }
 
+func TestHandleUnbanPeerRemovesBanGroup(t *testing.T) {
+	hub, database := testHub(t)
+	roomID := "room-1"
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		roomID, "Room", "host", "open", 50, time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("insert room: %v", err)
+	}
+	room := &Room{
+		id:                 roomID,
+		peers:              map[string]*Peer{},
+		pending:            map[string]*Peer{},
+		permissions:        map[string]models.PeerPermissions{},
+		adminPermissions:   map[string]models.AdminPermissions{},
+		bans:               map[string]int64{"ip:203.0.113.10": 0, "client:abc12345": 0},
+		banGroups:          map[string]string{"ip:203.0.113.10": "ban-group-1", "client:abc12345": "ban-group-1"},
+		banLabels:          map[string]string{"ip:203.0.113.10": "Alice", "client:abc12345": "Alice"},
+		defaultPermissions: defaultPeerPermissions(),
+	}
+	host := &Peer{id: "host", roomID: roomID, isHost: true, send: make(chan []byte, 4), hub: hub}
+	room.peers[host.id] = host
+	hub.rooms[roomID] = room
+	for identity := range room.bans {
+		hub.persistBan(roomID, identity, 0, "Alice", "ban-group-1")
+	}
+
+	hub.handleMessage(host, []byte(`{"type":"unban-peer","payload":{"ban_id":"ban-group-1"}}`))
+
+	if len(room.bans) != 0 {
+		t.Fatalf("expected bans to be removed, got %#v", room.bans)
+	}
+	var count int
+	if err := database.QueryRow(`SELECT COUNT(*) FROM room_bans WHERE room_id = ?`, roomID).Scan(&count); err != nil {
+		t.Fatalf("count bans: %v", err)
+	}
+	if count != 0 {
+		t.Fatalf("expected persisted bans to be removed, got %d", count)
+	}
+	select {
+	case raw := <-host.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode signal: %v", err)
+		}
+		if msg.Type != "ban-list" {
+			t.Fatalf("expected ban-list, got %q", msg.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for ban-list")
+	}
+}
+
+func TestHandleUnbanPeerRequiresAdminBanPermission(t *testing.T) {
+	hub, database := testHub(t)
+	roomID := "room-1"
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		roomID, "Room", "host", "open", 50, time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("insert room: %v", err)
+	}
+	room := &Room{
+		id:                 roomID,
+		peers:              map[string]*Peer{},
+		pending:            map[string]*Peer{},
+		permissions:        map[string]models.PeerPermissions{},
+		adminPermissions:   map[string]models.AdminPermissions{},
+		bans:               map[string]int64{"ip:203.0.113.10": 0},
+		banGroups:          map[string]string{"ip:203.0.113.10": "ban-group-1"},
+		banLabels:          map[string]string{"ip:203.0.113.10": "Alice"},
+		defaultPermissions: defaultPeerPermissions(),
+	}
+	admin := &Peer{id: "admin", roomID: roomID, isAdmin: true, send: make(chan []byte, 4), hub: hub}
+	room.peers[admin.id] = admin
+	hub.rooms[roomID] = room
+	hub.persistBan(roomID, "ip:203.0.113.10", 0, "Alice", "ban-group-1")
+
+	hub.handleMessage(admin, []byte(`{"type":"unban-peer","payload":{"ban_id":"ban-group-1"}}`))
+
+	if len(room.bans) != 1 {
+		t.Fatalf("expected unauthorized admin ban removal to be blocked")
+	}
+	select {
+	case raw := <-admin.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode signal: %v", err)
+		}
+		if msg.Type != "error" {
+			t.Fatalf("expected permission error, got %q", msg.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for permission error")
+	}
+
+	admin.adminPerms = models.AdminPermissions{CanManageBans: true}
+	hub.handleMessage(admin, []byte(`{"type":"unban-peer","payload":{"ban_id":"ban-group-1"}}`))
+
+	if len(room.bans) != 0 {
+		t.Fatalf("expected authorized admin to remove bans, got %#v", room.bans)
+	}
+	select {
+	case raw := <-admin.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode signal: %v", err)
+		}
+		if msg.Type != "ban-list" {
+			t.Fatalf("expected ban-list, got %q", msg.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for ban-list")
+	}
+}
+
 func TestHandleMessageRespondsToPing(t *testing.T) {
 	hub, _ := testHub(t)
 	peer := &Peer{id: "peer-1", send: make(chan []byte, 4), hub: hub}

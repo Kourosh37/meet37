@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { InlineError } from "@/components/feedback/InlineError";
 import { AdmissionModal } from "@/features/meeting/components/AdmissionModal";
 import { ChatPanel } from "@/features/meeting/components/ChatPanel";
 import { ControlBar } from "@/features/meeting/components/ControlBar";
@@ -465,11 +466,10 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-32 pt-24">
         <div className="flex min-h-full flex-col gap-4">
-          {localMedia.error ? (
-            <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-              {localMedia.error}
-            </div>
-          ) : null}
+          <InlineError
+            className="rounded-lg px-4 py-3"
+            message={localMedia.error}
+          />
 
           {onlineStatus.isOffline ? (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">

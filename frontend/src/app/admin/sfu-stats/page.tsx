@@ -1,5 +1,6 @@
 "use client";
 
+import { InlineError } from "@/components/feedback/InlineError";
 import { SFUStatsPanel } from "@/features/admin/components/SFUStatsPanel";
 import { useAdminSfuStats } from "@/features/admin/hooks/useAdminRooms";
 
@@ -16,9 +17,7 @@ export default function AdminSFUStatsPage() {
           Monitor active relay sessions and throughput.
         </p>
       </div>
-      {stats.error ? (
-        <p className="text-sm text-danger">Could not load SFU stats.</p>
-      ) : null}
+      <InlineError message={stats.error ? "Could not load SFU stats." : null} />
       <SFUStatsPanel stats={stats.data} />
     </section>
   );

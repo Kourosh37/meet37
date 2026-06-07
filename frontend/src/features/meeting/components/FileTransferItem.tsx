@@ -1,6 +1,7 @@
 "use client";
 
 import { Download, FileText } from "lucide-react";
+import { InlineError } from "@/components/feedback/InlineError";
 import type { FileTransferRecord } from "@/features/meeting/types/file";
 import { formatBytes } from "@/lib/utils/formatters";
 
@@ -34,9 +35,7 @@ export function FileTransferItem({ transfer }: FileTransferItemProps) {
               </p>
             </div>
           ) : null}
-          {transfer.reason ? (
-            <p className="mt-1 text-xs text-danger">{transfer.reason}</p>
-          ) : null}
+          <InlineError className="mt-2 text-xs" message={transfer.reason} />
         </div>
       </div>
 

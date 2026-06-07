@@ -12,6 +12,7 @@ export function ToastProvider() {
       expand
       position="top-center"
       richColors={false}
+      swipeDirections={["top"]}
       theme={resolvedTheme === "dark" ? "dark" : "light"}
       toastOptions={{
         classNames: {

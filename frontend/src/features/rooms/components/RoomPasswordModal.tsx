@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { Lock, X } from "lucide-react";
+import { InlineError } from "@/components/feedback/InlineError";
 
 interface RoomPasswordModalProps {
   error?: string | null;
@@ -96,9 +97,7 @@ export function RoomPasswordModal({
           value={password}
         />
 
-        {validationError || error ? (
-          <p className="mt-3 text-sm text-danger">{validationError ?? error}</p>
-        ) : null}
+        <InlineError className="mt-3" message={validationError ?? error} />
 
         <div className="mt-5 flex justify-end gap-2">
           <button

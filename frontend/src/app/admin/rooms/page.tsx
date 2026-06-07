@@ -1,5 +1,6 @@
 "use client";
 
+import { InlineError } from "@/components/feedback/InlineError";
 import { LiveRoomsTable } from "@/features/admin/components/LiveRoomsTable";
 import { useAdminRooms } from "@/features/admin/hooks/useAdminRooms";
 
@@ -16,9 +17,9 @@ export default function AdminRoomsPage() {
           Monitor participant counts, pending approvals, and relay mode.
         </p>
       </div>
-      {rooms.error ? (
-        <p className="text-sm text-danger">Could not load room stats.</p>
-      ) : null}
+      <InlineError
+        message={rooms.error ? "Could not load room stats." : null}
+      />
       {rooms.isLoading ? (
         <p className="text-sm text-muted-foreground">Loading live rooms...</p>
       ) : (

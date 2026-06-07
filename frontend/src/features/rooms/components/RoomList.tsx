@@ -1,5 +1,6 @@
 "use client";
 
+import { InlineError } from "@/components/feedback/InlineError";
 import { useRooms } from "@/features/rooms/hooks/useRoomMeta";
 import { formatUnixSeconds } from "@/lib/utils/formatters";
 import { Lock, Users, Video } from "lucide-react";
@@ -19,11 +20,7 @@ export function RoomList() {
   }
 
   if (error) {
-    return (
-      <div className="rounded-md border border-danger/30 bg-danger/10 p-4 text-sm text-danger">
-        Failed to load rooms.
-      </div>
-    );
+    return <InlineError className="p-4" message="Failed to load rooms." />;
   }
 
   if (!rooms || rooms.length === 0) {

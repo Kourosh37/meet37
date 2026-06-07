@@ -1,5 +1,7 @@
 "use client";
 
+import { InlineError } from "@/components/feedback/InlineError";
+
 export function DisplayNameInput({
   error,
   onChange,
@@ -25,7 +27,7 @@ export function DisplayNameInput({
         type="text"
         value={value}
       />
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      <InlineError message={error} />
     </div>
   );
 }

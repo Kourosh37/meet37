@@ -1,5 +1,6 @@
 "use client";
 
+import { InlineError } from "@/components/feedback/InlineError";
 import { CreateUserModal } from "@/features/admin/components/CreateUserModal";
 import { UserTable } from "@/features/admin/components/UserTable";
 import { useAdminUsers } from "@/features/admin/hooks/useAdminUsers";
@@ -23,9 +24,7 @@ export default function AdminUsersPage() {
           onCreate={users.createUser}
         />
       </div>
-      {users.error ? (
-        <p className="text-sm text-danger">Could not load users.</p>
-      ) : null}
+      <InlineError message={users.error ? "Could not load users." : null} />
       <UserTable
         disabled={users.isLoading || users.isMutating}
         onDelete={users.deleteUser}

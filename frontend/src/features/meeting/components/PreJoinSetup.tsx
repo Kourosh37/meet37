@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
+import { InlineError } from "@/components/feedback/InlineError";
 import { MeetingHeader } from "@/features/meeting/components/MeetingHeader";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
@@ -238,9 +239,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
               ? "Joining..."
               : "Continue"}
           </button>
-          {meeting.error ? (
-            <p className="text-sm text-danger">{meeting.error}</p>
-          ) : null}
+          <InlineError message={meeting.error} />
         </div>
       </aside>
     </section>

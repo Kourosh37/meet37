@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import Link from "next/link";
 import { useEffect } from "react";
+import { InlineError } from "@/components/feedback/InlineError";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { usePublicSettings } from "@/features/rooms/hooks/useRoomMeta";
 import { ApiClientError } from "@/lib/api/client";
@@ -104,9 +105,7 @@ export function RoomCreationForm() {
           type="text"
           {...register("name")}
         />
-        {errors.name ? (
-          <p className="text-sm text-danger">{errors.name.message}</p>
-        ) : null}
+        <InlineError message={errors.name?.message} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -142,9 +141,7 @@ export function RoomCreationForm() {
             type="number"
             {...register("max_peers")}
           />
-          {errors.max_peers ? (
-            <p className="text-sm text-danger">{errors.max_peers.message}</p>
-          ) : null}
+          <InlineError message={errors.max_peers?.message} />
         </div>
       </div>
 
@@ -161,9 +158,7 @@ export function RoomCreationForm() {
           type="password"
           {...register("password")}
         />
-        {errors.password ? (
-          <p className="text-sm text-danger">{errors.password.message}</p>
-        ) : null}
+        <InlineError message={errors.password?.message} />
       </div>
 
       <input type="hidden" {...register("expires_in")} />

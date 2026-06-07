@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { InlineError } from "@/components/feedback/InlineError";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { loginSchema, type LoginFormValues } from "@/lib/utils/validators";
 
@@ -50,9 +51,7 @@ export function LoginForm() {
           type="text"
           {...register("username")}
         />
-        {errors.username ? (
-          <p className="text-sm text-danger">{errors.username.message}</p>
-        ) : null}
+        <InlineError message={errors.username?.message} />
       </div>
 
       <div className="space-y-2">
@@ -69,12 +68,10 @@ export function LoginForm() {
           type="password"
           {...register("password")}
         />
-        {errors.password ? (
-          <p className="text-sm text-danger">{errors.password.message}</p>
-        ) : null}
+        <InlineError message={errors.password?.message} />
       </div>
 
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      <InlineError message={error} />
 
       <button
         className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"

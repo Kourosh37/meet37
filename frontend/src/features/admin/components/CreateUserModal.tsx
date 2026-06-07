@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { InlineError } from "@/components/feedback/InlineError";
 import { adminUserCreateSchema } from "@/lib/utils/validators";
 import type { CreateAdminUserRequest } from "@/types/api";
 
@@ -66,7 +67,7 @@ export function CreateUserModal({
           type="password"
           value={password}
         />
-        {error ? <p className="text-sm text-danger">{error}</p> : null}
+        <InlineError message={error} />
         <div className="flex gap-2">
           <button
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"

@@ -2,6 +2,7 @@
 
 import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { InlineError } from "@/components/feedback/InlineError";
 import { DeviceSplitControl } from "@/features/meeting/components/DeviceSplitControl";
 import { useDeviceSetup } from "@/features/prejoin/hooks/useDeviceSetup";
 
@@ -38,11 +39,7 @@ export function DeviceSetup() {
         )}
       </div>
 
-      {setup.error ? (
-        <div className="rounded-md border border-danger/30 bg-danger/10 p-3 text-sm text-danger">
-          {setup.error}
-        </div>
-      ) : null}
+      <InlineError message={setup.error} />
 
       <div className="flex flex-wrap gap-2">
         <DeviceSplitControl

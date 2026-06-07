@@ -1,5 +1,6 @@
 "use client";
 
+import { InlineError } from "@/components/feedback/InlineError";
 import { AppModeToggle } from "@/features/admin/components/AppModeToggle";
 import { useAdminSettings } from "@/features/admin/hooks/useAdminSettings";
 
@@ -16,9 +17,9 @@ export default function AdminSettingsPage() {
           Control public and private room creation policy.
         </p>
       </div>
-      {settings.error ? (
-        <p className="text-sm text-danger">Could not load settings.</p>
-      ) : null}
+      <InlineError
+        message={settings.error ? "Could not load settings." : null}
+      />
       <AppModeToggle
         appMode={settings.appMode}
         disabled={settings.isLoading || settings.isUpdating}

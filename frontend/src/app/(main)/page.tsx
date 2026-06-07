@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { ApiClientError } from "@/lib/api/client";
 import { createRoom, getRoom } from "@/features/rooms/api/roomsApi";
 import { usePublicSettings } from "@/features/rooms/hooks/useRoomMeta";
@@ -30,6 +31,7 @@ export default function HomePage() {
   const [roomId, setRoomId] = useState("");
   const [recentRooms, setRecentRooms] = useState<RecentRoom[]>([]);
   const [busyRoomId, setBusyRoomId] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<"join" | "create" | null>(null);
   const normalizedRoomId = roomId.trim().toLowerCase();
   const canJoin = /^[a-z]{3}-[a-z]{3}-[a-z]{3}$/.test(normalizedRoomId);
   const showLogin = data?.app_mode === "private";
@@ -50,6 +52,7 @@ export default function HomePage() {
 
   async function handleRecentJoin(room: RecentRoom) {
     setBusyRoomId(room.id);
+    setBusyAction("join");
     try {
       await getRoom(room.id);
       router.push(`/meet/${room.id}`);
@@ -62,11 +65,13 @@ export default function HomePage() {
       toast.error("Could not check room status");
     } finally {
       setBusyRoomId(null);
+      setBusyAction(null);
     }
   }
 
   async function handleRecreate(room: RecentRoom) {
     setBusyRoomId(room.id);
+    setBusyAction("create");
     try {
       const response = await createRoom({
         join_policy: room.joinPolicy,
@@ -87,6 +92,7 @@ export default function HomePage() {
       );
     } finally {
       setBusyRoomId(null);
+      setBusyAction(null);
     }
   }
 
@@ -221,6 +227,9 @@ export default function HomePage() {
                       onClick={() => void handleRecentJoin(room)}
                       type="button"
                     >
+                      {busyRoomId === room.id && busyAction === "join" ? (
+                        <LoadingSpinner label="Opening room" size="sm" />
+                      ) : null}
                       Join
                     </button>
                     {expired ? (
@@ -230,7 +239,11 @@ export default function HomePage() {
                         onClick={() => void handleRecreate(room)}
                         type="button"
                       >
-                        <Plus className="size-3.5" />
+                        {busyRoomId === room.id && busyAction === "create" ? (
+                          <LoadingSpinner label="Creating room" size="sm" />
+                        ) : (
+                          <Plus className="size-3.5" />
+                        )}
                         New with ID
                       </button>
                     ) : null}

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { ChatMessage } from "@/features/meeting/components/ChatMessage";
 import { FileTransferItem } from "@/features/meeting/components/FileTransferItem";
 import { FileTransferPanel } from "@/features/meeting/components/FileTransferPanel";
@@ -73,9 +74,14 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
             Chat
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            {chat.isLoadingHistory
-              ? "Loading history..."
-              : `${chat.messages.length} messages`}
+            {chat.isLoadingHistory ? (
+              <span className="inline-flex items-center gap-1.5">
+                <LoadingSpinner label="Loading chat history" size="sm" />
+                Loading history
+              </span>
+            ) : (
+              `${chat.messages.length} messages`
+            )}
           </p>
         </div>
         <button

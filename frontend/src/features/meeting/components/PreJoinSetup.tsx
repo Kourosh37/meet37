@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { InlineError } from "@/components/feedback/InlineError";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { MeetingHeader } from "@/features/meeting/components/MeetingHeader";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
@@ -176,8 +177,23 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   if (isLoading) {
     return renderPrejoinChrome(
       <div className="mx-auto grid max-w-5xl gap-6 lg:grid-cols-[1fr_380px]">
-        <div className="aspect-video animate-pulse rounded-lg border border-border bg-muted" />
-        <div className="h-96 animate-pulse rounded-lg border border-border bg-muted" />
+        <div className="grid aspect-video place-items-center rounded-lg border border-border bg-muted">
+          <LoadingSpinner
+            className="text-primary"
+            label="Loading preview"
+            size="lg"
+          />
+        </div>
+        <div className="grid h-96 place-items-center rounded-lg border border-border bg-surface">
+          <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
+            <LoadingSpinner
+              className="text-primary"
+              label="Loading room"
+              size="lg"
+            />
+            <p className="text-sm font-medium">Loading room</p>
+          </div>
+        </div>
       </div>
     );
   }

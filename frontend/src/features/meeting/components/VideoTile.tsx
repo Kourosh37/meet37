@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import {
-  Loader2,
-  Maximize2,
-  Mic,
-  MicOff,
-  MonitorUp,
-  VideoOff
-} from "lucide-react";
+import { Maximize2, Mic, MicOff, MonitorUp, VideoOff } from "lucide-react";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { FittedVideo } from "@/components/media/FittedVideo";
 import type {
   MediaTrackStatus,
@@ -79,7 +73,8 @@ export function VideoTile({
   const hasVideo = Boolean(
     hasLiveVideoTrack && (videoEnabled || screenSharing)
   );
-  const shouldRenderVideo = hasLiveVideoTrack && (videoEnabled || screenSharing);
+  const shouldRenderVideo =
+    hasLiveVideoTrack && (videoEnabled || screenSharing);
   const isOpeningScreenShare = screenSharing && !hasVideo;
   const isCameraExpected = !screenSharing && videoEnabled && !hasVideo;
   const loadingLabel = isOpeningScreenShare
@@ -176,7 +171,11 @@ export function VideoTile({
           {!hasVideo && loadingLabel ? (
             <div className="pointer-events-none absolute inset-0 grid place-items-center bg-black/35 text-white backdrop-blur-[1px]">
               <div className="flex flex-col items-center gap-3 text-center">
-                <Loader2 className="size-8 animate-spin text-white" />
+                <LoadingSpinner
+                  className="text-white"
+                  label={loadingLabel}
+                  size="lg"
+                />
                 <p className="text-sm font-medium">{loadingLabel}</p>
               </div>
             </div>
@@ -185,7 +184,11 @@ export function VideoTile({
       ) : loadingLabel ? (
         <div className="grid place-items-center bg-muted text-muted-foreground">
           <div className="flex flex-col items-center gap-3 text-center">
-            <Loader2 className="size-8 animate-spin text-primary" />
+            <LoadingSpinner
+              className="text-primary"
+              label={loadingLabel}
+              size="lg"
+            />
             <p className="text-sm font-medium text-surface-foreground">
               {loadingLabel}
             </p>
@@ -217,10 +220,7 @@ export function VideoTile({
           ) : null}
           {isOpeningMicrophone ? (
             <span className="grid size-7 place-items-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm backdrop-blur-md">
-              <Loader2
-                className="h-4 w-4 animate-spin"
-                aria-label="Opening microphone"
-              />
+              <LoadingSpinner label="Opening microphone" size="sm" />
             </span>
           ) : audioEnabled && !hasMicrophoneError ? (
             <span

@@ -142,6 +142,23 @@ textarea:disabled {
   will-change: opacity, transform;
 }
 
+.meet-loading-spinner {
+  transform-origin: center;
+}
+
+.meet-loading-spinner-bar {
+  animation: meet-loading-spinner-fade 1.2s linear infinite;
+  background: currentColor;
+  border-radius: 999px;
+  height: 8%;
+  left: 40%;
+  opacity: 0.2;
+  position: absolute;
+  top: 46%;
+  transform-origin: 50% 50%;
+  width: 24%;
+}
+
 @keyframes meet-chat-panel-open {
   0% {
     opacity: 0;
@@ -213,6 +230,15 @@ textarea:disabled {
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes meet-loading-spinner-fade {
+  0% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0.15;
   }
 }
 

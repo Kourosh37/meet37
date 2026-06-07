@@ -1,6 +1,8 @@
 "use client";
 
 import { UserPlus } from "lucide-react";
+import { useState } from "react";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import type { PendingPeer } from "@/features/meeting/types/peer";
 
 interface AdmissionModalProps {
@@ -16,6 +18,8 @@ export function AdmissionModal({
   onReject,
   pendingPeers
 }: AdmissionModalProps) {
+  const [approving, setApproving] = useState<"one" | "all" | null>(null);
+
   if (pendingPeers.length === 0) {
     return null;
   }
@@ -39,18 +43,35 @@ export function AdmissionModal({
           </p>
           <div className="mt-3 flex gap-2">
             <button
-              className="rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
-              onClick={() => onApprove(firstPeer.id)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground"
+              disabled={approving !== null}
+              onClick={() => {
+                setApproving("one");
+                onApprove(firstPeer.id);
+              }}
               type="button"
             >
+              {approving === "one" ? (
+                <LoadingSpinner label="Admitting participant" size="sm" />
+              ) : null}
               Admit
             </button>
             {pendingPeers.length > 1 ? (
               <button
-                className="rounded-md border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
-                onClick={onApproveAll}
+                className="inline-flex items-center justify-center gap-1.5 rounded-md border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                disabled={approving !== null}
+                onClick={() => {
+                  setApproving("all");
+                  onApproveAll?.();
+                }}
                 type="button"
               >
+                {approving === "all" ? (
+                  <LoadingSpinner
+                    label="Admitting all participants"
+                    size="sm"
+                  />
+                ) : null}
                 Admit all
               </button>
             ) : null}

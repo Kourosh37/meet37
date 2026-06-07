@@ -1,5 +1,7 @@
 "use client";
 
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
+
 interface WaitingRoomProps {
   onCancel: () => void;
   roomName?: string;
@@ -14,6 +16,11 @@ export function WaitingRoom({ onCancel, roomName }: WaitingRoomProps) {
       <h1 className="mt-2 text-2xl font-semibold tracking-normal text-surface-foreground">
         Waiting for approval
       </h1>
+      <LoadingSpinner
+        className="mt-5 text-primary"
+        label="Waiting for approval"
+        size="lg"
+      />
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
         Your request to join {roomName ?? "this meeting"} has been sent. The
         host will let you in when they are ready.

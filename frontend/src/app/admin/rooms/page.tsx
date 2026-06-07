@@ -1,6 +1,7 @@
 "use client";
 
 import { InlineError } from "@/components/feedback/InlineError";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { LiveRoomsTable } from "@/features/admin/components/LiveRoomsTable";
 import { useAdminRooms } from "@/features/admin/hooks/useAdminRooms";
 
@@ -21,7 +22,10 @@ export default function AdminRoomsPage() {
         message={rooms.error ? "Could not load room stats." : null}
       />
       {rooms.isLoading ? (
-        <p className="text-sm text-muted-foreground">Loading live rooms...</p>
+        <div className="flex items-center gap-3 text-sm font-medium text-muted-foreground">
+          <LoadingSpinner className="text-primary" label="Loading live rooms" />
+          Loading live rooms
+        </div>
       ) : (
         <LiveRoomsTable rows={rooms.rooms} />
       )}

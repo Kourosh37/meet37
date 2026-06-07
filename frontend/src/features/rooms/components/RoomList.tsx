@@ -1,6 +1,7 @@
 "use client";
 
 import { InlineError } from "@/components/feedback/InlineError";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { useRooms } from "@/features/rooms/hooks/useRoomMeta";
 import { formatUnixSeconds } from "@/lib/utils/formatters";
 import { Lock, Users, Video } from "lucide-react";
@@ -11,10 +12,12 @@ export function RoomList() {
 
   if (isLoading) {
     return (
-      <div className="space-y-3 py-6" aria-label="Loading rooms">
-        {[0, 1, 2].map((item) => (
-          <div className="h-20 animate-pulse rounded-md bg-muted" key={item} />
-        ))}
+      <div
+        className="flex items-center justify-center gap-3 py-10 text-sm font-medium text-muted-foreground"
+        aria-label="Loading rooms"
+      >
+        <LoadingSpinner className="text-primary" label="Loading rooms" />
+        Loading rooms
       </div>
     );
   }

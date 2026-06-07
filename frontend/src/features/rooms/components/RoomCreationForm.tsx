@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { useEffect } from "react";
 import { InlineError } from "@/components/feedback/InlineError";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { usePublicSettings } from "@/features/rooms/hooks/useRoomMeta";
 import { ApiClientError } from "@/lib/api/client";
@@ -165,10 +166,13 @@ export function RoomCreationForm() {
       <input type="hidden" {...register("expires_in")} />
 
       <button
-        className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
         disabled={createRoom.isPending || settings.isLoading}
         type="submit"
       >
+        {createRoom.isPending || settings.isLoading ? (
+          <LoadingSpinner label="Creating room" size="sm" />
+        ) : null}
         {createRoom.isPending ? "Creating..." : "Create room"}
       </button>
     </form>

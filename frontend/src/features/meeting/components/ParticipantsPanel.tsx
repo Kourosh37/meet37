@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { ParticipantItem } from "@/features/meeting/components/ParticipantItem";
 import type { MeetingPeer, PendingPeer } from "@/features/meeting/types/peer";
 import type {
@@ -77,6 +78,8 @@ export function ParticipantsPanel({
   const [kickPeer, setKickPeer] = useState<MeetingPeer | null>(null);
   const [banMinutes, setBanMinutes] = useState(0);
   const [banPermanent, setBanPermanent] = useState(false);
+  const [approvingPeerId, setApprovingPeerId] = useState<string | null>(null);
+  const [approvingAll, setApprovingAll] = useState(false);
 
   useEffect(() => {
     if (!permissionPeer) {
@@ -86,6 +89,18 @@ export function ParticipantsPanel({
     setAdminEnabled(Boolean(permissionPeer.isAdmin));
     setAdminDraft(permissionPeer.adminPermissions ?? defaultAdminPermissions);
   }, [permissionPeer]);
+
+  useEffect(() => {
+    if (
+      approvingPeerId &&
+      !pendingPeers.some((peer) => peer.id === approvingPeerId)
+    ) {
+      setApprovingPeerId(null);
+    }
+    if (approvingAll && pendingPeers.length === 0) {
+      setApprovingAll(false);
+    }
+  }, [approvingAll, approvingPeerId, pendingPeers]);
 
   return (
     <aside className="flex h-full min-h-0 flex-col rounded-lg border border-border bg-surface p-4 shadow-sm">
@@ -106,10 +121,20 @@ export function ParticipantsPanel({
             </h3>
             {pendingPeers.length > 1 ? (
               <button
-                className="rounded-md border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
-                onClick={onApproveAll}
+                className="inline-flex items-center justify-center gap-1.5 rounded-md border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                disabled={approvingAll}
+                onClick={() => {
+                  setApprovingAll(true);
+                  onApproveAll?.();
+                }}
                 type="button"
               >
+                {approvingAll ? (
+                  <LoadingSpinner
+                    label="Admitting all participants"
+                    size="sm"
+                  />
+                ) : null}
                 Admit all
               </button>
             ) : null}
@@ -122,10 +147,17 @@ export function ParticipantsPanel({
                 </p>
                 <div className="mt-2 flex gap-2">
                   <button
-                    className="rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
-                    onClick={() => onApprove(peer.id)}
+                    className="inline-flex items-center justify-center gap-1.5 rounded-md bg-primary px-2.5 py-1 text-xs font-semibold text-primary-foreground"
+                    disabled={approvingPeerId === peer.id || approvingAll}
+                    onClick={() => {
+                      setApprovingPeerId(peer.id);
+                      onApprove(peer.id);
+                    }}
                     type="button"
                   >
+                    {approvingPeerId === peer.id ? (
+                      <LoadingSpinner label="Admitting participant" size="sm" />
+                    ) : null}
                     Admit
                   </button>
                   <button

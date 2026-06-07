@@ -9,8 +9,7 @@ import {
   LogIn,
   Plus,
   Trash2,
-  Users,
-  Video
+  Users
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -102,22 +101,18 @@ export default function HomePage() {
   }
 
   return (
-    <section className="mx-auto grid min-h-[calc(100vh-12rem)] max-w-6xl gap-8 py-8 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-center lg:py-12">
-      <div className="space-y-7">
-        <div className="inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3 py-1.5 text-sm text-muted-foreground shadow-sm">
-          <Video className="size-4 text-primary" />
-          Browser meetings
-        </div>
+    <section className="mx-auto flex min-h-[calc(100vh-12rem)] max-w-6xl flex-col gap-10 py-8 lg:gap-12 lg:py-12">
+      <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-7 text-center">
         <div className="space-y-5">
-          <h1 className="max-w-3xl text-4xl font-semibold tracking-normal text-foreground sm:text-5xl lg:text-6xl">
+          <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-normal text-foreground sm:text-5xl lg:text-6xl">
             Start a meeting and share the link.
           </h1>
-          <p className="max-w-2xl text-base leading-7 text-muted-foreground">
+          <p className="mx-auto max-w-2xl text-base leading-7 text-muted-foreground">
             Create a room in seconds, enter with a display name, and keep the
             meeting controls focused on the call.
           </p>
         </div>
-        <div className="flex w-full max-w-3xl flex-col gap-4 rounded-lg border border-border bg-surface p-3 shadow-sm sm:p-4 lg:flex-row lg:items-center">
+        <div className="flex w-full flex-col gap-4 rounded-lg border border-border bg-surface p-3 text-left shadow-sm sm:p-4 lg:flex-row lg:items-center">
           <Link
             className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             href="/rooms/new"
@@ -176,7 +171,7 @@ export default function HomePage() {
           <Clock className="size-5 shrink-0 text-muted-foreground" />
         </div>
 
-        <div className="mt-4 grid gap-2">
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {recentRooms.length ? (
             recentRooms.map((room) => {
               const expired =
@@ -184,7 +179,7 @@ export default function HomePage() {
                 room.expiresAt <= Math.floor(Date.now() / 1000);
               return (
                 <article
-                  className="rounded-md border border-border bg-background p-3"
+                  className="flex min-h-[152px] flex-col justify-between rounded-md border border-border bg-background p-3"
                   key={room.id}
                 >
                   <div className="flex items-start justify-between gap-3">

@@ -41,7 +41,7 @@ export default function HomePage() {
             meeting controls focused on the call.
           </p>
         </div>
-        <div className="flex w-full max-w-3xl flex-col gap-3 lg:flex-row">
+        <div className="flex w-full max-w-3xl flex-col gap-4 rounded-lg border border-border bg-surface/70 p-3 shadow-sm sm:p-4 lg:flex-row lg:items-center">
           <Link
             className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             href="/rooms/new"
@@ -49,12 +49,17 @@ export default function HomePage() {
             Create room
             <ArrowRight className="size-4" />
           </Link>
+          <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:flex-col lg:gap-2">
+            <span className="h-px flex-1 bg-border lg:h-8 lg:w-px lg:flex-none" />
+            OR
+            <span className="h-px flex-1 bg-border lg:h-8 lg:w-px lg:flex-none" />
+          </div>
           <form
             className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row"
             onSubmit={joinRoom}
           >
             <input
-              className="h-14 min-h-14 w-full min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-base font-semibold lowercase tracking-normal text-foreground outline-none transition focus:border-primary sm:h-12 sm:min-h-12 sm:text-sm"
+              className="h-14 min-h-14 w-full min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-base font-semibold lowercase tracking-normal text-foreground outline-none transition placeholder:text-muted-foreground/75 focus:border-primary sm:h-12 sm:min-h-12 sm:text-sm"
               inputMode="text"
               aria-label="Meeting ID"
               onChange={(event) => setRoomId(event.target.value)}
@@ -72,7 +77,7 @@ export default function HomePage() {
           </form>
           {showLogin ? (
             <Link
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-surface px-5 text-sm font-semibold text-surface-foreground transition hover:bg-muted"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-background px-5 text-sm font-semibold text-surface-foreground transition hover:bg-muted"
               href="/login"
             >
               <LogIn className="size-4" />

@@ -347,6 +347,62 @@ func TestHandleUnbanPeerRequiresAdminBanPermission(t *testing.T) {
 	}
 }
 
+func TestAdminCannotModerateHostOrOtherAdmins(t *testing.T) {
+	hub, database := testHub(t)
+	roomID := "room-1"
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		roomID, "Room", "host", "open", 50, time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("insert room: %v", err)
+	}
+	room := &Room{
+		id:                 roomID,
+		peers:              map[string]*Peer{},
+		pending:            map[string]*Peer{},
+		permissions:        map[string]models.PeerPermissions{},
+		adminPermissions:   map[string]models.AdminPermissions{},
+		bans:               map[string]int64{},
+		defaultPermissions: defaultPeerPermissions(),
+	}
+	admin := &Peer{
+		id:          "admin-1",
+		roomID:      roomID,
+		isAdmin:     true,
+		permissions: defaultPeerPermissions(),
+		adminPerms: models.AdminPermissions{
+			CanKick:          true,
+			CanMuteMic:       true,
+			CanDisableCamera: true,
+			CanDisableScreen: true,
+			CanDisableChat:   true,
+			CanDisableEmoji:  true,
+		},
+		send: make(chan []byte, 4),
+		hub:  hub,
+	}
+	host := &Peer{id: "host", roomID: roomID, isHost: true, permissions: defaultPeerPermissions(), send: make(chan []byte, 4), hub: hub}
+	otherAdmin := &Peer{id: "admin-2", roomID: roomID, isAdmin: true, permissions: defaultPeerPermissions(), send: make(chan []byte, 4), hub: hub}
+	room.peers[admin.id] = admin
+	room.peers[host.id] = host
+	room.peers[otherAdmin.id] = otherAdmin
+	hub.rooms[roomID] = room
+
+	hub.handleMessage(admin, []byte(`{"type":"kick-peer","payload":{"peer_id":"host","reason":"no"}}`))
+	expectErrorMessage(t, admin, "admins cannot manage the host")
+
+	hub.handleMessage(admin, []byte(`{"type":"set-peer-permissions","payload":{"peer_id":"admin-2","permissions":{"can_use_mic":false,"can_use_camera":true,"can_share_screen":true,"can_chat":true,"can_react":true}}}`))
+	expectErrorMessage(t, admin, "admins cannot manage other admins")
+
+	if _, ok := room.peers["host"]; !ok {
+		t.Fatalf("host should not be removed")
+	}
+	if !otherAdmin.permissions.CanUseMic {
+		t.Fatalf("other admin permissions should not be changed")
+	}
+}
+
 func TestHandleMessageRespondsToPing(t *testing.T) {
 	hub, _ := testHub(t)
 	peer := &Peer{id: "peer-1", send: make(chan []byte, 4), hub: hub}
@@ -371,5 +427,25 @@ func TestHandleMessageRespondsToPing(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatalf("timed out waiting for pong")
+	}
+}
+
+func expectErrorMessage(t *testing.T, peer *Peer, expected string) {
+	t.Helper()
+	select {
+	case raw := <-peer.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode signal: %v", err)
+		}
+		if msg.Type != "error" {
+			t.Fatalf("expected error, got %q", msg.Type)
+		}
+		payload, ok := msg.Payload.(map[string]interface{})
+		if !ok || payload["message"] != expected {
+			t.Fatalf("expected error %q, got %#v", expected, msg.Payload)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for error %q", expected)
 	}
 }

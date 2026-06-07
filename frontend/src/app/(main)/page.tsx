@@ -102,7 +102,7 @@ export default function HomePage() {
 
   return (
     <section className="mx-auto flex min-h-[calc(100vh-12rem)] max-w-6xl flex-col gap-10 py-8 lg:gap-12 lg:py-12">
-      <div className="mx-auto flex w-full max-w-4xl flex-col items-center gap-7 text-center">
+      <div className="mx-auto flex w-full flex-col items-center gap-7 text-center">
         <div className="space-y-5">
           <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-normal text-foreground sm:text-5xl lg:text-6xl">
             Start a meeting and share the link.
@@ -158,7 +158,7 @@ export default function HomePage() {
         </div>
       </div>
 
-      <aside className="rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-5">
+      <aside className="w-full rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-surface-foreground">

@@ -6,7 +6,10 @@ import type { MeetingPeer } from "@/features/meeting/types/peer";
 interface ParticipantItemProps {
   canModerate?: boolean;
   canKick?: boolean;
+  canKickPeer?: boolean;
+  canManagePermissions?: boolean;
   isLocal?: boolean;
+  onBlockedAction?: () => void;
   onKick?: (peerId: string) => void;
   onPermissions?: (peer: MeetingPeer) => void;
   peer: MeetingPeer;
@@ -15,7 +18,10 @@ interface ParticipantItemProps {
 export function ParticipantItem({
   canModerate = false,
   canKick = false,
+  canKickPeer = true,
+  canManagePermissions = true,
   isLocal = false,
+  onBlockedAction,
   onKick,
   onPermissions,
   peer
@@ -56,7 +62,13 @@ export function ParticipantItem({
         <div className="flex shrink-0 items-center gap-1">
           <button
             className="rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
-            onClick={() => onPermissions?.(peer)}
+            onClick={() => {
+              if (!canManagePermissions) {
+                onBlockedAction?.();
+                return;
+              }
+              onPermissions?.(peer);
+            }}
             type="button"
           >
             Permissions
@@ -64,7 +76,13 @@ export function ParticipantItem({
           {canKick ? (
             <button
               className="rounded-md border border-danger/30 px-2 py-1 text-xs font-medium text-danger transition hover:bg-danger/10"
-              onClick={() => onKick?.(peer.id)}
+              onClick={() => {
+                if (!canKickPeer) {
+                  onBlockedAction?.();
+                  return;
+                }
+                onKick?.(peer.id);
+              }}
               type="button"
             >
               Kick

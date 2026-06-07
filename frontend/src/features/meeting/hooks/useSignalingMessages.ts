@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { toast } from "sonner";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
@@ -94,6 +95,7 @@ export function useSignalingMessages() {
         }
 
         currentState.setError(message.payload.message);
+        toast.error(message.payload.message);
       })
     ];
 

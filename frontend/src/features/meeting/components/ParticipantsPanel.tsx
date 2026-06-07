@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { ParticipantItem } from "@/features/meeting/components/ParticipantItem";
 import type { MeetingPeer, PendingPeer } from "@/features/meeting/types/peer";
@@ -27,6 +28,16 @@ const defaultAdminPermissions: AdminPermissions = {
   can_mute_mic: false
 };
 
+const allAdminPermissions: AdminPermissions = {
+  can_disable_camera: true,
+  can_disable_chat: true,
+  can_disable_emoji: true,
+  can_disable_screen: true,
+  can_kick: true,
+  can_manage_bans: true,
+  can_mute_mic: true
+};
+
 interface ParticipantsPanelProps {
   canModerate: boolean;
   canAssignAdmin?: boolean;
@@ -34,6 +45,7 @@ interface ParticipantsPanelProps {
   localPeer: MeetingPeer;
   onApprove: (peerId: string) => void;
   onApproveAll?: () => void;
+  onGoToTop?: () => void;
   onKick: (
     peerId: string,
     reason?: string,
@@ -58,6 +70,7 @@ export function ParticipantsPanel({
   localPeer,
   onApprove,
   onApproveAll,
+  onGoToTop,
   onKick,
   onSetAdminPermissions,
   onSetPeerPermissions,
@@ -102,8 +115,20 @@ export function ParticipantsPanel({
     }
   }, [approvingAll, approvingPeerId, pendingPeers]);
 
+  function canManagePeer(peer: MeetingPeer) {
+    return localPeer.isHost || (!peer.isHost && !peer.isAdmin);
+  }
+
+  function showBlockedPeerToast(peer: MeetingPeer) {
+    toast.error(
+      peer.isHost
+        ? "Admins cannot manage the host."
+        : "Admins cannot manage other admins."
+    );
+  }
+
   return (
-    <aside className="flex h-full min-h-0 flex-col rounded-lg border border-border bg-surface p-4 shadow-sm">
+    <aside className="flex h-auto min-h-0 flex-col rounded-lg border border-border bg-surface p-4 shadow-sm lg:h-full">
       <div>
         <h2 className="text-sm font-semibold text-surface-foreground">
           Participants
@@ -174,19 +199,30 @@ export function ParticipantsPanel({
         </section>
       ) : null}
 
-      <ul className="mt-4 grid min-h-0 gap-2 overflow-y-auto">
+      <ul className="mt-4 grid min-h-0 gap-2 lg:overflow-y-auto">
         <ParticipantItem canModerate={canModerate} isLocal peer={localPeer} />
         {Object.values(peers).map((peer) => (
           <ParticipantItem
             canKick={canKick}
+            canKickPeer={canManagePeer(peer)}
+            canManagePermissions={canManagePeer(peer)}
             canModerate={canModerate}
             key={peer.id}
             onKick={() => setKickPeer(peer)}
+            onBlockedAction={() => showBlockedPeerToast(peer)}
             onPermissions={setPermissionPeer}
             peer={peer}
           />
         ))}
       </ul>
+
+      <button
+        className="mt-4 inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted lg:hidden"
+        onClick={onGoToTop}
+        type="button"
+      >
+        Back to top
+      </button>
 
       {permissionPeer ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
@@ -231,7 +267,13 @@ export function ParticipantsPanel({
                   <input
                     checked={adminEnabled}
                     className="size-4"
-                    onChange={(event) => setAdminEnabled(event.target.checked)}
+                    onChange={(event) => {
+                      const enabled = event.target.checked;
+                      setAdminEnabled(enabled);
+                      setAdminDraft(
+                        enabled ? allAdminPermissions : defaultAdminPermissions
+                      );
+                    }}
                     type="checkbox"
                   />
                 </label>
@@ -285,6 +327,13 @@ export function ParticipantsPanel({
                       adminEnabled,
                       adminDraft
                     );
+                    toast.success(
+                      adminEnabled
+                        ? "Admin permissions updated"
+                        : "Admin role removed"
+                    );
+                  } else {
+                    toast.success("Participant permissions updated");
                   }
                   setPermissionPeer(null);
                 }}
@@ -346,6 +395,11 @@ export function ParticipantsPanel({
                     "Removed by a moderator.",
                     banMinutes,
                     banPermanent
+                  );
+                  toast.success(
+                    banPermanent || banMinutes > 0
+                      ? "Participant removed and blocked"
+                      : "Participant removed"
                   );
                   setKickPeer(null);
                   setBanMinutes(0);

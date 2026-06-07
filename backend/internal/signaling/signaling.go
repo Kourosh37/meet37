@@ -154,6 +154,19 @@ func canManageBans(peer *Peer) bool {
 	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanManageBans)
 }
 
+func protectedPeerError(actor, target *Peer) string {
+	if actor.isHost || target == nil {
+		return ""
+	}
+	if target.isHost {
+		return "admins cannot manage the host"
+	}
+	if target.isAdmin {
+		return "admins cannot manage other admins"
+	}
+	return ""
+}
+
 type Peer struct {
 	id          string
 	userID      string
@@ -493,8 +506,8 @@ func (h *Hub) handlePeerPermissions(actor *Peer, msg models.SignalMessage) {
 		actor.sendMsg(errMsg("peer not found"))
 		return
 	}
-	if target.isHost && !actor.isHost {
-		actor.sendMsg(errMsg("host permission required"))
+	if message := protectedPeerError(actor, target); message != "" {
+		actor.sendMsg(errMsg(message))
 		return
 	}
 	if !actor.isHost && !actor.isAdmin {
@@ -1033,8 +1046,8 @@ func (h *Hub) handleKickPeer(host *Peer, msg models.SignalMessage) {
 	room.mu.RLock()
 	target := room.peers[req.PeerID]
 	room.mu.RUnlock()
-	if target != nil && target.isHost {
-		host.sendMsg(errMsg("peer not found"))
+	if message := protectedPeerError(host, target); message != "" {
+		host.sendMsg(errMsg(message))
 		return
 	}
 	if target == nil {
@@ -1110,8 +1123,8 @@ func (h *Hub) handleMutePeer(host *Peer, msg models.SignalMessage) {
 	room.mu.RLock()
 	target := room.peers[req.PeerID]
 	room.mu.RUnlock()
-	if target != nil && target.isHost {
-		host.sendMsg(errMsg("peer not found"))
+	if message := protectedPeerError(host, target); message != "" {
+		host.sendMsg(errMsg(message))
 		return
 	}
 	if target == nil {

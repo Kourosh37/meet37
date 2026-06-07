@@ -37,6 +37,8 @@ interface MeetingRoomProps {
 
 export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const router = useRouter();
+  const meetingContentTopRef = useRef<HTMLDivElement | null>(null);
+  const participantsSectionRef = useRef<HTMLDivElement | null>(null);
   const meeting = useMeetingStore();
   const websocket = useWebSocket();
   const pingMs = useWebSocketPing(websocket.status === "open");
@@ -450,6 +452,23 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     }
   }
 
+  function scrollToParticipants() {
+    ui.openPanel("participants");
+    window.setTimeout(() => {
+      participantsSectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start"
+      });
+    }, 0);
+  }
+
+  function scrollToMeetingTop() {
+    meetingContentTopRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start"
+    });
+  }
+
   return (
     <main className="mx-auto flex h-[100svh] w-full max-w-7xl flex-col overflow-hidden border-x border-border px-4 sm:px-6">
       <MeetingHeader
@@ -466,6 +485,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-32 pt-24">
         <div className="flex min-h-full flex-col gap-4">
+          <div ref={meetingContentTopRef} />
           <InlineError
             className="rounded-lg px-4 py-3"
             message={localMedia.error}
@@ -477,6 +497,14 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
               network returns.
             </div>
           ) : null}
+
+          <button
+            className="inline-flex h-11 items-center justify-center rounded-md border border-border bg-surface px-4 text-sm font-semibold text-surface-foreground shadow-sm transition hover:bg-muted lg:hidden"
+            onClick={scrollToParticipants}
+            type="button"
+          >
+            Go to participants
+          </button>
 
           <div className="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
             <VideoGrid
@@ -498,20 +526,23 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
             />
 
             {ui.participantsOpen ? (
-              <ParticipantsPanel
-                canAssignAdmin={meeting.isHost}
-                canKick={moderation.canKick}
-                canModerate={moderation.canModerate}
-                localPeer={localPeer}
-                onApprove={moderation.approvePeer}
-                onApproveAll={moderation.approveAllPeers}
-                onKick={moderation.kickPeer}
-                onReject={moderation.rejectPeer}
-                onSetAdminPermissions={moderation.setAdminPermissions}
-                onSetPeerPermissions={moderation.setPeerPermissions}
-                peers={meeting.peers}
-                pendingPeers={moderation.pendingPeers}
-              />
+              <div className="min-h-0 lg:h-full" ref={participantsSectionRef}>
+                <ParticipantsPanel
+                  canAssignAdmin={meeting.isHost}
+                  canKick={moderation.canKick}
+                  canModerate={moderation.canModerate}
+                  localPeer={localPeer}
+                  onApprove={moderation.approvePeer}
+                  onApproveAll={moderation.approveAllPeers}
+                  onGoToTop={scrollToMeetingTop}
+                  onKick={moderation.kickPeer}
+                  onReject={moderation.rejectPeer}
+                  onSetAdminPermissions={moderation.setAdminPermissions}
+                  onSetPeerPermissions={moderation.setPeerPermissions}
+                  peers={meeting.peers}
+                  pendingPeers={moderation.pendingPeers}
+                />
+              </div>
             ) : null}
           </div>
         </div>

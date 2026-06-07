@@ -71,6 +71,7 @@ export interface Room {
 
 export interface CreateRoomRequest {
   name: string;
+  room_id?: string;
   password?: string;
   join_policy?: JoinPolicy;
   max_peers?: number;

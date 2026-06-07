@@ -12,6 +12,7 @@ import { useWebSocketPing } from "@/features/meeting/hooks/useWebSocketPing";
 import { DeviceSetup } from "@/features/prejoin/components/DeviceSetup";
 import { DisplayNameInput } from "@/features/prejoin/components/DisplayNameInput";
 import { PasswordPrompt } from "@/features/prejoin/components/PasswordPrompt";
+import { saveRecentRoom } from "@/features/rooms/lib/recentRooms";
 import { useRoomMeta } from "@/features/rooms/hooks/useRoomMeta";
 import { displayNameSchema } from "@/lib/utils/validators";
 import Link from "next/link";
@@ -105,7 +106,10 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
       description: "Media and signaling are ready.",
       id: JOIN_TOAST_ID
     });
-  }, [meeting.phase]);
+    if (data?.room) {
+      saveRecentRoom(data.room);
+    }
+  }, [data?.room, meeting.phase]);
 
   useEffect(() => {
     if (["kicked", "rejected", "room-closed"].includes(meeting.phase)) {

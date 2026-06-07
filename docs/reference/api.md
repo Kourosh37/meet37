@@ -140,12 +140,16 @@ Returns:
 Optional auth route. In private mode, authentication is required.
 
 Created room IDs use the `aaa-aaa-aaa` format with lowercase English letters.
+Pass `room_id` to reuse a previous meeting ID. The request returns `409 Conflict`
+if a non-expired room already exists with that ID; expired rows are replaced
+with the new room configuration.
 
 Request:
 
 ```json
 {
   "name": "Daily",
+  "room_id": "abc-def-ghi",
   "password": "optional",
   "join_policy": "open",
   "max_peers": 50,

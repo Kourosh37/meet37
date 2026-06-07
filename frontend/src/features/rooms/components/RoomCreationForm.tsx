@@ -52,7 +52,8 @@ export function RoomCreationForm() {
 
       const response = await createRoom.mutateAsync({
         ...values,
-        password: values.password || undefined
+        password: values.password || undefined,
+        room_id: values.room_id || undefined
       });
 
       toast.success("Room created");

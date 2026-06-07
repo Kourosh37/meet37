@@ -111,6 +111,70 @@ func TestRoomCreationValidatesInputsAndCapsMaxPeers(t *testing.T) {
 	}
 }
 
+func TestRoomCreationCanReuseExpiredRequestedRoomID(t *testing.T) {
+	cfg := testConfig()
+	database := testDatabase(t)
+	hub := signaling.NewHub(cfg, database, sfu.NewManager(cfg), nil)
+	handler := NewRoomHandler(cfg, database, hub)
+	now := time.Now().Unix()
+	roomID := "abc-def-ghi"
+
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		roomID, "Expired", "old-host", "open", 50, now-7200, now-3600,
+	)
+	if err != nil {
+		t.Fatalf("insert expired room: %v", err)
+	}
+
+	reuseRecorder := httptest.NewRecorder()
+	handler.CreateRoom(
+		reuseRecorder,
+		httptest.NewRequest(http.MethodPost, "/api/rooms", bytes.NewBufferString(`{"name":"Reused","room_id":"abc-def-ghi","max_peers":25}`)),
+	)
+	if reuseRecorder.Code != http.StatusCreated {
+		t.Fatalf("reuse create status = %d body=%s", reuseRecorder.Code, reuseRecorder.Body.String())
+	}
+	var response map[string]interface{}
+	if err := json.Unmarshal(reuseRecorder.Body.Bytes(), &response); err != nil {
+		t.Fatalf("decode reuse response: %v", err)
+	}
+	room := response["room"].(map[string]interface{})
+	if room["id"] != roomID || room["name"] != "Reused" {
+		t.Fatalf("unexpected reused room response: %#v", room)
+	}
+
+	conflictRecorder := httptest.NewRecorder()
+	handler.CreateRoom(
+		conflictRecorder,
+		httptest.NewRequest(http.MethodPost, "/api/rooms", bytes.NewBufferString(`{"name":"Conflict","room_id":"abc-def-ghi"}`)),
+	)
+	if conflictRecorder.Code != http.StatusConflict {
+		t.Fatalf("active room reuse status = %d body=%s", conflictRecorder.Code, conflictRecorder.Body.String())
+	}
+}
+
+func TestGetRoomHidesExpiredRooms(t *testing.T) {
+	cfg := testConfig()
+	database := testDatabase(t)
+	hub := signaling.NewHub(cfg, database, sfu.NewManager(cfg), nil)
+	handler := NewRoomHandler(cfg, database, hub)
+	now := time.Now().Unix()
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		"old-rom-idz", "Expired", "host", "open", 50, now-7200, now-3600,
+	)
+	if err != nil {
+		t.Fatalf("insert expired room: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	handler.GetRoom(recorder, httptest.NewRequest(http.MethodGet, "/api/rooms/old-rom-idz", nil))
+	if recorder.Code != http.StatusNotFound {
+		t.Fatalf("expired room status = %d body=%s", recorder.Code, recorder.Body.String())
+	}
+}
+
 func testDatabase(t *testing.T) *db.DB {
 	t.Helper()
 	database, err := db.Open(t.TempDir()+"/meet.db", "public")

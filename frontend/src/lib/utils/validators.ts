@@ -22,6 +22,13 @@ export const roomCreationSchema = z.object({
     .trim()
     .min(1, "Room name is required")
     .max(120, "Room name is too long"),
+  room_id: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z]{3}-[a-z]{3}-[a-z]{3}$/, "Room ID must look like abc-def-ghi")
+    .optional()
+    .or(z.literal("")),
   password: z.string().max(256, "Password is too long").optional(),
   join_policy: z.enum(["open", "approval"]).default("open"),
   max_peers: z.coerce.number().int().min(2).max(500).default(50),

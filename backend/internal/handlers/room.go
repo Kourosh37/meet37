@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -26,6 +27,8 @@ type RoomHandler struct {
 	hub *signaling.Hub
 }
 
+var meetingIDPattern = regexp.MustCompile(`^[a-z]{3}-[a-z]{3}-[a-z]{3}$`)
+
 func NewRoomHandler(cfg *config.Config, database *db.DB, hub *signaling.Hub) *RoomHandler {
 	return &RoomHandler{cfg: cfg, db: database, hub: hub}
 }
@@ -38,6 +41,7 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name       string `json:"name"`
 		Password   string `json:"password"`
+		RoomID     string `json:"room_id"`
 		JoinPolicy string `json:"join_policy"`
 		MaxPeers   int    `json:"max_peers"`
 		ExpiresIn  int64  `json:"expires_in"`
@@ -59,6 +63,11 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.JoinPolicy != "open" && req.JoinPolicy != "approval" {
 		writeError(w, http.StatusBadRequest, "join_policy must be open or approval")
+		return
+	}
+	req.RoomID = strings.ToLower(strings.TrimSpace(req.RoomID))
+	if req.RoomID != "" && !meetingIDPattern.MatchString(req.RoomID) {
+		writeError(w, http.StatusBadRequest, "room_id must match aaa-aaa-aaa")
 		return
 	}
 
@@ -92,14 +101,35 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	roomID, err := h.generateUniqueRoomID()
-	if err != nil {
+	roomID := req.RoomID
+	if roomID == "" {
+		var err error
+		roomID, err = h.generateUniqueRoomID()
+		if err != nil {
+			writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+	} else if available, err := h.roomIDAvailableForCreate(roomID); err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
+		return
+	} else if !available {
+		writeError(w, http.StatusConflict, "room_id is already active")
 		return
 	}
 	room := models.Room{ID: roomID, Name: req.Name, HostID: hostID, HasPass: passHash != "", JoinPolicy: req.JoinPolicy, MaxPeers: req.MaxPeers, CreatedAt: time.Now().Unix(), ExpiresAt: expiresAt}
 	_, err = h.db.Exec(
-		`INSERT INTO rooms (id, name, host_id, password, join_policy, host_secret_hash, max_peers, created_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		`INSERT INTO rooms (id, name, host_id, password, join_policy, host_secret_hash, max_peers, created_at, expires_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		 ON CONFLICT(id) DO UPDATE SET
+		 name = excluded.name,
+		 host_id = excluded.host_id,
+		 password = excluded.password,
+		 is_locked = 0,
+		 join_policy = excluded.join_policy,
+		 host_secret_hash = excluded.host_secret_hash,
+		 max_peers = excluded.max_peers,
+		 created_at = excluded.created_at,
+		 expires_at = excluded.expires_at`,
 		room.ID, room.Name, room.HostID, nullString(passHash), room.JoinPolicy, string(hostSecretHash), room.MaxPeers, room.CreatedAt, nullInt64(expiresAt),
 	)
 	if err != nil {
@@ -116,7 +146,7 @@ func (h *RoomHandler) CreateRoom(w http.ResponseWriter, r *http.Request) {
 
 func (h *RoomHandler) GetRoom(w http.ResponseWriter, r *http.Request) {
 	roomID := strings.TrimPrefix(r.URL.Path, "/api/rooms/")
-	room, err := h.loadRoom(roomID)
+	room, err := h.loadActiveRoom(roomID)
 	if err == sql.ErrNoRows {
 		writeError(w, http.StatusNotFound, "not found")
 		return
@@ -282,6 +312,16 @@ func (h *RoomHandler) loadRoom(id string) (models.Room, error) {
 	return scanRoom(row)
 }
 
+func (h *RoomHandler) loadActiveRoom(id string) (models.Room, error) {
+	row := h.db.QueryRow(
+		`SELECT id, name, host_id, is_locked, password, join_policy, max_peers, created_at, expires_at
+		 FROM rooms WHERE id = ? AND (expires_at IS NULL OR expires_at > ?)`,
+		id,
+		time.Now().Unix(),
+	)
+	return scanRoom(row)
+}
+
 type rowScanner interface {
 	Scan(dest ...interface{}) error
 }
@@ -325,6 +365,18 @@ func (h *RoomHandler) generateUniqueRoomID() (string, error) {
 		}
 	}
 	return "", sql.ErrNoRows
+}
+
+func (h *RoomHandler) roomIDAvailableForCreate(roomID string) (bool, error) {
+	var expiresAt sql.NullInt64
+	err := h.db.QueryRow(`SELECT expires_at FROM rooms WHERE id = ?`, roomID).Scan(&expiresAt)
+	if err == sql.ErrNoRows {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return expiresAt.Valid && expiresAt.Int64 <= time.Now().Unix(), nil
 }
 
 func randomMeetingID() (string, error) {

@@ -8,19 +8,6 @@ export function useWebSocketPing(isConnected: boolean) {
   const [pingMs, setPingMs] = useState<number | null>(null);
 
   useEffect(() => {
-    return webSocketManager.subscribe("pong", (message) => {
-      const startedAt = pendingPingsRef.current.get(message.payload.id);
-
-      if (startedAt === undefined) {
-        return;
-      }
-
-      pendingPingsRef.current.delete(message.payload.id);
-      setPingMs(Math.max(0, Math.round(performance.now() - startedAt)));
-    });
-  }, []);
-
-  useEffect(() => {
     pendingPingsRef.current.clear();
 
     if (!isConnected) {
@@ -28,21 +15,47 @@ export function useWebSocketPing(isConnected: boolean) {
       return;
     }
 
+    let timeout: number | undefined;
+    let latestPing: number | null = null;
+
     const sendPing = () => {
       const id =
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `${Date.now()}-${Math.random()}`;
 
+      pendingPingsRef.current.clear();
       pendingPingsRef.current.set(id, performance.now());
       webSocketManager.send({ payload: { id }, type: "ping" });
     };
 
-    sendPing();
-    const interval = window.setInterval(sendPing, 5000);
+    const schedulePing = () => {
+      sendPing();
+      timeout = window.setTimeout(
+        schedulePing,
+        latestPing === null ? 1000 : 5000
+      );
+    };
+
+    const unsubscribe = webSocketManager.subscribe("pong", (message) => {
+      const startedAt = pendingPingsRef.current.get(message.payload.id);
+
+      if (startedAt === undefined) {
+        return;
+      }
+
+      pendingPingsRef.current.delete(message.payload.id);
+      latestPing = Math.max(0, Math.round(performance.now() - startedAt));
+      setPingMs(latestPing);
+    });
+
+    schedulePing();
 
     return () => {
-      window.clearInterval(interval);
+      if (timeout !== undefined) {
+        window.clearTimeout(timeout);
+      }
+      unsubscribe();
     };
   }, [isConnected]);
 

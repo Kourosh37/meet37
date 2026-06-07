@@ -119,7 +119,9 @@ export function MeetingHeader({
             pingBadgeClass(pingMs)
           )}
         >
-          {pingMs === null || pingMs === undefined ? "--" : pingMs} ms
+          {pingMs === null || pingMs === undefined
+            ? "Measuring..."
+            : `${pingMs} ms`}
         </span>
       ) : null}
 

@@ -2,9 +2,13 @@ package signaling
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
+	"net"
 	"net/http"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +34,8 @@ const (
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 256 * 1024
 )
+
+var clientIDPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]{8,128}$`)
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  4096,
@@ -67,6 +73,58 @@ func identityKey(userID, displayName string) string {
 	return "name:" + strings.ToLower(strings.TrimSpace(displayName))
 }
 
+func sanitizeClientID(value string) string {
+	value = strings.TrimSpace(value)
+	if !clientIDPattern.MatchString(value) {
+		return ""
+	}
+	return value
+}
+
+func requestIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		if idx := strings.IndexByte(xff, ','); idx >= 0 {
+			return strings.TrimSpace(xff[:idx])
+		}
+		return strings.TrimSpace(xff)
+	}
+	if xrip := r.Header.Get("X-Real-IP"); xrip != "" {
+		return strings.TrimSpace(xrip)
+	}
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err == nil {
+		return host
+	}
+	return r.RemoteAddr
+}
+
+func banIdentities(userID, displayName, clientID, remoteIP, userAgent string) []string {
+	values := []string{identityKey(userID, displayName)}
+	if clientID = sanitizeClientID(clientID); clientID != "" {
+		values = append(values, "client:"+clientID)
+	}
+	remoteIP = strings.TrimSpace(remoteIP)
+	if remoteIP != "" {
+		values = append(values, "ip:"+remoteIP)
+	}
+	userAgent = strings.TrimSpace(userAgent)
+	if remoteIP != "" && userAgent != "" {
+		hash := sha256.Sum256([]byte(remoteIP + "\x00" + userAgent))
+		values = append(values, "fingerprint:"+hex.EncodeToString(hash[:])[:32])
+	}
+
+	seen := make(map[string]bool, len(values))
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value == "" || seen[value] {
+			continue
+		}
+		seen[value] = true
+		out = append(out, value)
+	}
+	return out
+}
+
 func canKickPeer(peer *Peer) bool {
 	return peer.isHost || (peer.isAdmin && peer.adminPerms.CanKick)
 }
@@ -94,7 +152,10 @@ func canDisableEmoji(peer *Peer) bool {
 type Peer struct {
 	id          string
 	userID      string
+	clientID    string
 	displayName string
+	remoteIP    string
+	userAgent   string
 	roomID      string
 	isHost      bool
 	isAdmin     bool
@@ -162,7 +223,17 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 	}
 	userID, _ := r.Context().Value(middleware.CtxUserID).(string)
 	username, _ := r.Context().Value(middleware.CtxUsername).(string)
-	peer := &Peer{id: uuid.NewString(), userID: userID, displayName: username, conn: conn, send: make(chan []byte, 256), mode: "sfu", hub: h}
+	peer := &Peer{
+		id:          uuid.NewString(),
+		userID:      userID,
+		displayName: username,
+		remoteIP:    requestIP(r),
+		userAgent:   r.UserAgent(),
+		conn:        conn,
+		send:        make(chan []byte, 256),
+		mode:        "sfu",
+		hub:         h,
+	}
 	go peer.writePump()
 	go peer.readPump()
 }
@@ -623,6 +694,7 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 		return
 	}
 	p.displayName = req.DisplayName
+	p.clientID = sanitizeClientID(req.ClientID)
 
 	isHost := h.isRoomHost(req.RoomID, p.userID, req.HostToken)
 	if isHost {
@@ -653,14 +725,18 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 		p.isHost = true
 	}
 	identity := identityKey(p.userID, req.DisplayName)
-	if bannedUntil, ok := room.bans[identity]; ok {
+	for _, banIdentity := range banIdentities(p.userID, req.DisplayName, p.clientID, p.remoteIP, p.userAgent) {
+		bannedUntil, ok := room.bans[banIdentity]
+		if !ok {
+			continue
+		}
 		if bannedUntil == 0 || bannedUntil > time.Now().Unix() {
 			room.mu.Unlock()
 			p.sendMsg(errMsg("You are temporarily blocked from joining this meeting."))
 			return
 		}
-		delete(room.bans, identity)
-		_, _ = h.db.Exec(`DELETE FROM room_bans WHERE room_id = ? AND identity = ?`, req.RoomID, identity)
+		delete(room.bans, banIdentity)
+		_, _ = h.db.Exec(`DELETE FROM room_bans WHERE room_id = ? AND identity = ?`, req.RoomID, banIdentity)
 	}
 	permissions, ok := room.permissions[identity]
 	if !ok {
@@ -808,10 +884,14 @@ func (h *Hub) handleKickPeer(host *Peer, msg models.SignalMessage) {
 	}
 	if req.BanPermanent || req.BanMinutes > 0 {
 		room.mu.Lock()
-		identity := identityKey(target.userID, target.displayName)
-		room.bans[identity] = banUntil
+		identities := banIdentities(target.userID, target.displayName, target.clientID, target.remoteIP, target.userAgent)
+		for _, identity := range identities {
+			room.bans[identity] = banUntil
+		}
 		room.mu.Unlock()
-		h.persistBan(host.roomID, identity, banUntil)
+		for _, identity := range identities {
+			h.persistBan(host.roomID, identity, banUntil)
+		}
 	}
 	target.sendMsg(models.SignalMessage{Type: "kicked", Payload: map[string]interface{}{"reason": req.Reason, "ban_until": banUntil, "ban_permanent": req.BanPermanent}})
 	h.removePeer(target)

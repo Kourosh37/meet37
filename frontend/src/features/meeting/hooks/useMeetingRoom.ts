@@ -11,6 +11,26 @@ interface JoinMeetingInput {
   password?: string;
 }
 
+const MEETING_CLIENT_ID_KEY = "meet_client_id";
+
+function getMeetingClientId() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  const existing = window.localStorage.getItem(MEETING_CLIENT_ID_KEY);
+  if (existing) {
+    return existing;
+  }
+
+  const generated =
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  window.localStorage.setItem(MEETING_CLIENT_ID_KEY, generated);
+  return generated;
+}
+
 export function useMeetingRoom(roomId: string) {
   const meeting = useMeetingStore();
   const websocket = useWebSocket();
@@ -31,6 +51,7 @@ export function useMeetingRoom(roomId: string) {
       websocket.connect();
       websocket.send({
         payload: {
+          client_id: getMeetingClientId(),
           display_name: normalizedDisplayName,
           host_token: hostToken ?? undefined,
           password: password?.trim() || undefined,

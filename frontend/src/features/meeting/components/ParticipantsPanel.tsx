@@ -17,12 +17,12 @@ const defaultPeerPermissions: PeerPermissions = {
 };
 
 const defaultAdminPermissions: AdminPermissions = {
-  can_disable_camera: true,
-  can_disable_chat: true,
-  can_disable_emoji: true,
-  can_disable_screen: true,
-  can_kick: true,
-  can_mute_mic: true
+  can_disable_camera: false,
+  can_disable_chat: false,
+  can_disable_emoji: false,
+  can_disable_screen: false,
+  can_kick: false,
+  can_mute_mic: false
 };
 
 interface ParticipantsPanelProps {
@@ -67,7 +67,6 @@ export function ParticipantsPanel({
   const [permissionDraft, setPermissionDraft] = useState<PeerPermissions>(
     defaultPeerPermissions
   );
-  const [adminPeer, setAdminPeer] = useState<MeetingPeer | null>(null);
   const [adminEnabled, setAdminEnabled] = useState(false);
   const [adminDraft, setAdminDraft] = useState<AdminPermissions>(
     defaultAdminPermissions
@@ -81,15 +80,9 @@ export function ParticipantsPanel({
       return;
     }
     setPermissionDraft(permissionPeer.permissions ?? defaultPeerPermissions);
+    setAdminEnabled(Boolean(permissionPeer.isAdmin));
+    setAdminDraft(permissionPeer.adminPermissions ?? defaultAdminPermissions);
   }, [permissionPeer]);
-
-  useEffect(() => {
-    if (!adminPeer) {
-      return;
-    }
-    setAdminEnabled(Boolean(adminPeer.isAdmin));
-    setAdminDraft(adminPeer.adminPermissions ?? defaultAdminPermissions);
-  }, [adminPeer]);
 
   return (
     <aside className="flex h-full min-h-0 flex-col rounded-lg border border-border bg-surface p-4 shadow-sm">
@@ -139,11 +132,9 @@ export function ParticipantsPanel({
         <ParticipantItem canModerate={canModerate} isLocal peer={localPeer} />
         {Object.values(peers).map((peer) => (
           <ParticipantItem
-            canAssignAdmin={canAssignAdmin}
             canKick={canKick}
             canModerate={canModerate}
             key={peer.id}
-            onAdmin={setAdminPeer}
             onKick={() => setKickPeer(peer)}
             onPermissions={setPermissionPeer}
             peer={peer}
@@ -187,6 +178,48 @@ export function ParticipantsPanel({
                 </label>
               ))}
             </div>
+            {canAssignAdmin && !permissionPeer.isHost ? (
+              <div className="mt-5 border-t border-border pt-4">
+                <label className="flex items-center justify-between gap-3 text-sm font-medium text-foreground">
+                  Make admin
+                  <input
+                    checked={adminEnabled}
+                    className="size-4"
+                    onChange={(event) => setAdminEnabled(event.target.checked)}
+                    type="checkbox"
+                  />
+                </label>
+                <div className="mt-4 grid gap-3">
+                  {[
+                    ["can_kick", "Can kick participants"],
+                    ["can_mute_mic", "Can disable microphones"],
+                    ["can_disable_camera", "Can disable cameras"],
+                    ["can_disable_screen", "Can disable screen share"],
+                    ["can_disable_chat", "Can disable chat"],
+                    ["can_disable_emoji", "Can disable reactions"]
+                  ].map(([key, label]) => (
+                    <label
+                      className="flex items-center justify-between gap-3 text-sm text-foreground"
+                      key={key}
+                    >
+                      {label}
+                      <input
+                        checked={adminDraft[key as keyof AdminPermissions]}
+                        className="size-4"
+                        disabled={!adminEnabled}
+                        onChange={(event) =>
+                          setAdminDraft((current) => ({
+                            ...current,
+                            [key]: event.target.checked
+                          }))
+                        }
+                        type="checkbox"
+                      />
+                    </label>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 className="rounded-md border border-border px-3 py-2 text-sm font-semibold"
@@ -199,81 +232,14 @@ export function ParticipantsPanel({
                 className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
                 onClick={() => {
                   onSetPeerPermissions?.(permissionPeer.id, permissionDraft);
+                  if (canAssignAdmin && !permissionPeer.isHost) {
+                    onSetAdminPermissions?.(
+                      permissionPeer.id,
+                      adminEnabled,
+                      adminDraft
+                    );
+                  }
                   setPermissionPeer(null);
-                }}
-                type="button"
-              >
-                Save
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {adminPeer ? (
-        <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
-          <section className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 shadow-xl">
-            <h3 className="text-sm font-semibold text-surface-foreground">
-              Admin permissions
-            </h3>
-            <p className="mt-1 truncate text-xs text-muted-foreground">
-              {adminPeer.displayName}
-            </p>
-            <label className="mt-4 flex items-center justify-between gap-3 text-sm font-medium text-foreground">
-              Make admin
-              <input
-                checked={adminEnabled}
-                className="size-4"
-                onChange={(event) => setAdminEnabled(event.target.checked)}
-                type="checkbox"
-              />
-            </label>
-            <div className="mt-4 grid gap-3">
-              {[
-                ["can_kick", "Can kick participants"],
-                ["can_mute_mic", "Can disable microphones"],
-                ["can_disable_camera", "Can disable cameras"],
-                ["can_disable_screen", "Can disable screen share"],
-                ["can_disable_chat", "Can disable chat"],
-                ["can_disable_emoji", "Can disable reactions"]
-              ].map(([key, label]) => (
-                <label
-                  className="flex items-center justify-between gap-3 text-sm text-foreground"
-                  key={key}
-                >
-                  {label}
-                  <input
-                    checked={adminDraft[key as keyof AdminPermissions]}
-                    className="size-4"
-                    disabled={!adminEnabled}
-                    onChange={(event) =>
-                      setAdminDraft((current) => ({
-                        ...current,
-                        [key]: event.target.checked
-                      }))
-                    }
-                    type="checkbox"
-                  />
-                </label>
-              ))}
-            </div>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                className="rounded-md border border-border px-3 py-2 text-sm font-semibold"
-                onClick={() => setAdminPeer(null)}
-                type="button"
-              >
-                Cancel
-              </button>
-              <button
-                className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
-                onClick={() => {
-                  onSetAdminPermissions?.(
-                    adminPeer.id,
-                    adminEnabled,
-                    adminDraft
-                  );
-                  setAdminPeer(null);
                 }}
                 type="button"
               >

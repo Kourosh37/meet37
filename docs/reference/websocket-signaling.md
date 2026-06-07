@@ -45,7 +45,8 @@ The backend sets `from` to the sender peer ID.
     "room_id": "...",
     "display_name": "Alice",
     "password": "optional",
-    "host_token": "optional"
+    "host_token": "optional",
+    "client_id": "optional stable browser id"
   }
 }
 ```

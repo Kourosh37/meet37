@@ -164,6 +164,48 @@ func TestHandleJoinPromotesFirstPeerInReusableRoomToHost(t *testing.T) {
 	}
 }
 
+func TestHandleJoinRejectsBannedConnectionAfterDisplayNameChange(t *testing.T) {
+	hub, database := testHub(t)
+	roomID := "room-1"
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		roomID, "Room", "previous-host", "open", 50, time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("insert room: %v", err)
+	}
+	_, err = database.Exec(
+		`INSERT INTO room_bans (room_id, identity, banned_until, created_at) VALUES (?, ?, ?, ?)`,
+		roomID, "ip:203.0.113.10", time.Now().Add(time.Hour).Unix(), time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("insert ban: %v", err)
+	}
+	peer := &Peer{
+		id:        "peer-1",
+		mode:      "sfu",
+		remoteIP:  "203.0.113.10",
+		send:      make(chan []byte, 4),
+		userAgent: "Test Browser",
+		hub:       hub,
+	}
+
+	hub.handleMessage(peer, []byte(`{"type":"join","payload":{"room_id":"room-1","display_name":"Changed Name","client_id":"client-12345"}}`))
+
+	select {
+	case raw := <-peer.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode signal: %v", err)
+		}
+		if msg.Type != "error" {
+			t.Fatalf("expected banned join error, got %q", msg.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for banned join error")
+	}
+}
+
 func TestHandleMessageRespondsToPing(t *testing.T) {
 	hub, _ := testHub(t)
 	peer := &Peer{id: "peer-1", send: make(chan []byte, 4), hub: hub}

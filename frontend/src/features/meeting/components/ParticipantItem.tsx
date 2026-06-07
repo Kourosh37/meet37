@@ -5,10 +5,8 @@ import type { MeetingPeer } from "@/features/meeting/types/peer";
 
 interface ParticipantItemProps {
   canModerate?: boolean;
-  canAssignAdmin?: boolean;
   canKick?: boolean;
   isLocal?: boolean;
-  onAdmin?: (peer: MeetingPeer) => void;
   onKick?: (peerId: string) => void;
   onPermissions?: (peer: MeetingPeer) => void;
   peer: MeetingPeer;
@@ -16,10 +14,8 @@ interface ParticipantItemProps {
 
 export function ParticipantItem({
   canModerate = false,
-  canAssignAdmin = false,
   canKick = false,
   isLocal = false,
-  onAdmin,
   onKick,
   onPermissions,
   peer
@@ -58,15 +54,6 @@ export function ParticipantItem({
 
       {canModerate && !isLocal ? (
         <div className="flex shrink-0 items-center gap-1">
-          {canAssignAdmin && !peer.isHost ? (
-            <button
-              className="rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
-              onClick={() => onAdmin?.(peer)}
-              type="button"
-            >
-              Admin
-            </button>
-          ) : null}
           <button
             className="rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground transition hover:bg-muted"
             onClick={() => onPermissions?.(peer)}

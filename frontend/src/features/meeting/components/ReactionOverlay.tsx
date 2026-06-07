@@ -29,7 +29,7 @@ export function ReactionOverlay({ onDone, reactions }: ReactionOverlayProps) {
   }, [onDone, reactions]);
 
   return (
-    <div className="pointer-events-none fixed inset-x-4 bottom-24 top-20 z-40 mx-auto max-w-7xl overflow-visible">
+    <div className="pointer-events-none fixed inset-x-0 bottom-24 top-20 z-40 mx-auto max-w-7xl overflow-visible px-8 sm:px-12">
       {reactions.map((reaction) => (
         <div
           className="meet-reaction-float absolute bottom-0"

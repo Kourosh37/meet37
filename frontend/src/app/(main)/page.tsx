@@ -50,11 +50,11 @@ export default function HomePage() {
             <ArrowRight className="size-4" />
           </Link>
           <form
-            className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row"
+            className="flex w-full min-w-0 flex-1 flex-col gap-2 sm:flex-row"
             onSubmit={joinRoom}
           >
             <input
-              className="h-12 min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-sm font-semibold lowercase tracking-normal text-foreground outline-none transition focus:border-primary"
+              className="h-14 min-h-14 w-full min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-base font-semibold lowercase tracking-normal text-foreground outline-none transition focus:border-primary sm:h-12 sm:min-h-12 sm:text-sm"
               inputMode="text"
               onChange={(event) => setRoomId(event.target.value)}
               pattern="[A-Za-z]{3}-[A-Za-z]{3}-[A-Za-z]{3}"
@@ -62,7 +62,7 @@ export default function HomePage() {
               value={roomId}
             />
             <button
-              className="inline-flex h-12 items-center justify-center rounded-md bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex h-14 min-h-14 items-center justify-center rounded-md bg-foreground px-5 text-sm font-semibold text-background transition hover:bg-foreground/90 disabled:cursor-not-allowed disabled:opacity-50 sm:h-12 sm:min-h-12"
               disabled={!canJoin}
               type="submit"
             >

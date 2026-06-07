@@ -91,7 +91,8 @@ textarea:disabled {
   animation: meet-reaction-float 2.85s cubic-bezier(0.16, 0.84, 0.28, 1)
     forwards;
   backface-visibility: hidden;
-  contain: layout paint;
+  contain: layout;
+  overflow: visible;
   transform: translate3d(-50%, 0, 0);
   will-change: opacity, transform;
 }
@@ -114,16 +115,14 @@ textarea:disabled {
 }
 
 .meet-settings-drawer-open {
-  animation: meet-settings-drawer-open 260ms cubic-bezier(0.2, 0.9, 0.2, 1)
-    both;
+  animation: meet-settings-drawer-open 260ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
   backface-visibility: hidden;
   transform-origin: right center;
   will-change: opacity, transform;
 }
 
 .meet-settings-drawer-close {
-  animation: meet-settings-drawer-close 220ms cubic-bezier(0.4, 0, 0.2, 1)
-    both;
+  animation: meet-settings-drawer-close 220ms cubic-bezier(0.4, 0, 0.2, 1) both;
   backface-visibility: hidden;
   transform-origin: right center;
   will-change: opacity, transform;
@@ -237,11 +236,7 @@ textarea:disabled {
   }
   100% {
     opacity: 0;
-    transform: translate3d(
-        calc(-50% + var(--meet-reaction-drift)),
-        -64vh,
-        0
-      )
+    transform: translate3d(calc(-50% + var(--meet-reaction-drift)), -64vh, 0)
       scale(1) rotate(var(--meet-reaction-rotate));
   }
 }

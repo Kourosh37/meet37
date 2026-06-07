@@ -65,6 +65,7 @@ type JoinRequest struct {
 	Password    string `json:"password,omitempty"`
 	DisplayName string `json:"display_name"`
 	HostToken   string `json:"host_token,omitempty"`
+	ClientID    string `json:"client_id,omitempty"`
 }
 
 type StatsReport struct {

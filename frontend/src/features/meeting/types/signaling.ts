@@ -46,6 +46,7 @@ export interface JoinPayload {
   display_name: string;
   password?: string;
   host_token?: string;
+  client_id?: string;
 }
 
 export interface JoinedPayload {

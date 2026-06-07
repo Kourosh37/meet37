@@ -401,12 +401,12 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     setReactions((current) => [
       ...current.slice(-14),
       {
-        drift: Math.round(Math.random() * 180 - 90),
+        drift: Math.round(Math.random() * 120 - 60),
         emoji,
         id,
         name,
         rotate: Math.round(Math.random() * 28 - 14),
-        x: Math.round(18 + Math.random() * 64)
+        x: Math.round(24 + Math.random() * 52)
       }
     ]);
   }, []);

@@ -179,11 +179,16 @@ func (h *RoomHandler) GetFileHistory(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
-	rows, err := h.db.Query(
-		`SELECT id, room_id, file_id, sender_peer_id, target_peer_id, name, size, mime, status, reason, ts
-		 FROM file_transfers WHERE room_id = ? ORDER BY ts ASC, id ASC LIMIT 500`,
-		roomID,
-	)
+	peerID := strings.TrimSpace(r.URL.Query().Get("peer_id"))
+	query := `SELECT id, room_id, file_id, sender_peer_id, target_peer_id, name, size, mime, status, reason, ts
+		 FROM file_transfers WHERE room_id = ?`
+	args := []interface{}{roomID}
+	if peerID != "" {
+		query += ` AND target_peer_id = ?`
+		args = append(args, peerID)
+	}
+	query += ` ORDER BY ts ASC, id ASC LIMIT 500`
+	rows, err := h.db.Query(query, args...)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return

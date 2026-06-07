@@ -177,6 +177,10 @@ func TestRoomHistoryEndpointsReturnPersistedMessages(t *testing.T) {
 		`INSERT INTO file_transfers (room_id, file_id, sender_peer_id, target_peer_id, name, size, mime, status, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		roomID, "file-1", "peer-1", "peer-2", "notes.txt", 123, "text/plain", "offered", now,
 	)
+	_, _ = database.Exec(
+		`INSERT INTO file_transfers (room_id, file_id, sender_peer_id, target_peer_id, name, size, mime, status, ts) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		roomID, "file-2", "peer-1", "peer-3", "notes.txt", 123, "text/plain", "offered", now,
+	)
 
 	chatRecorder := httptest.NewRecorder()
 	handler.GetChatHistory(chatRecorder, httptest.NewRequest(http.MethodGet, "/api/rooms/"+roomID+"/chat", nil))
@@ -194,8 +198,18 @@ func TestRoomHistoryEndpointsReturnPersistedMessages(t *testing.T) {
 		t.Fatalf("file history status = %d body=%s", filesRecorder.Code, filesRecorder.Body.String())
 	}
 	var files []map[string]interface{}
-	if err := json.Unmarshal(filesRecorder.Body.Bytes(), &files); err != nil || len(files) != 1 || files[0]["file_id"] != "file-1" {
+	if err := json.Unmarshal(filesRecorder.Body.Bytes(), &files); err != nil || len(files) != 2 || files[0]["file_id"] != "file-1" {
 		t.Fatalf("unexpected file history: len=%d err=%v body=%s", len(files), err, filesRecorder.Body.String())
+	}
+
+	filteredFilesRecorder := httptest.NewRecorder()
+	handler.GetFileHistory(filteredFilesRecorder, httptest.NewRequest(http.MethodGet, "/api/rooms/"+roomID+"/files?peer_id=peer-2", nil))
+	if filteredFilesRecorder.Code != http.StatusOK {
+		t.Fatalf("filtered file history status = %d body=%s", filteredFilesRecorder.Code, filteredFilesRecorder.Body.String())
+	}
+	var filteredFiles []map[string]interface{}
+	if err := json.Unmarshal(filteredFilesRecorder.Body.Bytes(), &filteredFiles); err != nil || len(filteredFiles) != 1 || filteredFiles[0]["file_id"] != "file-1" {
+		t.Fatalf("unexpected filtered file history: len=%d err=%v body=%s", len(filteredFiles), err, filteredFilesRecorder.Body.String())
 	}
 }
 

@@ -213,6 +213,11 @@ Returns up to 500 chat messages ordered by timestamp and ID.
 ### `GET /api/rooms/{roomId}/files`
 
 Returns up to 500 file-transfer metadata records ordered by timestamp and ID.
+Pass `peer_id` to return only transfers targeted at the current meeting peer:
+
+```text
+GET /api/rooms/{roomId}/files?peer_id={peerId}
+```
 
 ## Admin
 

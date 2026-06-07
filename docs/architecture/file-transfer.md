@@ -19,6 +19,7 @@ Backend:
 - Relays file signaling to target peers.
 - Persists transfer metadata in `file_transfers`.
 - Returns room file history from `GET /api/rooms/{roomId}/files`.
+- Supports `GET /api/rooms/{roomId}/files?peer_id={peerId}` so clients can load only transfers targeted at their current meeting peer and avoid showing duplicate entries from multi-recipient sends.
 
 ## Transfer Lifecycle
 

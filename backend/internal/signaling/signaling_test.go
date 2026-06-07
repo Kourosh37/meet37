@@ -120,8 +120,23 @@ func TestHandleMessageBroadcastsReactionWithDisplayName(t *testing.T) {
 
 	select {
 	case raw := <-sender.send:
-		t.Fatalf("sender should not receive own broadcast: %s", string(raw))
-	default:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode sender signal: %v", err)
+		}
+		if msg.Type != "chat" {
+			t.Fatalf("sender should only receive reaction chat, got %q: %s", msg.Type, string(raw))
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for sender reaction chat")
+	}
+
+	var chatCount int
+	if err := hub.db.QueryRow(`SELECT COUNT(*) FROM chat_messages WHERE room_id = ? AND text LIKE ?`, roomID, "%reacted%").Scan(&chatCount); err != nil {
+		t.Fatalf("count reaction chat: %v", err)
+	}
+	if chatCount != 1 {
+		t.Fatalf("expected one reaction chat row, got %d", chatCount)
 	}
 }
 

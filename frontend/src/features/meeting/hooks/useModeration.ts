@@ -58,6 +58,21 @@ export function useModeration() {
     [isHost, removePendingPeer]
   );
 
+  const approveAllPeers = useCallback(() => {
+    if (!isHost || pendingPeers.length === 0) {
+      return;
+    }
+
+    pendingPeers.forEach((peer) => {
+      webSocketManager.send({
+        payload: { peer_id: peer.id },
+        type: "approve-peer"
+      });
+      removePendingPeer(peer.id);
+    });
+    toast.success("All waiting participants admitted");
+  }, [isHost, pendingPeers, removePendingPeer]);
+
   const rejectPeer = useCallback(
     (peerId: string, reason = "The host declined your request.") => {
       if (!isHost) {
@@ -198,6 +213,7 @@ export function useModeration() {
 
   return {
     approvePeer,
+    approveAllPeers,
     bannedParticipants,
     canModerate: isHost || isAdmin,
     canDisableCamera,

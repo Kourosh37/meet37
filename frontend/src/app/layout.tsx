@@ -13,10 +13,21 @@ export const metadata: Metadata = {
   description:
     "Browser-based video meetings with room sharing, moderation, and server-relayed media.",
   applicationName: "meet37",
+  manifest: "/manifest.webmanifest",
   icons: {
-    apple: "/icons/meet37-logo-light.svg",
+    apple: "/icons/meet37-apple-touch.png",
     icon: [
       { url: "/icons/meet37-favicon.svg", type: "image/svg+xml" },
+      {
+        url: "/icons/meet37-icon-192.png",
+        sizes: "192x192",
+        type: "image/png"
+      },
+      {
+        url: "/icons/meet37-icon-512.png",
+        sizes: "512x512",
+        type: "image/png"
+      },
       {
         media: "(prefers-color-scheme: light)",
         url: "/icons/meet37-logo-light.svg",

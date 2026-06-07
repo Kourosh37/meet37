@@ -49,6 +49,9 @@ export function getRoomChat(roomId: string) {
   return apiRequest<ChatHistoryItem[]>(endpoints.rooms.chat(roomId));
 }
 
-export function getRoomFiles(roomId: string) {
-  return apiRequest<FileHistoryItem[]>(endpoints.rooms.files(roomId));
+export function getRoomFiles(roomId: string, peerId?: string | null) {
+  const path = peerId
+    ? `${endpoints.rooms.files(roomId)}?peer_id=${encodeURIComponent(peerId)}`
+    : endpoints.rooms.files(roomId);
+  return apiRequest<FileHistoryItem[]>(path);
 }

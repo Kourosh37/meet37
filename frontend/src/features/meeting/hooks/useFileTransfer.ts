@@ -96,13 +96,13 @@ export function useFileTransfer(roomId: string | null) {
   );
 
   useEffect(() => {
-    if (!roomId) {
+    if (!roomId || !localPeerId) {
       return;
     }
 
     let cancelled = false;
 
-    getRoomFiles(roomId).then((history) => {
+    getRoomFiles(roomId, localPeerId).then((history) => {
       if (!cancelled) {
         loadHistory(history);
       }
@@ -111,7 +111,7 @@ export function useFileTransfer(roomId: string | null) {
     return () => {
       cancelled = true;
     };
-  }, [loadHistory, roomId]);
+  }, [loadHistory, localPeerId, roomId]);
 
   const sendFileBytes = useCallback(
     async (fileId: string, peerId: string, file: File) => {

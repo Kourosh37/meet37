@@ -504,6 +504,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
                 canModerate={moderation.canModerate}
                 localPeer={localPeer}
                 onApprove={moderation.approvePeer}
+                onApproveAll={moderation.approveAllPeers}
                 onKick={moderation.kickPeer}
                 onReject={moderation.rejectPeer}
                 onSetAdminPermissions={moderation.setAdminPermissions}
@@ -520,6 +521,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
 
       <AdmissionModal
         onApprove={moderation.approvePeer}
+        onApproveAll={moderation.approveAllPeers}
         onReject={moderation.rejectPeer}
         pendingPeers={moderation.pendingPeers}
       />

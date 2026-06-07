@@ -32,6 +32,7 @@ interface ParticipantsPanelProps {
   canKick?: boolean;
   localPeer: MeetingPeer;
   onApprove: (peerId: string) => void;
+  onApproveAll?: () => void;
   onKick: (
     peerId: string,
     reason?: string,
@@ -55,6 +56,7 @@ export function ParticipantsPanel({
   canKick = false,
   localPeer,
   onApprove,
+  onApproveAll,
   onKick,
   onSetAdminPermissions,
   onSetPeerPermissions,
@@ -98,9 +100,20 @@ export function ParticipantsPanel({
 
       {canModerate && pendingPeers.length > 0 ? (
         <section className="mt-4 rounded-md border border-primary/30 bg-primary/10 p-3">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Waiting
-          </h3>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-primary">
+              Waiting
+            </h3>
+            {pendingPeers.length > 1 ? (
+              <button
+                className="rounded-md border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                onClick={onApproveAll}
+                type="button"
+              >
+                Admit all
+              </button>
+            ) : null}
+          </div>
           <div className="mt-3 grid gap-2">
             {pendingPeers.map((peer) => (
               <div key={peer.id} className="rounded-md bg-surface p-2">

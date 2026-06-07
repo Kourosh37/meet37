@@ -5,12 +5,14 @@ import type { PendingPeer } from "@/features/meeting/types/peer";
 
 interface AdmissionModalProps {
   onApprove: (peerId: string) => void;
+  onApproveAll?: () => void;
   onReject: (peerId: string) => void;
   pendingPeers: PendingPeer[];
 }
 
 export function AdmissionModal({
   onApprove,
+  onApproveAll,
   onReject,
   pendingPeers
 }: AdmissionModalProps) {
@@ -43,6 +45,15 @@ export function AdmissionModal({
             >
               Admit
             </button>
+            {pendingPeers.length > 1 ? (
+              <button
+                className="rounded-md border border-primary/40 px-3 py-1.5 text-xs font-semibold text-primary transition hover:bg-primary/10"
+                onClick={onApproveAll}
+                type="button"
+              >
+                Admit all
+              </button>
+            ) : null}
             <button
               className="rounded-md border border-border px-3 py-1.5 text-xs font-semibold text-foreground"
               onClick={() => onReject(firstPeer.id)}

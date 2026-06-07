@@ -411,6 +411,15 @@ func (h *Hub) handleReaction(p *Peer, msg models.SignalMessage) {
 	if body.Emoji == "" || len([]rune(body.Emoji)) > 4 {
 		return
 	}
+	displayName := strings.TrimSpace(p.displayName)
+	if displayName == "" {
+		displayName = "Participant"
+	}
+	reactionText := displayName + " reacted " + body.Emoji
+	_, _ = h.db.Exec(
+		`INSERT INTO chat_messages (room_id, peer_id, user_id, display_name, text, ts) VALUES (?, ?, ?, ?, ?, ?)`,
+		p.roomID, p.id, p.userID, p.displayName, reactionText, time.Now().Unix(),
+	)
 	h.broadcast(p.roomID, models.SignalMessage{
 		Type: "reaction",
 		From: p.id,
@@ -420,6 +429,13 @@ func (h *Hub) handleReaction(p *Peer, msg models.SignalMessage) {
 			"peer_id":      p.id,
 		},
 	}, p.id)
+	h.broadcast(p.roomID, models.SignalMessage{
+		Type: "chat",
+		From: p.id,
+		Payload: map[string]interface{}{
+			"text": reactionText,
+		},
+	}, "")
 }
 
 func (h *Hub) handleMediaState(p *Peer, msg models.SignalMessage) {

@@ -56,9 +56,10 @@ export default function HomePage() {
             <input
               className="h-14 min-h-14 w-full min-w-0 flex-1 rounded-md border border-border bg-surface px-3 text-base font-semibold lowercase tracking-normal text-foreground outline-none transition focus:border-primary sm:h-12 sm:min-h-12 sm:text-sm"
               inputMode="text"
+              aria-label="Meeting ID"
               onChange={(event) => setRoomId(event.target.value)}
               pattern="[A-Za-z]{3}-[A-Za-z]{3}-[A-Za-z]{3}"
-              placeholder="aaa-aaa-aaa"
+              placeholder="Enter meeting ID, like abc-def-ghi"
               value={roomId}
             />
             <button

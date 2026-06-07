@@ -23,17 +23,25 @@ function isMobileBrowser() {
   return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 }
 
+function isIOSBrowser() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
 function getScreenShareUnavailableReason() {
   if (!window.isSecureContext && !isLocalhost(window.location.hostname)) {
     return "Screen sharing requires HTTPS on this browser.";
   }
 
+  if (!navigator.mediaDevices?.getDisplayMedia && isIOSBrowser()) {
+    return "Screen sharing is not supported in iPhone and iPad browsers. Use the desktop app/browser version, or join from a desktop browser such as Chrome, Edge, Safari, or Firefox to share your screen.";
+  }
+
   if (!navigator.mediaDevices?.getDisplayMedia && isMobileBrowser()) {
-    return "Screen sharing is not supported by this mobile browser.";
+    return "Screen sharing is not supported by this mobile browser. Use a desktop browser to share your screen, or keep joining from mobile for camera, microphone, chat, and viewing shared screens.";
   }
 
   if (!navigator.mediaDevices?.getDisplayMedia) {
-    return "Screen sharing is not supported by this browser or device.";
+    return "Screen sharing is not supported by this browser or device. Try a current desktop browser such as Chrome, Edge, Safari, or Firefox.";
   }
 
   return "";

@@ -47,7 +47,8 @@ export function DeviceSplitControl({
   return (
     <div
       className={cn(
-        "inline-flex overflow-hidden rounded-md border border-border bg-background text-foreground",
+        "group inline-flex overflow-hidden rounded-md border border-border bg-background text-foreground transition",
+        !disabled && "hover:bg-muted",
         disabled && "opacity-50",
         className
       )}
@@ -55,7 +56,7 @@ export function DeviceSplitControl({
       <button
         aria-label={toggleLabel}
         className={cn(
-          "inline-flex items-center justify-center gap-2 transition hover:bg-muted disabled:cursor-not-allowed disabled:hover:bg-background",
+          "inline-flex items-center justify-center gap-2 transition group-hover:bg-muted disabled:cursor-not-allowed disabled:group-hover:bg-background",
           controlClassName
         )}
         disabled={disabled}
@@ -68,7 +69,13 @@ export function DeviceSplitControl({
           <span className="text-sm font-medium">{label}</span>
         )}
       </button>
-      <div className="relative grid h-11 w-8 place-items-center border-l border-border text-muted-foreground">
+      <div
+        className={cn(
+          "relative grid w-8 self-stretch place-items-center border-l border-border text-muted-foreground transition",
+          !disabled && "group-hover:bg-muted",
+          disabled && "group-hover:bg-background"
+        )}
+      >
         <select
           aria-label={selectLabel}
           className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"

@@ -62,6 +62,7 @@ func TestHandleMessagePersistsChatAndFileMetadata(t *testing.T) {
 
 	hub.handleMessage(peer, []byte(`{"type":"chat","payload":{"text":"hello"}}`))
 	hub.handleMessage(peer, []byte(`{"type":"file-offer","to":"peer-2","payload":{"file_id":"file-1","name":"notes.txt","size":10,"mime":"text/plain"}}`))
+	hub.handleMessage(peer, []byte(`{"type":"file-offer","to":"peer-2","payload":{"file_id":"file-1","name":"notes.txt","size":10,"mime":"text/plain"}}`))
 	hub.handleMessage(peer, []byte(`{"type":"file-answer","to":"peer-2","payload":{"file_id":"file-1","accepted":false,"reason":"no"}}`))
 
 	var chatCount int
@@ -78,6 +79,13 @@ func TestHandleMessagePersistsChatAndFileMetadata(t *testing.T) {
 	}
 	if rejectedCount != 1 {
 		t.Fatalf("expected one rejected transfer row, got %d", rejectedCount)
+	}
+	var transferCount int
+	if err := database.QueryRow(`SELECT COUNT(*) FROM file_transfers WHERE room_id = ? AND file_id = ?`, roomID, "file-1").Scan(&transferCount); err != nil {
+		t.Fatalf("count transfer: %v", err)
+	}
+	if transferCount != 1 {
+		t.Fatalf("expected duplicate file offers to upsert one row, got %d", transferCount)
 	}
 }
 

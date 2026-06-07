@@ -1837,10 +1837,42 @@ func (h *Hub) persistFileTransfer(p *Peer, msg models.SignalMessage, status stri
 	if body.FileID == "" {
 		body.FileID = uuid.NewString()
 	}
+	now := time.Now().Unix()
+	var result sql.Result
+	var err error
+	if status == "offered" {
+		result, err = h.db.Exec(
+			`UPDATE file_transfers
+			 SET sender_peer_id = ?,
+				 target_peer_id = ?,
+				 name = COALESCE(NULLIF(?, ''), name),
+				 size = COALESCE(NULLIF(?, 0), size),
+				 mime = COALESCE(NULLIF(?, ''), mime),
+				 status = ?,
+				 reason = ?,
+				 ts = ?
+			 WHERE room_id = ? AND file_id = ?`,
+			p.id, msg.To, body.Name, body.Size, body.MIME, status, body.Reason, now, p.roomID, body.FileID,
+		)
+	} else {
+		result, err = h.db.Exec(
+			`UPDATE file_transfers
+			 SET status = ?,
+				 reason = ?,
+				 ts = ?
+			 WHERE room_id = ? AND file_id = ?`,
+			status, body.Reason, now, p.roomID, body.FileID,
+		)
+	}
+	if err == nil {
+		if rowsAffected, rowsErr := result.RowsAffected(); rowsErr == nil && rowsAffected > 0 {
+			return
+		}
+	}
 	_, _ = h.db.Exec(
 		`INSERT INTO file_transfers (room_id, file_id, sender_peer_id, target_peer_id, name, size, mime, status, reason, ts)
 		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		p.roomID, body.FileID, p.id, msg.To, body.Name, body.Size, body.MIME, status, body.Reason, time.Now().Unix(),
+		p.roomID, body.FileID, p.id, msg.To, body.Name, body.Size, body.MIME, status, body.Reason, now,
 	)
 }
 

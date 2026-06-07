@@ -39,10 +39,36 @@ interface SharedFileEntry {
   file: File;
   sentPeerIds: Set<string>;
   sendingPeerIds: Set<string>;
+  transferIdsByPeerId: Map<string, string>;
 }
 
 function totalChunksFor(file: File) {
   return Math.ceil(file.size / DEFAULT_FILE_CHUNK_SIZE);
+}
+
+function createSharedFileEntry(file: File): SharedFileEntry {
+  return {
+    file,
+    sendingPeerIds: new Set(),
+    sentPeerIds: new Set(),
+    transferIdsByPeerId: new Map()
+  };
+}
+
+function transferIdForPeer(
+  sourceFileId: string,
+  peerId: string,
+  sharedFile: SharedFileEntry
+) {
+  const existingTransferId = sharedFile.transferIdsByPeerId.get(peerId);
+
+  if (existingTransferId) {
+    return existingTransferId;
+  }
+
+  const transferId = `${sourceFileId}-${peerId}`;
+  sharedFile.transferIdsByPeerId.set(peerId, transferId);
+  return transferId;
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
@@ -191,7 +217,7 @@ export function useFileTransfer(roomId: string | null) {
 
       sharedFile.sendingPeerIds.add(peerId);
       const file = sharedFile.file;
-      const fileId = crypto.randomUUID();
+      const fileId = transferIdForPeer(sourceFileId, peerId, sharedFile);
       const transfer: FileTransferRecord = {
         createdAt: Date.now(),
         direction: "outgoing",
@@ -317,6 +343,10 @@ export function useFileTransfer(roomId: string | null) {
         const existing =
           useFileTransferStore.getState().transfers[message.payload.file_id];
 
+        if (existing?.status === "completed") {
+          return;
+        }
+
         if (!existing) {
           addOrUpdateTransfer({
             createdAt: Date.now(),
@@ -350,6 +380,12 @@ export function useFileTransfer(roomId: string | null) {
         refreshReceiveTimeout(message.payload.file_id);
       }),
       webSocketManager.subscribe("file-chunk", (message) => {
+        const existing =
+          useFileTransferStore.getState().transfers[message.payload.file_id];
+        if (existing?.status === "completed") {
+          return;
+        }
+
         const buffer = receiveBuffers.current.get(message.payload.file_id);
 
         if (!buffer) {
@@ -375,6 +411,12 @@ export function useFileTransfer(roomId: string | null) {
         }
       }),
       webSocketManager.subscribe("file-complete", (message) => {
+        const existing =
+          useFileTransferStore.getState().transfers[message.payload.file_id];
+        if (existing?.status === "completed") {
+          return;
+        }
+
         completeReceivedFile(message.payload.file_id);
       })
     ];
@@ -443,11 +485,10 @@ export function useFileTransfer(roomId: string | null) {
             lastModified: file.createdAt,
             type: file.mime
           });
-          sharedFiles.current.set(file.fileId, {
-            file: restoredFile,
-            sendingPeerIds: new Set(),
-            sentPeerIds: new Set()
-          });
+          sharedFiles.current.set(
+            file.fileId,
+            createSharedFileEntry(restoredFile)
+          );
           restoredOutgoingCount += 1;
         }
 
@@ -507,11 +548,7 @@ export function useFileTransfer(roomId: string | null) {
           "outgoing"
         );
       }
-      sharedFiles.current.set(sourceFileId, {
-        file,
-        sendingPeerIds: new Set(),
-        sentPeerIds: new Set()
-      });
+      sharedFiles.current.set(sourceFileId, createSharedFileEntry(file));
       setSharedFileVersion((version) => version + 1);
 
       addOrUpdateTransfer({

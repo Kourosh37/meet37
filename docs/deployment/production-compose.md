@@ -48,6 +48,7 @@ The backend service:
 - Publishes the backend WebRTC UDP media range on the host.
 - Joins only the internal app network.
 - Exposes `/health` for Docker healthcheck.
+- Starts after coturn so TURN credentials point at an initialized relay service.
 
 The backend HTTP port is not published by production compose. It is reached by the frontend through the internal Docker network.
 
@@ -69,7 +70,8 @@ The frontend service:
 
 - Uses `${DOCKER_FRONTEND_IMAGE}:${DOCKER_IMAGE_TAG}`.
 - Receives Next.js runtime variables.
-- Depends on a healthy backend.
+- Publishes `${FRONTEND_HOST_PORT}:${FRONTEND_PORT}` for direct host access when needed.
+- Depends on a healthy backend and a started coturn service.
 - Joins both internal and proxy networks.
 - Is intended to be reached by Caddy or another reverse proxy.
 

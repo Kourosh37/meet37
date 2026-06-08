@@ -162,9 +162,8 @@ describe("DeviceSetup", () => {
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
     });
 
-    fireEvent.change(screen.getByDisplayValue("Microphone 1"), {
-      target: { value: "audio-2" }
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Select microphone" }));
+    fireEvent.click(screen.getByRole("option", { name: "Microphone 2" }));
 
     await waitFor(() => {
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
@@ -173,9 +172,8 @@ describe("DeviceSetup", () => {
       });
     });
 
-    fireEvent.change(screen.getByDisplayValue("Camera 1"), {
-      target: { value: "video-2" }
-    });
+    fireEvent.click(screen.getByRole("button", { name: "Select camera" }));
+    fireEvent.click(screen.getByRole("option", { name: "Camera 2" }));
 
     await waitFor(() => {
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({

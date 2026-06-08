@@ -24,11 +24,15 @@ const initialState = {
 function stateForPanel(panel: MeetingPanel, open: boolean) {
   switch (panel) {
     case "chat":
-      return { chatOpen: open };
+      return open
+        ? { chatOpen: true, settingsOpen: false }
+        : { chatOpen: false };
     case "participants":
       return { participantsOpen: open };
     case "settings":
-      return { settingsOpen: open };
+      return open
+        ? { chatOpen: false, settingsOpen: true }
+        : { settingsOpen: false };
   }
 }
 

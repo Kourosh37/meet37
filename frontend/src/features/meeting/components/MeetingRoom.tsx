@@ -37,8 +37,10 @@ interface MeetingRoomProps {
 
 export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const router = useRouter();
-  const meetingContentTopRef = useRef<HTMLDivElement | null>(null);
+  const meetingScrollRef = useRef<HTMLDivElement | null>(null);
   const participantsSectionRef = useRef<HTMLDivElement | null>(null);
+  const topScrollAnimationFrameRef = useRef<number | null>(null);
+  const topScrollSettleFrameRef = useRef<number | null>(null);
   const meeting = useMeetingStore();
   const websocket = useWebSocket();
   const pingMs = useWebSocketPing(websocket.status === "open");
@@ -67,6 +69,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     Record<string, number>
   >({});
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const peerIds = useMemo(
     () => Object.keys(meeting.peers).sort().join(","),
     [meeting.peers]
@@ -387,6 +390,13 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     []
   );
 
+  useEffect(
+    () => () => {
+      cancelMeetingScrollAnimation();
+    },
+    []
+  );
+
   function handleLeave() {
     stopLocalMedia();
     websocket.close();
@@ -452,25 +462,106 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     }
   }
 
+  function cancelMeetingScrollAnimation() {
+    if (topScrollAnimationFrameRef.current !== null) {
+      window.cancelAnimationFrame(topScrollAnimationFrameRef.current);
+      topScrollAnimationFrameRef.current = null;
+    }
+    if (topScrollSettleFrameRef.current !== null) {
+      window.cancelAnimationFrame(topScrollSettleFrameRef.current);
+      topScrollSettleFrameRef.current = null;
+    }
+  }
+
+  function animateMeetingScrollTo(
+    targetTop: number,
+    { settle = false }: { settle?: boolean } = {}
+  ) {
+    const scroller = meetingScrollRef.current;
+
+    if (!scroller) {
+      window.scrollTo({ behavior: "smooth", top: targetTop });
+      return;
+    }
+
+    const scrollElement = scroller;
+    const maxTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+    const finalTop = Math.min(Math.max(0, Math.round(targetTop)), maxTop);
+    const startTop = scrollElement.scrollTop;
+    const distance = finalTop - startTop;
+    const durationMs = Math.min(420, Math.max(220, Math.abs(distance) * 0.45));
+    const startedAt = performance.now();
+
+    cancelMeetingScrollAnimation();
+    scrollElement.style.setProperty("overflow-anchor", "none");
+
+    function settleAtTarget(settleStartedAt: number) {
+      scrollElement.scrollTop = finalTop;
+
+      if (performance.now() - settleStartedAt < 520) {
+        topScrollSettleFrameRef.current = window.requestAnimationFrame(() =>
+          settleAtTarget(settleStartedAt)
+        );
+        return;
+      }
+
+      topScrollSettleFrameRef.current = null;
+    }
+
+    if (Math.abs(distance) <= 1) {
+      scrollElement.scrollTop = finalTop;
+      if (settle) {
+        settleAtTarget(performance.now());
+      }
+      return;
+    }
+
+    function animate(now: number) {
+      const progress = Math.min(1, (now - startedAt) / durationMs);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      scrollElement.scrollTop = Math.round(startTop + distance * eased);
+
+      if (progress < 1) {
+        topScrollAnimationFrameRef.current =
+          window.requestAnimationFrame(animate);
+        return;
+      }
+
+      topScrollAnimationFrameRef.current = null;
+      scrollElement.scrollTop = finalTop;
+      if (settle) {
+        settleAtTarget(performance.now());
+      }
+    }
+
+    topScrollAnimationFrameRef.current = window.requestAnimationFrame(animate);
+  }
+
   function scrollToParticipants() {
     ui.openPanel("participants");
     window.setTimeout(() => {
-      participantsSectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "start"
-      });
+      const scroller = meetingScrollRef.current;
+      const participantsSection = participantsSectionRef.current;
+
+      if (!scroller || !participantsSection) {
+        return;
+      }
+
+      const targetTop =
+        scroller.scrollTop +
+        participantsSection.getBoundingClientRect().top -
+        scroller.getBoundingClientRect().top;
+
+      animateMeetingScrollTo(targetTop);
     }, 0);
   }
 
   function scrollToMeetingTop() {
-    meetingContentTopRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "start"
-    });
+    animateMeetingScrollTo(0, { settle: true });
   }
 
   return (
-    <main className="mx-auto flex h-[100svh] w-full max-w-7xl flex-col overflow-hidden border-x border-border px-4 sm:px-6">
+    <main className="mx-auto flex h-[100svh] w-full max-w-7xl flex-col overflow-hidden border-x border-border">
       <MeetingHeader
         connectionQuality={connectionQuality}
         isConnected={websocket.status === "open"}
@@ -483,9 +574,11 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         }
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto pb-32 pt-24">
-        <div className="flex min-h-full flex-col gap-4">
-          <div ref={meetingContentTopRef} />
+      <div
+        className="min-h-0 flex-1 overflow-y-auto pb-32 pt-[69px] [overflow-anchor:none] lg:pt-24"
+        ref={meetingScrollRef}
+      >
+        <div className="flex min-h-full flex-col gap-3 px-4 sm:px-6 lg:gap-4">
           <InlineError
             className="rounded-lg px-4 py-3"
             message={localMedia.error}
@@ -506,7 +599,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
             Go to participants
           </button>
 
-          <div className="grid min-h-0 flex-1 items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid min-h-0 flex-1 items-start overflow-hidden rounded-lg border border-border bg-border p-px lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-4 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
             <VideoGrid
               local={{
                 audioEnabled: localMedia.audioEnabled,
@@ -528,6 +621,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
             {ui.participantsOpen ? (
               <div className="min-h-0 lg:h-full" ref={participantsSectionRef}>
                 <ParticipantsPanel
+                  className="rounded-none border-0 border-t border-border shadow-none lg:rounded-lg lg:border lg:shadow-sm"
                   canAssignAdmin={meeting.isHost}
                   canKick={moderation.canKick}
                   canModerate={moderation.canModerate}
@@ -591,7 +685,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         canUseCamera={canUseCamera}
         canUseMic={canUseMic}
         onCopyInvite={() => void handleCopyInvite()}
-        onLeave={handleLeave}
+        onLeave={() => setLeaveConfirmOpen(true)}
         onOpenSettings={() => ui.togglePanel("settings")}
         onReaction={handleReaction}
         onSelectAudioDevice={localMedia.setSelectedAudioDeviceId}
@@ -624,6 +718,46 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         videoEnabled={localMedia.videoEnabled}
         videoInputs={localMedia.videoInputs}
       />
+      {leaveConfirmOpen ? (
+        <div
+          className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4 backdrop-blur-sm"
+          role="presentation"
+        >
+          <section
+            aria-modal="true"
+            aria-labelledby="leave-meeting-title"
+            className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 text-surface-foreground shadow-2xl"
+            role="dialog"
+          >
+            <h2
+              className="text-base font-semibold tracking-normal"
+              id="leave-meeting-title"
+            >
+              Leave meeting?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Your camera, microphone, screen share, and connection to this room
+              will stop.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
+                onClick={() => setLeaveConfirmOpen(false)}
+                type="button"
+              >
+                Cancel
+              </button>
+              <button
+                className="inline-flex h-10 items-center justify-center rounded-md bg-danger px-3 text-sm font-semibold text-danger-foreground transition hover:bg-danger/90"
+                onClick={handleLeave}
+                type="button"
+              >
+                Leave
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

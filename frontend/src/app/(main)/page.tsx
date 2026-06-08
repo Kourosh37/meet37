@@ -22,6 +22,7 @@ import {
   removeRecentRoom,
   type RecentRoom
 } from "@/features/rooms/lib/recentRooms";
+import { saveHostToken } from "@/lib/storage/tokenStorage";
 import { formatUnixSeconds } from "@/lib/utils/formatters";
 
 export default function HomePage() {
@@ -78,6 +79,7 @@ export default function HomePage() {
         name: room.name,
         room_id: room.id
       });
+      saveHostToken(response.room.id, response.host_token);
       router.push(`/meet/${response.room.id}`);
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 409) {

@@ -1,6 +1,8 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
 import { cn } from "@/lib/utils/cn";
 
@@ -39,60 +41,197 @@ export function DeviceSplitControl({
   toggleLabel,
   variant = "compact"
 }: DeviceSplitControlProps) {
+  const selectorButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [mounted, setMounted] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{
+    bottom: number;
+    left: number;
+  } | null>(null);
   const isCompact = variant === "compact";
   const controlClassName = isCompact
-    ? "h-11 min-w-11"
+    ? "h-11 min-w-11 max-[430px]:h-7"
     : "h-10 min-w-[6.75rem] px-3";
+  const selectorClassName = isCompact
+    ? "relative grid w-8 self-stretch place-items-center border-l border-border text-muted-foreground transition max-[430px]:order-first max-[430px]:h-4 max-[430px]:w-full max-[430px]:self-auto max-[430px]:border-b max-[430px]:border-l-0"
+    : "relative grid w-8 self-stretch place-items-center border-l border-border text-muted-foreground transition";
+  const canSelectDevice = !disabled;
+  const deviceOptions = [
+    {
+      deviceId: "",
+      label: defaultDeviceLabel
+    },
+    ...devices.map((device) => ({
+      deviceId: device.deviceId,
+      label: device.label || label
+    }))
+  ];
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+
+    function updatePosition() {
+      const rect = selectorButtonRef.current?.getBoundingClientRect();
+
+      if (!rect) {
+        return;
+      }
+
+      const menuWidth = 240;
+      const viewportPadding = 8;
+      setMenuPosition({
+        bottom: Math.max(8, window.innerHeight - rect.top + 8),
+        left: Math.min(
+          window.innerWidth - menuWidth - viewportPadding,
+          Math.max(viewportPadding, rect.left + rect.width / 2 - menuWidth / 2)
+        )
+      });
+    }
+
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (!menuOpen) {
+      return;
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target;
+
+      if (
+        target instanceof Node &&
+        selectorButtonRef.current?.contains(target)
+      ) {
+        return;
+      }
+
+      setMenuOpen(false);
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [menuOpen]);
+
+  useEffect(() => {
+    if (disabled) {
+      setMenuOpen(false);
+    }
+  }, [disabled]);
+
+  const deviceMenu =
+    mounted && menuOpen && menuPosition
+      ? createPortal(
+          <div
+            className="fixed z-[9999] w-60 overflow-hidden rounded-lg border border-border bg-surface p-1 shadow-2xl"
+            onPointerDown={(event) => event.stopPropagation()}
+            role="listbox"
+            style={{
+              bottom: menuPosition.bottom,
+              left: menuPosition.left
+            }}
+          >
+            {deviceOptions.map((device, index) => (
+              <button
+                aria-selected={selectedDeviceId === device.deviceId}
+                className={cn(
+                  "flex min-h-10 w-full items-center rounded-md px-3 text-left text-sm font-medium text-surface-foreground transition hover:bg-muted",
+                  selectedDeviceId === device.deviceId && "bg-muted"
+                )}
+                key={`${device.deviceId || "default"}-${index}`}
+                onClick={() => {
+                  onSelectDevice(device.deviceId);
+                  setMenuOpen(false);
+                }}
+                role="option"
+                type="button"
+              >
+                <span className="truncate">{device.label}</span>
+              </button>
+            ))}
+          </div>,
+          document.body
+        )
+      : null;
 
   return (
-    <div
-      className={cn(
-        "group inline-flex overflow-hidden rounded-md border border-border bg-background text-foreground transition",
-        !disabled && "hover:bg-muted",
-        disabled && "opacity-50",
-        className
-      )}
-    >
-      <button
-        aria-label={toggleLabel}
-        className={cn(
-          "inline-flex items-center justify-center gap-2 transition group-hover:bg-muted disabled:cursor-not-allowed disabled:group-hover:bg-background",
-          controlClassName
-        )}
-        disabled={disabled}
-        onClick={onToggle}
-        title={title ?? toggleLabel}
-        type="button"
-      >
-        {isEnabled ? activeIcon : inactiveIcon}
-        {isCompact ? null : (
-          <span className="text-sm font-medium">{label}</span>
-        )}
-      </button>
+    <>
       <div
         className={cn(
-          "relative grid w-8 self-stretch place-items-center border-l border-border text-muted-foreground transition",
-          !disabled && "group-hover:bg-muted",
-          disabled && "group-hover:bg-background"
+          "group inline-flex h-11 shrink-0 overflow-hidden rounded-md border border-border bg-background text-foreground transition max-[430px]:w-11 max-[430px]:flex-col",
+          !disabled && "hover:bg-muted",
+          disabled && "opacity-50",
+          !isCompact &&
+            "h-10 max-[430px]:h-10 max-[430px]:w-auto max-[430px]:flex-row",
+          className
         )}
       >
-        <select
-          aria-label={selectLabel}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
-          disabled={disabled || devices.length === 0}
-          onChange={(event) => onSelectDevice(event.target.value)}
-          title={selectLabel}
-          value={selectedDeviceId}
+        <button
+          aria-label={toggleLabel}
+          className={cn(
+            "inline-flex items-center justify-center gap-2 transition group-hover:bg-muted disabled:cursor-not-allowed disabled:group-hover:bg-background",
+            controlClassName
+          )}
+          disabled={disabled}
+          onClick={onToggle}
+          title={title ?? toggleLabel}
+          type="button"
         >
-          <option value="">{defaultDeviceLabel}</option>
-          {devices.map((device) => (
-            <option key={device.deviceId} value={device.deviceId}>
-              {device.label || label}
-            </option>
-          ))}
-        </select>
-        <ChevronDown className="size-4" aria-hidden="true" />
+          {isEnabled ? activeIcon : inactiveIcon}
+          {isCompact ? null : (
+            <span className="text-sm font-medium">{label}</span>
+          )}
+        </button>
+        <div
+          className={cn(
+            selectorClassName,
+            !disabled && "group-hover:bg-muted",
+            disabled && "group-hover:bg-background"
+          )}
+        >
+          <button
+            aria-expanded={menuOpen}
+            aria-haspopup="listbox"
+            aria-label={selectLabel}
+            className="grid h-full w-full place-items-center disabled:cursor-not-allowed"
+            disabled={!canSelectDevice}
+            onClick={() => setMenuOpen((open) => !open)}
+            ref={selectorButtonRef}
+            title={selectLabel}
+            type="button"
+          >
+            <ChevronDown
+              className="size-4 max-[430px]:size-3.5 max-[430px]:rotate-180"
+              aria-hidden="true"
+            />
+          </button>
+        </div>
       </div>
-    </div>
+      {deviceMenu}
+    </>
   );
 }

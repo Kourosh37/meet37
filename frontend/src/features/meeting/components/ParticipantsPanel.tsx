@@ -9,6 +9,7 @@ import type {
   AdminPermissions,
   PeerPermissions
 } from "@/features/meeting/types/signaling";
+import { cn } from "@/lib/utils/cn";
 
 const defaultPeerPermissions: PeerPermissions = {
   can_chat: true,
@@ -39,6 +40,7 @@ const allAdminPermissions: AdminPermissions = {
 };
 
 interface ParticipantsPanelProps {
+  className?: string;
   canModerate: boolean;
   canAssignAdmin?: boolean;
   canKick?: boolean;
@@ -64,6 +66,7 @@ interface ParticipantsPanelProps {
 }
 
 export function ParticipantsPanel({
+  className,
   canModerate,
   canAssignAdmin = false,
   canKick = false,
@@ -128,7 +131,12 @@ export function ParticipantsPanel({
   }
 
   return (
-    <aside className="flex h-auto min-h-0 flex-col rounded-lg border border-border bg-surface p-4 shadow-sm lg:h-full">
+    <aside
+      className={cn(
+        "flex h-auto min-h-0 flex-col rounded-lg border border-border bg-surface p-4 shadow-sm lg:h-full",
+        className
+      )}
+    >
       <div>
         <h2 className="text-sm font-semibold text-surface-foreground">
           Participants
@@ -218,7 +226,17 @@ export function ParticipantsPanel({
 
       <button
         className="mt-4 inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted lg:hidden"
-        onClick={onGoToTop}
+        onClick={(event) => {
+          event.currentTarget.blur();
+          onGoToTop?.();
+        }}
+        onMouseDown={(event) => {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }}
+        onTouchStart={(event) => {
+          event.currentTarget.blur();
+        }}
         type="button"
       >
         Back to top

@@ -64,8 +64,8 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
     <aside
       className={
         isOpen
-          ? "meet-chat-panel-open fixed inset-y-0 right-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl"
-          : "meet-chat-panel-close fixed inset-y-0 right-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl"
+          ? "meet-chat-panel-open fixed bottom-[4.25rem] right-0 top-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
+          : "meet-chat-panel-close fixed bottom-[4.25rem] right-0 top-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
       }
     >
       <div className="flex items-center justify-between border-b border-border p-4">

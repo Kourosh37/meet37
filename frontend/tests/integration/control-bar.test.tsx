@@ -40,6 +40,27 @@ describe("ControlBar", () => {
     expect(onToggleScreenShare).toHaveBeenCalledTimes(1);
   });
 
+  it("opens device selection from the microphone arrow", () => {
+    const onSelectAudioDevice = vi.fn();
+    renderControlBar({
+      audioInputs: [
+        {
+          deviceId: "mic-1",
+          groupId: "group-1",
+          kind: "audioinput",
+          label: "External mic",
+          toJSON: () => ({})
+        } as MediaDeviceInfo
+      ],
+      onSelectAudioDevice
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Select microphone" }));
+    fireEvent.click(screen.getByRole("option", { name: "External mic" }));
+
+    expect(onSelectAudioDevice).toHaveBeenCalledWith("mic-1");
+  });
+
   it("opens the reaction picker and sends the selected emoji", () => {
     const onReaction = vi.fn();
     renderControlBar({ onReaction });

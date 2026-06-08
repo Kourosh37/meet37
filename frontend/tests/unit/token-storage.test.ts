@@ -9,7 +9,7 @@ import {
   sessionFromAuthResponse
 } from "@/lib/storage/tokenStorage";
 import type { AuthResponse } from "@/types/api";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 const authResponse: AuthResponse = {
   access_token: "access",
@@ -23,10 +23,30 @@ const authResponse: AuthResponse = {
   username: "admin"
 };
 
+function createStorageMock() {
+  const values = new Map<string, string>();
+
+  return {
+    clear: () => values.clear(),
+    getItem: (key: string) => values.get(key) ?? null,
+    removeItem: (key: string) => values.delete(key),
+    setItem: (key: string, value: string) => values.set(key, value)
+  };
+}
+
+beforeEach(() => {
+  Object.defineProperty(window, "localStorage", {
+    configurable: true,
+    value: createStorageMock()
+  });
+});
+
 afterEach(() => {
   clearAuthSession();
   clearHostToken("room-1");
+  clearHostToken("room-2");
   window.sessionStorage.clear();
+  window.localStorage.clear();
 });
 
 describe("tokenStorage", () => {
@@ -59,5 +79,14 @@ describe("tokenStorage", () => {
     expect(getHostToken("room-1")).toBe("host-token");
     clearHostToken("room-1");
     expect(getHostToken("room-1")).toBeNull();
+  });
+
+  it("restores host tokens from localStorage after sessionStorage is cleared", () => {
+    window.localStorage.setItem("meet_host_token:room-2", "local-host-token");
+
+    expect(getHostToken("room-2")).toBe("local-host-token");
+    expect(window.sessionStorage.getItem("meet_host_token:room-2")).toBe(
+      "local-host-token"
+    );
   });
 });

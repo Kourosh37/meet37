@@ -23,6 +23,16 @@ function canUseSessionStorage() {
   );
 }
 
+function canUseLocalStorage() {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.localStorage !== "undefined" &&
+    typeof window.localStorage.getItem === "function" &&
+    typeof window.localStorage.setItem === "function" &&
+    typeof window.localStorage.removeItem === "function"
+  );
+}
+
 export function sessionFromAuthResponse(
   response: AuthResponse
 ): StoredAuthSession {
@@ -91,6 +101,9 @@ export function saveHostToken(roomId: string, hostToken: string) {
   if (canUseSessionStorage()) {
     window.sessionStorage.setItem(`${HOST_TOKEN_PREFIX}${roomId}`, hostToken);
   }
+  if (canUseLocalStorage()) {
+    window.localStorage.setItem(`${HOST_TOKEN_PREFIX}${roomId}`, hostToken);
+  }
 }
 
 export function getHostToken(roomId: string) {
@@ -101,7 +114,19 @@ export function getHostToken(roomId: string) {
   }
 
   if (!canUseSessionStorage()) {
-    return null;
+    if (!canUseLocalStorage()) {
+      return null;
+    }
+
+    const localToken = window.localStorage.getItem(
+      `${HOST_TOKEN_PREFIX}${roomId}`
+    );
+
+    if (localToken) {
+      memoryHostTokens.set(roomId, localToken);
+    }
+
+    return localToken;
   }
 
   const storedToken = window.sessionStorage.getItem(
@@ -112,7 +137,24 @@ export function getHostToken(roomId: string) {
     memoryHostTokens.set(roomId, storedToken);
   }
 
-  return storedToken;
+  if (storedToken) {
+    return storedToken;
+  }
+
+  if (!canUseLocalStorage()) {
+    return null;
+  }
+
+  const localToken = window.localStorage.getItem(
+    `${HOST_TOKEN_PREFIX}${roomId}`
+  );
+
+  if (localToken) {
+    memoryHostTokens.set(roomId, localToken);
+    window.sessionStorage.setItem(`${HOST_TOKEN_PREFIX}${roomId}`, localToken);
+  }
+
+  return localToken;
 }
 
 export function clearHostToken(roomId: string) {
@@ -120,5 +162,8 @@ export function clearHostToken(roomId: string) {
 
   if (canUseSessionStorage()) {
     window.sessionStorage.removeItem(`${HOST_TOKEN_PREFIX}${roomId}`);
+  }
+  if (canUseLocalStorage()) {
+    window.localStorage.removeItem(`${HOST_TOKEN_PREFIX}${roomId}`);
   }
 }

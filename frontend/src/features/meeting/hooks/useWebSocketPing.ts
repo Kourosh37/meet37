@@ -33,7 +33,7 @@ export function useWebSocketPing(isConnected: boolean) {
       sendPing();
       timeout = window.setTimeout(
         schedulePing,
-        latestPing === null ? 1000 : 5000
+        latestPing === null ? 1000 : 2500
       );
     };
 

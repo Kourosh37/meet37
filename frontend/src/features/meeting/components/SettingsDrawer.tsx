@@ -156,8 +156,8 @@ export function SettingsDrawer({
     <aside
       className={
         isOpen
-          ? "meet-settings-drawer-open fixed inset-y-0 right-0 z-40 flex w-[min(380px,100vw)] flex-col border-l border-border bg-surface shadow-xl"
-          : "meet-settings-drawer-close fixed inset-y-0 right-0 z-40 flex w-[min(380px,100vw)] flex-col border-l border-border bg-surface shadow-xl"
+          ? "meet-settings-drawer-open fixed bottom-[4.25rem] right-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-l border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
+          : "meet-settings-drawer-close fixed bottom-[4.25rem] right-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-l border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
       }
     >
       <div className="flex shrink-0 items-center justify-between border-b border-border p-4">

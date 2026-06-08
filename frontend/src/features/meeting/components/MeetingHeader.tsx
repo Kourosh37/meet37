@@ -24,22 +24,6 @@ function statusBadgeClass(isConnected: boolean) {
     : "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300";
 }
 
-function pingBadgeClass(pingMs?: number | null) {
-  if (pingMs === null || pingMs === undefined) {
-    return "border-border bg-background text-muted-foreground";
-  }
-
-  if (pingMs <= 120) {
-    return "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
-  }
-
-  if (pingMs <= 250) {
-    return "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300";
-  }
-
-  return "border-danger/35 bg-danger/10 text-danger";
-}
-
 export function MeetingHeader({
   connectionQuality,
   isConnected = false,
@@ -105,24 +89,12 @@ export function MeetingHeader({
         </span>
       ) : null}
 
-      {connectionQuality ? (
+      {connectionQuality || isConnected ? (
         <ConnectionQualityIndicator
           isConnected={isConnected}
-          quality={connectionQuality}
+          pingMs={pingMs}
+          quality={connectionQuality ?? "unknown"}
         />
-      ) : null}
-
-      {isConnected ? (
-        <span
-          className={cn(
-            "inline-flex h-10 shrink-0 items-center rounded-md border px-2.5 text-xs font-semibold",
-            pingBadgeClass(pingMs)
-          )}
-        >
-          {pingMs === null || pingMs === undefined
-            ? "Measuring..."
-            : `${pingMs} ms`}
-        </span>
       ) : null}
 
       <div className="ml-auto flex shrink-0 items-center gap-2 text-sm text-muted-foreground">

@@ -183,10 +183,17 @@ describe("meetingUiStore", () => {
 
     useMeetingUiStore.getState().openPanel("settings");
     expect(useMeetingUiStore.getState().settingsOpen).toBe(true);
+    expect(useMeetingUiStore.getState().chatOpen).toBe(false);
     expect(useMeetingUiStore.getState().activePanel).toBe("settings");
 
-    useMeetingUiStore.getState().closePanel("settings");
+    useMeetingUiStore.getState().openPanel("chat");
+    expect(useMeetingUiStore.getState().chatOpen).toBe(true);
     expect(useMeetingUiStore.getState().settingsOpen).toBe(false);
+    expect(useMeetingUiStore.getState().participantsOpen).toBe(true);
+    expect(useMeetingUiStore.getState().activePanel).toBe("chat");
+
+    useMeetingUiStore.getState().closePanel("chat");
+    expect(useMeetingUiStore.getState().chatOpen).toBe(false);
     expect(useMeetingUiStore.getState().activePanel).toBeNull();
   });
 });

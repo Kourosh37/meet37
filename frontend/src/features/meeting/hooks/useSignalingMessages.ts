@@ -87,7 +87,8 @@ export function useSignalingMessages() {
 
         if (
           currentState.phase === "joining" ||
-          currentState.phase === "waiting-approval"
+          currentState.phase === "waiting-approval" ||
+          currentState.phase === "reconnecting"
         ) {
           webSocketManager.close();
           currentState.failJoin(message.payload.message);

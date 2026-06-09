@@ -187,6 +187,73 @@ func TestHandleJoinPromotesFirstPeerInReusableRoomToHost(t *testing.T) {
 	}
 }
 
+func TestHandleJoinKeepsPromotedHostByClientIDAcrossReconnect(t *testing.T) {
+	hub, database := testHub(t)
+	roomID := "room-1"
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		roomID, "Room", "previous-host", "open", 50, time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("insert room: %v", err)
+	}
+
+	host := &Peer{id: "host-1", mode: "sfu", send: make(chan []byte, 8), hub: hub}
+	hub.handleMessage(host, []byte(`{"type":"join","payload":{"room_id":"room-1","display_name":"Alice","client_id":"client-host-1"}}`))
+	select {
+	case raw := <-host.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode host join signal: %v", err)
+		}
+		if msg.Type != "joined" || !host.isHost {
+			t.Fatalf("expected promoted host join, got %q host=%v", msg.Type, host.isHost)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for host joined signal")
+	}
+
+	guest := &Peer{id: "guest-1", mode: "sfu", send: make(chan []byte, 8), hub: hub}
+	hub.handleMessage(guest, []byte(`{"type":"join","payload":{"room_id":"room-1","display_name":"Bob","client_id":"client-guest-1"}}`))
+	select {
+	case raw := <-guest.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode guest join signal: %v", err)
+		}
+		if msg.Type != "joined" {
+			t.Fatalf("expected guest joined signal, got %q", msg.Type)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for guest joined signal")
+	}
+
+	hub.removePeer(host)
+
+	rejoinedHost := &Peer{id: "host-2", mode: "sfu", send: make(chan []byte, 8), hub: hub}
+	hub.handleMessage(rejoinedHost, []byte(`{"type":"join","payload":{"room_id":"room-1","display_name":"Renamed Alice","client_id":"client-host-1"}}`))
+
+	select {
+	case raw := <-rejoinedHost.send:
+		var msg models.SignalMessage
+		if err := json.Unmarshal(raw, &msg); err != nil {
+			t.Fatalf("decode rejoined host signal: %v", err)
+		}
+		if msg.Type != "joined" {
+			t.Fatalf("expected rejoined host joined signal, got %q", msg.Type)
+		}
+		payload, ok := msg.Payload.(map[string]interface{})
+		if !ok {
+			t.Fatalf("unexpected payload type: %#v", msg.Payload)
+		}
+		if payload["is_host"] != true || !rejoinedHost.isHost {
+			t.Fatalf("expected rejoined browser to stay host, got payload %#v host=%v", payload, rejoinedHost.isHost)
+		}
+	case <-time.After(time.Second):
+		t.Fatalf("timed out waiting for rejoined host signal")
+	}
+}
+
 func TestHandleJoinRejectsBannedConnectionAfterDisplayNameChange(t *testing.T) {
 	hub, database := testHub(t)
 	roomID := "room-1"

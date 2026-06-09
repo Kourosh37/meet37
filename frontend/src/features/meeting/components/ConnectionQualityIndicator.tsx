@@ -2,50 +2,46 @@
 
 import type { ConnectionQuality } from "@/features/meeting/types/peer";
 import { cn } from "@/lib/utils/cn";
+import { Wifi, WifiOff } from "lucide-react";
 
 interface ConnectionQualityIndicatorProps {
   isConnected: boolean;
   pingMs?: number | null;
   quality: ConnectionQuality;
+  statusLabel?: string;
 }
 
 const qualityConfig: Record<
   ConnectionQuality,
   {
-    bars: number;
     label: string;
     shell: string;
     text: string;
-    tone: string;
   }
 > = {
   good: {
-    bars: 4,
     label: "Good connection",
-    shell: "border-emerald-500/30 bg-emerald-500/10",
-    text: "text-emerald-700 dark:text-emerald-300",
-    tone: "bg-emerald-500"
+    shell:
+      "border-emerald-300/70 bg-emerald-50 text-emerald-800 dark:border-emerald-700/70 dark:bg-emerald-950/80 dark:text-emerald-200",
+    text: "text-emerald-700 dark:text-emerald-200"
   },
   poor: {
-    bars: 1,
     label: "Poor connection",
-    shell: "border-danger/35 bg-danger/10",
-    text: "text-danger",
-    tone: "bg-danger"
+    shell:
+      "border-rose-300/70 bg-rose-50 text-rose-800 dark:border-rose-700/70 dark:bg-rose-950/80 dark:text-rose-200",
+    text: "text-rose-700 dark:text-rose-200"
   },
   unknown: {
-    bars: 2,
     label: "Connection quality pending",
-    shell: "border-border bg-background",
-    text: "text-muted-foreground",
-    tone: "bg-muted-foreground"
+    shell:
+      "border-slate-300/80 bg-slate-50 text-slate-700 dark:border-slate-700/80 dark:bg-slate-950/80 dark:text-slate-200",
+    text: "text-slate-600 dark:text-slate-200"
   },
   warning: {
-    bars: 3,
     label: "Unstable connection",
-    shell: "border-amber-500/35 bg-amber-500/10",
-    text: "text-amber-700 dark:text-amber-300",
-    tone: "bg-amber-500"
+    shell:
+      "border-amber-300/80 bg-amber-50 text-amber-800 dark:border-amber-700/70 dark:bg-amber-950/80 dark:text-amber-200",
+    text: "text-amber-700 dark:text-amber-200"
   }
 };
 
@@ -68,48 +64,50 @@ function qualityFromPing(pingMs?: number | null): ConnectionQuality {
 export function ConnectionQualityIndicator({
   isConnected,
   pingMs,
-  quality
+  quality,
+  statusLabel
 }: ConnectionQualityIndicatorProps) {
-  const effectiveQuality = isConnected
+  const normalizedStatus = statusLabel?.toLowerCase() ?? "";
+  const isRecovering =
+    normalizedStatus.includes("reconnect") ||
+    normalizedStatus.includes("connecting");
+  const effectiveQuality: ConnectionQuality = isConnected
     ? quality === "unknown"
       ? qualityFromPing(pingMs)
       : quality
-    : "poor";
+    : isRecovering
+      ? "warning"
+      : normalizedStatus.includes("ready")
+        ? "unknown"
+        : "poor";
   const config = qualityConfig[effectiveQuality];
   const pingLabel =
     pingMs === null || pingMs === undefined ? "--" : String(pingMs);
-  const title = isConnected
-    ? `${config.label}${pingMs === null || pingMs === undefined ? "" : `, ${pingMs} ms`}`
-    : "Disconnected";
+  const title = `${statusLabel ?? (isConnected ? config.label : "Disconnected")}${pingMs === null || pingMs === undefined ? "" : `, ${pingMs} ms`}`;
+  const Icon = isConnected || isRecovering ? Wifi : WifiOff;
 
   return (
     <div
       aria-label={title}
       className={cn(
-        "inline-flex h-10 shrink-0 items-center gap-2 rounded-md border px-2 shadow-sm backdrop-blur",
-        config.shell,
-        config.text
+        "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-1.5 shadow-sm backdrop-blur",
+        config.shell
       )}
       role="img"
       title={title}
     >
-      <span className="grid size-6 place-items-end rounded-full bg-background/70 px-1 pb-1 shadow-inner">
-        <span className="flex h-4 items-end gap-0.5">
-          {[1, 2, 3, 4].map((bar) => (
-            <span
-              className={cn(
-                "w-0.5 rounded-full bg-muted transition-colors",
-                bar <= config.bars && config.tone
-              )}
-              key={bar}
-              style={{ height: `${bar * 3 + 2}px` }}
-            />
-          ))}
-        </span>
+      <span className="grid size-5 place-items-center rounded-full bg-white/75 shadow-inner dark:bg-slate-950/55">
+        <Icon className={cn("size-3.5", config.text)} strokeWidth={2.4} />
       </span>
-      <span className="inline-flex min-w-11 items-baseline leading-none">
-        <span className="text-xs font-bold tabular-nums">{pingLabel}</span>
-        <span className="ml-0.5 text-[8px] font-semibold uppercase tracking-wide opacity-75">
+      {statusLabel ? (
+        <span className="hidden max-w-20 truncate text-[10px] font-bold leading-none tracking-normal sm:inline">
+          {statusLabel}
+        </span>
+      ) : null}
+      <span className="h-3.5 w-px bg-current/20" />
+      <span className="inline-flex min-w-9 items-baseline leading-none">
+        <span className="text-[11px] font-bold tabular-nums">{pingLabel}</span>
+        <span className="ml-0.5 text-[7px] font-bold uppercase tracking-normal opacity-70">
           ms
         </span>
       </span>

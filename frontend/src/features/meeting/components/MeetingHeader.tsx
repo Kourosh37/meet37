@@ -4,7 +4,6 @@ import { BrandMark } from "@/components/layout/BrandMark";
 import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { ConnectionQualityIndicator } from "@/features/meeting/components/ConnectionQualityIndicator";
 import type { ConnectionQuality } from "@/features/meeting/types/peer";
-import { cn } from "@/lib/utils/cn";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
 
@@ -16,12 +15,6 @@ interface MeetingHeaderProps {
   roomId?: string;
   roomName?: string;
   statusLabel?: string;
-}
-
-function statusBadgeClass(isConnected: boolean) {
-  return isConnected
-    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
-    : "border-amber-500/35 bg-amber-500/10 text-amber-700 dark:text-amber-300";
 }
 
 export function MeetingHeader({
@@ -78,22 +71,12 @@ export function MeetingHeader({
         ) : null}
       </div>
 
-      {statusLabel ? (
-        <span
-          className={cn(
-            "hidden h-10 shrink-0 items-center rounded-md border px-2.5 text-xs font-semibold uppercase tracking-wide sm:inline-flex",
-            statusBadgeClass(isConnected)
-          )}
-        >
-          {statusLabel}
-        </span>
-      ) : null}
-
-      {connectionQuality || isConnected ? (
+      {connectionQuality || isConnected || statusLabel ? (
         <ConnectionQualityIndicator
           isConnected={isConnected}
           pingMs={pingMs}
           quality={connectionQuality ?? "unknown"}
+          statusLabel={statusLabel}
         />
       ) : null}
 

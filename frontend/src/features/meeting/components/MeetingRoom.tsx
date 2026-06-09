@@ -75,7 +75,10 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     [meeting.peers]
   );
   const sfu = useSFUConnection(localMedia.stream, {
-    enabled: meeting.phase === "in-call" && Boolean(meeting.localPeerId),
+    enabled:
+      meeting.phase === "in-call" &&
+      websocket.status === "open" &&
+      Boolean(meeting.localPeerId),
     turnServers: meeting.turnServers ?? []
   });
   const localPermissions = meeting.localPermissions;
@@ -570,7 +573,11 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         roomId={meeting.roomId ?? undefined}
         roomName={roomName}
         statusLabel={
-          websocket.status === "open" ? "Connected" : websocket.status
+          meeting.phase === "reconnecting"
+            ? "Rejoining"
+            : websocket.status === "open"
+              ? "Connected"
+              : websocket.status
         }
       />
 

@@ -191,6 +191,7 @@ type Room struct {
 	id                 string
 	peers              map[string]*Peer
 	pending            map[string]*Peer
+	hostClientID       string
 	sfuSession         *sfu.Session
 	permissions        map[string]models.PeerPermissions
 	adminPermissions   map[string]models.AdminPermissions
@@ -805,7 +806,6 @@ func labelForBanIdentity(identity string) string {
 
 func (h *Hub) handleSFUOffer(p *Peer, msg models.SignalMessage) {
 	if p.roomID == "" {
-		p.sendMsg(errMsg("join a room before using sfu"))
 		return
 	}
 	var req struct {
@@ -899,8 +899,17 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 
 	room := h.getOrCreateRoom(req.RoomID)
 	room.mu.Lock()
+	if p.isHost && p.clientID != "" {
+		room.hostClientID = p.clientID
+	}
+	if !p.isHost && p.clientID != "" && room.hostClientID == p.clientID {
+		p.isHost = true
+	}
 	if !p.isHost && len(room.peers) == 0 && len(room.pending) == 0 {
 		p.isHost = true
+		if p.clientID != "" {
+			room.hostClientID = p.clientID
+		}
 	}
 	identity := identityKey(p.userID, req.DisplayName)
 	for _, banIdentity := range banIdentities(p.userID, req.DisplayName, p.clientID, p.remoteIP, p.userAgent) {

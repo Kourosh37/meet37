@@ -140,7 +140,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     );
   }
 
-  if (meeting.phase === "in-call") {
+  if (meeting.phase === "in-call" || meeting.phase === "reconnecting") {
     return (
       <MeetingRoom
         displayName={

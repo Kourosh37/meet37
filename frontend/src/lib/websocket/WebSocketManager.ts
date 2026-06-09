@@ -11,7 +11,12 @@ import {
   type SignalMessageHandler
 } from "@/lib/websocket/messageRouter";
 
-type ConnectionStatus = "closed" | "connecting" | "open" | "reconnecting";
+export type ConnectionStatus =
+  | "closed"
+  | "connecting"
+  | "open"
+  | "reconnecting";
+type ConnectionIDHandler = (connectionId: number) => void;
 type StatusHandler = (status: ConnectionStatus) => void;
 
 const wsLogger = createLogger("websocket");
@@ -19,11 +24,13 @@ const wsLogger = createLogger("websocket");
 export class WebSocketManager {
   private manuallyClosed = false;
   private queue: OutgoingSignalMessage[] = [];
+  private connectionId = 0;
   private reconnectAttempt = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private socket: WebSocket | null = null;
   private status: ConnectionStatus = "closed";
   private readonly router = new MessageRouter();
+  private readonly connectionIdHandlers = new Set<ConnectionIDHandler>();
   private readonly statusHandlers = new Set<StatusHandler>();
 
   connect() {
@@ -52,6 +59,10 @@ export class WebSocketManager {
 
     this.socket = new WebSocket(url.toString());
     this.socket.onopen = () => {
+      this.connectionId += 1;
+      this.connectionIdHandlers.forEach((handler) =>
+        handler(this.connectionId)
+      );
       this.reconnectAttempt = 0;
       this.setStatus("open");
       this.flushQueue();
@@ -71,6 +82,7 @@ export class WebSocketManager {
       this.setStatus("closed");
 
       if (!this.manuallyClosed) {
+        this.queue = [];
         this.scheduleReconnect();
       }
     };
@@ -118,6 +130,15 @@ export class WebSocketManager {
 
     return () => {
       this.statusHandlers.delete(handler);
+    };
+  }
+
+  subscribeConnectionId(handler: ConnectionIDHandler) {
+    this.connectionIdHandlers.add(handler);
+    handler(this.connectionId);
+
+    return () => {
+      this.connectionIdHandlers.delete(handler);
     };
   }
 

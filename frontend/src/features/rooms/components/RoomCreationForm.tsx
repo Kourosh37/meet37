@@ -16,11 +16,13 @@ import {
   type RoomCreationFormValues
 } from "@/lib/utils/validators";
 import { useCreateRoom } from "@/features/rooms/hooks/useCreateRoom";
+import { useLocale } from "@/providers/LocaleProvider";
 
 export function RoomCreationForm() {
   const router = useRouter();
   const createRoom = useCreateRoom();
   const { hydrate, hydrated, isAuthenticated } = useAuth();
+  const { t } = useLocale();
   const settings = usePublicSettings();
   const {
     formState: { errors },
@@ -46,7 +48,7 @@ export function RoomCreationForm() {
     try {
       const latestSettings = await settings.refetch();
       if (latestSettings.data?.app_mode === "private" && !isAuthenticated) {
-        toast.error("Login is required to create rooms in private mode");
+        toast.error(t("error.loginRequiredPrivateMode"));
         router.push("/login");
         return;
       }
@@ -57,18 +59,16 @@ export function RoomCreationForm() {
         room_id: values.room_id || undefined
       });
 
-      toast.success("Room created");
+      toast.success(t("room.roomCreated"));
       router.push(`/meet/${response.room.id}`);
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 403) {
-        toast.error("Login is required to create rooms in private mode");
+        toast.error(t("error.loginRequiredPrivateMode"));
         router.push("/login");
         return;
       }
 
-      toast.error(
-        error instanceof Error ? error.message : "Could not create room"
-      );
+      toast.error(t("error.couldNotCreateRoom"));
     }
   }
 
@@ -76,17 +76,16 @@ export function RoomCreationForm() {
     return (
       <div className="rounded-lg border border-border bg-background p-5">
         <h2 className="text-lg font-semibold text-foreground">
-          Login required
+          {t("room.loginRequired")}
         </h2>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          Room creation is private right now. Sign in with an admin-created
-          account to create a meeting.
+          {t("room.loginRequiredBody")}
         </p>
         <Link
           className="mt-5 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
           href="/login"
         >
-          Login
+          {t("auth.login")}
         </Link>
       </div>
     );
@@ -99,7 +98,7 @@ export function RoomCreationForm() {
           className="text-sm font-medium text-surface-foreground"
           htmlFor="room-name"
         >
-          Room name
+          {t("room.roomName")}
         </label>
         <input
           className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
@@ -116,15 +115,15 @@ export function RoomCreationForm() {
             className="text-sm font-medium text-surface-foreground"
             htmlFor="join-policy"
           >
-            Join policy
+            {t("room.joinPolicy")}
           </label>
           <select
             className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
             id="join-policy"
             {...register("join_policy")}
           >
-            <option value="open">Open</option>
-            <option value="approval">Host approval</option>
+            <option value="open">{t("common.open")}</option>
+            <option value="approval">{t("meeting.hostApproval")}</option>
           </select>
         </div>
 
@@ -133,7 +132,7 @@ export function RoomCreationForm() {
             className="text-sm font-medium text-surface-foreground"
             htmlFor="max-peers"
           >
-            Maximum peers
+            {t("room.maximumPeers")}
           </label>
           <input
             className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
@@ -152,7 +151,7 @@ export function RoomCreationForm() {
           className="text-sm font-medium text-surface-foreground"
           htmlFor="password"
         >
-          Optional password
+          {t("room.optionalPassword")}
         </label>
         <input
           className="h-11 w-full rounded-md border border-border bg-background px-3 text-sm text-foreground"
@@ -171,9 +170,9 @@ export function RoomCreationForm() {
         type="submit"
       >
         {createRoom.isPending || settings.isLoading ? (
-          <LoadingSpinner label="Creating room" size="sm" />
+          <LoadingSpinner label={t("room.creatingRoom")} size="sm" />
         ) : null}
-        {createRoom.isPending ? "Creating..." : "Create room"}
+        {createRoom.isPending ? t("common.creating") : t("room.createRoom")}
       </button>
     </form>
   );

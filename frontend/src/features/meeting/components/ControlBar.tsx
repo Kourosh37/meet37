@@ -16,6 +16,7 @@ import {
 import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { DeviceSplitControl } from "@/features/meeting/components/DeviceSplitControl";
+import { useLocale } from "@/providers/LocaleProvider";
 
 const REACTION_EMOJIS = [
   "\u{1F44D}",
@@ -80,14 +81,15 @@ export function ControlBar({
   videoEnabled,
   videoInputs = []
 }: ControlBarProps) {
+  const { t } = useLocale();
   const [mounted, setMounted] = useState(false);
   const [reactionMenuOpen, setReactionMenuOpen] = useState(false);
   const screenShareTitle = screenSharing
-    ? "Stop screen sharing"
+    ? t("meeting.stopScreenSharing")
     : !canShareScreen
-      ? "Screen sharing is disabled by meeting permissions"
+      ? t("meeting.screenSharePermissionDisabled")
       : screenShareSupported
-        ? "Share screen"
+        ? t("meeting.shareScreen")
         : screenShareUnavailableReason;
 
   useEffect(() => {
@@ -106,7 +108,7 @@ export function ControlBar({
           <div className="meet-emoji-picker fixed bottom-[4.75rem] left-1/2 z-[9999] flex w-[min(24rem,calc(100vw-1rem))] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-lg border border-border bg-surface p-2 shadow-2xl sm:bottom-[5.5rem] sm:w-auto">
             {REACTION_EMOJIS.map((emoji, index) => (
               <button
-                aria-label={`Send ${emoji} reaction`}
+                aria-label={t("meeting.sendEmojiReaction", { emoji })}
                 className="meet-emoji-button grid size-10 place-items-center rounded-md text-2xl transition hover:bg-muted"
                 key={emoji}
                 onClick={() => {
@@ -129,48 +131,58 @@ export function ControlBar({
       <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-center gap-2 overflow-x-auto border-x border-t border-border bg-surface px-3 py-3 shadow-[0_-14px_36px_rgb(15_23_42/0.12)] backdrop-blur sm:px-6 sm:py-4">
         <DeviceSplitControl
           activeIcon={<Mic className="size-5" />}
-          defaultDeviceLabel="Default microphone"
+          defaultDeviceLabel={t("meeting.defaultMicrophone")}
           devices={audioInputs}
           disabled={!audioEnabled && !canUseMic}
           inactiveIcon={<MicOff className="size-5" />}
           isEnabled={audioEnabled}
-          label="Microphone"
+          label={t("meeting.microphone")}
           onSelectDevice={onSelectAudioDevice ?? (() => undefined)}
           onToggle={onToggleAudio}
-          selectLabel="Select microphone"
+          selectLabel={t("meeting.selectMicrophone")}
           selectedDeviceId={selectedAudioDeviceId}
           title={
             audioEnabled
-              ? "Mute microphone"
+              ? t("meeting.muteMicrophone")
               : canUseMic
-                ? "Unmute microphone"
-                : "Microphone is disabled by meeting permissions"
+                ? t("meeting.unmuteMicrophone")
+                : t("meeting.microphonePermissionTitle")
           }
-          toggleLabel={audioEnabled ? "Mute microphone" : "Unmute microphone"}
+          toggleLabel={
+            audioEnabled
+              ? t("meeting.muteMicrophone")
+              : t("meeting.unmuteMicrophone")
+          }
         />
         <DeviceSplitControl
           activeIcon={<Camera className="size-5" />}
-          defaultDeviceLabel="Default camera"
+          defaultDeviceLabel={t("meeting.defaultCamera")}
           devices={videoInputs}
           disabled={!videoEnabled && !canUseCamera}
           inactiveIcon={<CameraOff className="size-5" />}
           isEnabled={videoEnabled}
-          label="Camera"
+          label={t("meeting.camera")}
           onSelectDevice={onSelectVideoDevice ?? (() => undefined)}
           onToggle={onToggleVideo}
-          selectLabel="Select camera"
+          selectLabel={t("meeting.selectCamera")}
           selectedDeviceId={selectedVideoDeviceId}
           title={
             videoEnabled
-              ? "Turn camera off"
+              ? t("meeting.turnCameraOff")
               : canUseCamera
-                ? "Turn camera on"
-                : "Camera is disabled by meeting permissions"
+                ? t("meeting.turnCameraOn")
+                : t("meeting.cameraPermissionTitle")
           }
-          toggleLabel={videoEnabled ? "Turn camera off" : "Turn camera on"}
+          toggleLabel={
+            videoEnabled ? t("meeting.turnCameraOff") : t("meeting.turnCameraOn")
+          }
         />
         <button
-          aria-label={screenSharing ? "Stop screen sharing" : "Share screen"}
+          aria-label={
+            screenSharing
+              ? t("meeting.stopScreenSharing")
+              : t("meeting.shareScreen")
+          }
           className={
             screenSharing
               ? "grid size-11 place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90"
@@ -185,61 +197,61 @@ export function ControlBar({
         </button>
       
         <button
-          aria-label="Copy invite link"
+          aria-label={t("meeting.copyInvite")}
           className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-foreground transition hover:bg-muted"
           onClick={onCopyInvite}
-          title="Copy invite link"
+          title={t("meeting.copyInvite")}
           type="button"
         >
           <span className="relative grid size-5 place-items-center">
             <Link2 className="size-5" />
-            <Copy className="absolute -bottom-1 -right-1 size-3.5 rounded-sm bg-background" />
+            <Copy className="absolute -bottom-1 -end-1 size-3.5 rounded-sm bg-background" />
           </span>
           <span className="hidden whitespace-nowrap text-sm font-semibold sm:inline">
-            Copy link
+            {t("meeting.copyInvite")}
           </span>
         </button>
         <button
           aria-expanded={reactionMenuOpen}
-          aria-label="Send reaction"
+          aria-label={t("meeting.sendReaction")}
           className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
           disabled={!canReact}
           onClick={() => setReactionMenuOpen((open) => !open)}
           title={
             canReact
-              ? "Send reaction"
-              : "Reactions are disabled by meeting permissions"
+              ? t("meeting.sendReaction")
+              : t("meeting.reactionsPermissionTitle")
           }
           type="button"
         >
           <SmilePlus className="size-5" />
         </button>
         <button
-          aria-label="Open chat"
+          aria-label={t("meeting.openChat")}
           className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
           disabled={!canChat}
           onClick={onToggleChat}
           title={
-            canChat ? "Open chat" : "Chat is disabled by meeting permissions"
+            canChat ? t("meeting.openChat") : t("meeting.chat")
           }
           type="button"
         >
           <MessageSquare className="size-5" />
         </button>
         <button
-          aria-label="Toggle settings"
+          aria-label={t("meeting.toggleSettings")}
           className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
           onClick={onOpenSettings}
-          title="Toggle settings"
+          title={t("meeting.toggleSettings")}
           type="button"
         >
           <Settings className="size-5" />
         </button>
         <button
-          aria-label="Leave meeting"
+          aria-label={t("meeting.leave")}
           className="grid size-11 place-items-center rounded-md bg-danger text-danger-foreground transition hover:bg-danger/90"
           onClick={onLeave}
-          title="Leave meeting"
+          title={t("meeting.leave")}
           type="button"
         >
           <LogOut className="size-5" />

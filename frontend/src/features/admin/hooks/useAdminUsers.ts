@@ -8,6 +8,7 @@ import {
   listAdminUsers,
   updateAdminUser
 } from "@/features/admin/api/adminApi";
+import { useLocale } from "@/providers/LocaleProvider";
 import type {
   CreateAdminUserRequest,
   UpdateAdminUserRequest
@@ -16,6 +17,7 @@ import type {
 const adminUsersKey = ["admin", "users"] as const;
 
 export function useAdminUsers() {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const users = useQuery({
     queryFn: listAdminUsers,
@@ -26,7 +28,7 @@ export function useAdminUsers() {
   const createUser = useMutation({
     mutationFn: (request: CreateAdminUserRequest) => createAdminUser(request),
     onSuccess: () => {
-      toast.success("User created");
+      toast.success(t("admin.userCreated"));
       void invalidate();
     }
   });
@@ -39,14 +41,14 @@ export function useAdminUsers() {
       userId: string;
     }) => updateAdminUser(userId, request),
     onSuccess: () => {
-      toast.success("User updated");
+      toast.success(t("admin.userUpdated"));
       void invalidate();
     }
   });
   const deleteUser = useMutation({
     mutationFn: deleteAdminUser,
     onSuccess: () => {
-      toast.success("User deleted");
+      toast.success(t("admin.userDeleted"));
       void invalidate();
     }
   });

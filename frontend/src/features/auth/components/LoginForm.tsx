@@ -7,10 +7,12 @@ import { toast } from "sonner";
 import { InlineError } from "@/components/feedback/InlineError";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 import { loginSchema, type LoginFormValues } from "@/lib/utils/validators";
+import { useLocale } from "@/providers/LocaleProvider";
 
 export function LoginForm() {
   const router = useRouter();
   const { error, loginWithCredentials, status } = useAuth();
+  const { t } = useLocale();
   const {
     formState: { errors },
     handleSubmit,
@@ -28,10 +30,10 @@ export function LoginForm() {
         values.password
       );
 
-      toast.success("Signed in");
+      toast.success(t("auth.signedIn"));
       router.push(session.isAdmin ? "/admin" : "/rooms/new");
     } catch {
-      toast.error("Login failed");
+      toast.error(t("auth.loginFailed"));
     }
   }
 
@@ -42,7 +44,7 @@ export function LoginForm() {
           className="text-sm font-medium text-surface-foreground"
           htmlFor="username"
         >
-          Username
+          {t("auth.username")}
         </label>
         <input
           autoComplete="username"
@@ -59,7 +61,7 @@ export function LoginForm() {
           className="text-sm font-medium text-surface-foreground"
           htmlFor="password"
         >
-          Password
+          {t("auth.password")}
         </label>
         <input
           autoComplete="current-password"
@@ -78,7 +80,7 @@ export function LoginForm() {
         disabled={isSubmitting}
         type="submit"
       >
-        {isSubmitting ? "Signing in..." : "Sign in"}
+        {isSubmitting ? t("auth.signingIn") : t("auth.signIn")}
       </button>
     </form>
   );

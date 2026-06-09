@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Lock, X } from "lucide-react";
 import { InlineError } from "@/components/feedback/InlineError";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface RoomPasswordModalProps {
   error?: string | null;
@@ -19,6 +20,7 @@ export function RoomPasswordModal({
   onSubmit,
   roomName
 }: RoomPasswordModalProps) {
+  const { t } = useLocale();
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
@@ -45,7 +47,7 @@ export function RoomPasswordModal({
   }
 
   const validationError =
-    submitted && !password.trim() ? "Room password is required." : null;
+    submitted && !password.trim() ? t("room.roomPasswordRequired") : null;
 
   return (
     <div
@@ -64,7 +66,7 @@ export function RoomPasswordModal({
             </span>
             <div>
               <h2 className="text-sm font-semibold text-surface-foreground">
-                Room password
+                {t("room.roomPassword")}
               </h2>
               {roomName ? (
                 <p className="mt-1 text-xs text-muted-foreground">{roomName}</p>
@@ -72,7 +74,7 @@ export function RoomPasswordModal({
             </div>
           </div>
           <button
-            aria-label="Close password prompt"
+            aria-label={t("room.closePasswordPrompt")}
             className="grid size-8 place-items-center rounded-md border border-border text-foreground transition hover:bg-muted"
             onClick={onCancel}
             type="button"
@@ -85,7 +87,7 @@ export function RoomPasswordModal({
           className="mt-5 block text-sm font-medium text-surface-foreground"
           htmlFor="room-password-modal-input"
         >
-          Password
+          {t("auth.password")}
         </label>
         <input
           autoComplete="off"
@@ -105,13 +107,13 @@ export function RoomPasswordModal({
             onClick={onCancel}
             type="button"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
           <button
             className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             type="submit"
           >
-            Join
+            {t("room.join")}
           </button>
         </div>
       </form>

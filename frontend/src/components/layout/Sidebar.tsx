@@ -1,26 +1,32 @@
+"use client";
+
 import { Activity, Gauge, Settings, Users } from "lucide-react";
 import Link from "next/link";
+import { useLocale } from "@/providers/LocaleProvider";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 const adminLinks = [
-  { href: "/admin", label: "Dashboard", icon: Gauge },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/rooms", label: "Rooms", icon: Activity },
-  { href: "/admin/settings", label: "Settings", icon: Settings }
-];
+  { href: "/admin", labelKey: "admin.dashboard", icon: Gauge },
+  { href: "/admin/users", labelKey: "admin.users", icon: Users },
+  { href: "/admin/rooms", labelKey: "admin.rooms", icon: Activity },
+  { href: "/admin/settings", labelKey: "admin.settings", icon: Settings }
+] satisfies Array<{ href: string; labelKey: MessageKey; icon: typeof Gauge }>;
 
 export function Sidebar() {
+  const { t } = useLocale();
+
   return (
-    <aside className="border-b border-border bg-surface md:min-h-screen md:w-64 md:border-b-0 md:border-r">
+    <aside className="border-b border-border bg-surface md:min-h-screen md:w-64 md:border-b-0 md:border-e">
       <div className="flex h-16 items-center border-b border-border px-4">
         <Link
           className="inline-flex items-center gap-2 font-semibold text-surface-foreground"
           href="/"
         >
-          Admin
+          {t("admin.admin")}
         </Link>
       </div>
       <nav
-        aria-label="Admin navigation"
+        aria-label={t("admin.navigation")}
         className="flex gap-2 overflow-x-auto p-3 md:flex-col"
       >
         {adminLinks.map((item) => {
@@ -33,7 +39,7 @@ export function Sidebar() {
               key={item.href}
             >
               <Icon className="size-4 shrink-0" />
-              {item.label}
+              {t(item.labelKey)}
             </Link>
           );
         })}

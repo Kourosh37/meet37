@@ -10,6 +10,7 @@ import type {
 } from "@/features/meeting/types/signaling";
 import { useAudioLevel } from "@/features/meeting/hooks/useAudioLevel";
 import { cn } from "@/lib/utils/cn";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface VideoTileProps {
   audioEnabled?: boolean;
@@ -47,6 +48,7 @@ export function VideoTile({
   videoEnabled = true,
   videoStatus = videoEnabled ? "starting" : "off"
 }: VideoTileProps) {
+  const { t } = useLocale();
   const [trackVersion, setTrackVersion] = useState(0);
   const audioTracks = useMemo(() => {
     void trackVersion;
@@ -79,12 +81,12 @@ export function VideoTile({
   const isCameraExpected = !screenSharing && videoEnabled && !hasVideo;
   const loadingLabel = isOpeningScreenShare
     ? screenShareStatus === "error"
-      ? "Shared screen unavailable"
-      : "Opening shared screen"
+      ? t("meeting.sharedScreenUnavailable")
+      : t("meeting.openingSharedScreen")
     : isCameraExpected
       ? videoStatus === "error"
-        ? "Camera unavailable"
-        : "Opening camera"
+        ? t("meeting.cameraUnavailable")
+        : t("meeting.openingCamera")
       : null;
   const isOpeningMicrophone = audioEnabled && audioStatus === "starting";
   const hasMicrophoneError = audioEnabled && audioStatus === "error";
@@ -144,10 +146,10 @@ export function VideoTile({
     >
       {onMaximize ? (
         <button
-          aria-label={`Maximize ${displayName}`}
-          className="absolute right-3 top-3 z-10 grid size-9 place-items-center rounded-md border border-white/25 bg-primary/35 text-white shadow-sm backdrop-blur-md transition hover:bg-primary/50"
+          aria-label={t("meeting.maximizeParticipant", { name: displayName })}
+          className="absolute end-3 top-3 z-10 grid size-9 place-items-center rounded-md border border-white/25 bg-primary/35 text-white shadow-sm backdrop-blur-md transition hover:bg-primary/50"
           onClick={onMaximize}
-          title="Maximize"
+          title={t("common.maximize")}
           type="button"
         >
           <Maximize2 className="size-4" />
@@ -155,7 +157,7 @@ export function VideoTile({
       ) : null}
 
       {!hasVideo && !loadingLabel ? (
-        <span className="absolute left-3 top-3 z-10 grid size-9 place-items-center rounded-md border border-white/20 bg-danger/35 text-white shadow-sm backdrop-blur-md">
+        <span className="absolute start-3 top-3 z-10 grid size-9 place-items-center rounded-md border border-white/20 bg-danger/35 text-white shadow-sm backdrop-blur-md">
           <VideoOff className="h-5 w-5" aria-hidden="true" />
         </span>
       ) : null}
@@ -206,21 +208,24 @@ export function VideoTile({
         <div className="min-w-0 rounded-lg border border-white/15 bg-black/35 px-3 py-2 shadow-sm backdrop-blur-md">
           <p className="truncate text-sm font-semibold">
             {displayName}
-            {isLocal ? " (You)" : ""}
+            {isLocal ? ` (${t("common.you")})` : ""}
           </p>
           <p className="mt-0.5 text-xs text-white/75">
-            {isHost ? "Host" : "Guest"}
+            {isHost ? t("common.host") : t("common.guest")}
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {screenSharing ? (
             <span className="grid size-7 place-items-center rounded-full border border-white/20 bg-primary/35 text-white shadow-sm backdrop-blur-md">
-              <MonitorUp className="h-4 w-4" aria-label="Screen sharing" />
+              <MonitorUp
+                className="h-4 w-4"
+                aria-label={t("meeting.screenSharing")}
+              />
             </span>
           ) : null}
           {isOpeningMicrophone ? (
             <span className="grid size-7 place-items-center rounded-full border border-white/20 bg-white/15 text-white shadow-sm backdrop-blur-md">
-              <LoadingSpinner label="Opening microphone" size="sm" />
+              <LoadingSpinner label={t("meeting.openingMicrophone")} size="sm" />
             </span>
           ) : audioEnabled && !hasMicrophoneError ? (
             <span
@@ -240,7 +245,9 @@ export function VideoTile({
             >
               <Mic
                 className={cn("h-4 w-4", isSpeaking && "text-current")}
-                aria-label={isSpeaking ? "Speaking" : "Microphone on"}
+                aria-label={
+                  isSpeaking ? t("meeting.speaking") : t("meeting.microphoneOn")
+                }
               />
             </span>
           ) : (
@@ -249,8 +256,8 @@ export function VideoTile({
                 className="h-4 w-4"
                 aria-label={
                   hasMicrophoneError
-                    ? "Microphone unavailable"
-                    : "Microphone off"
+                    ? t("meeting.microphoneUnavailable")
+                    : t("meeting.microphoneOff")
                 }
               />
             </span>

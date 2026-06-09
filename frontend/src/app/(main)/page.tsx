@@ -24,10 +24,12 @@ import {
 } from "@/features/rooms/lib/recentRooms";
 import { saveHostToken } from "@/lib/storage/tokenStorage";
 import { formatUnixSeconds } from "@/lib/utils/formatters";
+import { useLocale } from "@/providers/LocaleProvider";
 
 export default function HomePage() {
   const router = useRouter();
   const { data } = usePublicSettings();
+  const { t } = useLocale();
   const [roomId, setRoomId] = useState("");
   const [recentRooms, setRecentRooms] = useState<RecentRoom[]>([]);
   const [busyRoomId, setBusyRoomId] = useState<string | null>(null);
@@ -58,11 +60,11 @@ export default function HomePage() {
       router.push(`/meet/${room.id}`);
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 404) {
-        toast.info("Starting a new room with the same meeting ID");
+        toast.info(t("room.sameIdNewRoom"));
         await handleRecreate(room);
         return;
       }
-      toast.error("Could not check room status");
+      toast.error(t("room.statusCheckFailed"));
     } finally {
       setBusyRoomId(null);
       setBusyAction(null);
@@ -86,11 +88,7 @@ export default function HomePage() {
         router.push(`/meet/${room.id}`);
         return;
       }
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Could not create room with this meeting ID"
-      );
+      toast.error(t("error.couldNotCreateRoom"));
     } finally {
       setBusyRoomId(null);
       setBusyAction(null);
@@ -106,25 +104,24 @@ export default function HomePage() {
     <section className="mx-auto flex min-h-[calc(100vh-12rem)] max-w-6xl flex-col gap-10 py-8 lg:gap-12 lg:py-12">
       <div className="mx-auto flex w-full flex-col items-center gap-7 text-center">
         <div className="space-y-5">
-          <h1 className="mx-auto max-w-3xl text-4xl font-semibold tracking-normal text-foreground sm:text-5xl lg:text-6xl">
-            Start a meeting and share the link.
+          <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight tracking-normal text-foreground sm:text-5xl lg:text-6xl">
+            {t("room.startHeroTitle")}
           </h1>
           <p className="mx-auto max-w-2xl text-base leading-7 text-muted-foreground">
-            Create a room in seconds, enter with a display name, and keep the
-            meeting controls focused on the call.
+            {t("room.startHeroBody")}
           </p>
         </div>
-        <div className="flex w-full flex-col gap-4 rounded-lg border border-border bg-surface p-3 text-left shadow-sm sm:p-4 lg:flex-row lg:items-center">
+        <div className="flex w-full flex-col gap-4 rounded-lg border border-border bg-surface p-3 text-start shadow-sm sm:p-4 lg:flex-row lg:items-center">
           <Link
             className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             href="/rooms/new"
           >
-            Create room
+            {t("room.createRoom")}
             <ArrowRight className="size-4" />
           </Link>
           <div className="flex items-center gap-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground lg:flex-col lg:gap-2">
             <span className="h-px flex-1 bg-border lg:h-8 lg:w-px lg:flex-none" />
-            OR
+            {t("room.or")}
             <span className="h-px flex-1 bg-border lg:h-8 lg:w-px lg:flex-none" />
           </div>
           <form
@@ -134,10 +131,10 @@ export default function HomePage() {
             <input
               className="h-14 min-h-14 w-full min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-base font-semibold lowercase tracking-normal text-foreground outline-none transition placeholder:text-muted-foreground/75 focus:border-primary sm:h-12 sm:min-h-12 sm:text-sm"
               inputMode="text"
-              aria-label="Meeting ID"
+              aria-label={t("room.meetingId")}
               onChange={(event) => setRoomId(event.target.value)}
               pattern="[A-Za-z]{3}-[A-Za-z]{3}-[A-Za-z]{3}"
-              placeholder="Enter meeting ID, like abc-def-ghi"
+              placeholder={t("room.enterMeetingId")}
               value={roomId}
             />
             <button
@@ -145,7 +142,7 @@ export default function HomePage() {
               disabled={!canJoin}
               type="submit"
             >
-              Join room
+              {t("room.joinRoom")}
             </button>
           </form>
           {showLogin ? (
@@ -154,20 +151,20 @@ export default function HomePage() {
               href="/login"
             >
               <LogIn className="size-4" />
-              Login
+              {t("auth.login")}
             </Link>
           ) : null}
         </div>
       </div>
 
       <aside className="w-full rounded-lg border border-border bg-surface p-4 shadow-sm sm:p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-surface-foreground">
-              Recent rooms
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold leading-snug text-surface-foreground">
+              {t("room.recentRooms")}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Your last 7 joined meeting IDs are saved on this device.
+              {t("room.recentRoomsDescription")}
             </p>
           </div>
           <Clock className="size-5 shrink-0 text-muted-foreground" />
@@ -186,7 +183,7 @@ export default function HomePage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <h3 className="truncate text-sm font-semibold text-foreground">
+                      <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
                         {room.name}
                       </h3>
                       <p className="mt-1 font-mono text-xs text-muted-foreground">
@@ -195,21 +192,25 @@ export default function HomePage() {
                       <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                         <span className="inline-flex items-center gap-1">
                           <Users className="size-3.5" />
-                          {room.joinPolicy === "approval" ? "Approval" : "Open"}
+                          {room.joinPolicy === "approval"
+                            ? t("meeting.hostApproval")
+                            : t("common.open")}
                         </span>
                         {room.expiresAt ? (
                           <span>
                             {expired
-                              ? "Expired"
-                              : `Expires ${formatUnixSeconds(room.expiresAt)}`}
+                              ? t("room.expired")
+                              : t("room.expiresAt", {
+                                  date: formatUnixSeconds(room.expiresAt)
+                                })}
                           </span>
                         ) : (
-                          <span>No expiry</span>
+                          <span>{t("room.noExpiry")}</span>
                         )}
                       </p>
                     </div>
                     <button
-                      aria-label={`Forget ${room.name}`}
+                      aria-label={t("room.forgetRoom", { name: room.name })}
                       className="grid size-8 shrink-0 place-items-center rounded-md border border-border text-muted-foreground transition hover:bg-muted hover:text-foreground"
                       onClick={() => forgetRoom(room.id)}
                       type="button"
@@ -225,9 +226,9 @@ export default function HomePage() {
                       type="button"
                     >
                       {busyRoomId === room.id && busyAction === "join" ? (
-                        <LoadingSpinner label="Opening room" size="sm" />
+                        <LoadingSpinner label={t("room.openingRoom")} size="sm" />
                       ) : null}
-                      Join
+                      {t("room.join")}
                     </button>
                     {expired ? (
                       <button
@@ -237,11 +238,11 @@ export default function HomePage() {
                         type="button"
                       >
                         {busyRoomId === room.id && busyAction === "create" ? (
-                          <LoadingSpinner label="Creating room" size="sm" />
+                          <LoadingSpinner label={t("room.creatingRoom")} size="sm" />
                         ) : (
                           <Plus className="size-3.5" />
                         )}
-                        New with ID
+                        {t("room.newWithId")}
                       </button>
                     ) : null}
                   </div>
@@ -250,7 +251,7 @@ export default function HomePage() {
             })
           ) : (
             <p className="rounded-md border border-dashed border-border px-3 py-6 text-center text-sm text-muted-foreground">
-              Joined rooms will appear here after your first meeting.
+              {t("room.joinedRoomsAppear")}
             </p>
           )}
         </div>

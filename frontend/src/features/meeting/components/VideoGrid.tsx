@@ -9,6 +9,7 @@ import type {
   PeerMode
 } from "@/features/meeting/types/signaling";
 import { cn } from "@/lib/utils/cn";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface VideoGridProps {
   className?: string;
@@ -68,6 +69,7 @@ export function VideoGrid({
   peers,
   remoteStreams
 }: VideoGridProps) {
+  const { t } = useLocale();
   const tiles = useMemo(() => {
     const unsortedTiles: TileViewModel[] = [
       {
@@ -152,10 +154,10 @@ export function VideoGrid({
       {maximizedTile ? (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-hidden bg-black/85 p-3 backdrop-blur-sm sm:p-6">
           <button
-            aria-label="Minimize video"
-            className="absolute right-4 top-4 z-10 grid size-10 place-items-center rounded-md border border-white/20 bg-black/60 text-white shadow-lg transition hover:bg-black/80"
+            aria-label={t("meeting.minimizeVideo")}
+            className="absolute end-4 top-4 z-10 grid size-10 place-items-center rounded-md border border-white/20 bg-black/60 text-white shadow-lg transition hover:bg-black/80"
             onClick={() => setMaximizedTileId(null)}
-            title="Minimize"
+            title={t("common.minimize")}
             type="button"
           >
             <Minimize2 className="size-5" />

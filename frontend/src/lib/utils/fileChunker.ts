@@ -5,11 +5,11 @@ export const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024;
 
 export function assertFilePolicy(file: Blob) {
   if (file.size <= 0) {
-    throw new Error("File is empty");
+    throw new Error("error.fileEmpty");
   }
 
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    throw new Error("File is larger than the 500 MB limit");
+    throw new Error("error.fileTooLarge");
   }
 }
 
@@ -22,14 +22,14 @@ async function readBlobSlice(blob: Blob) {
     const reader = new FileReader();
 
     reader.onerror = () =>
-      reject(reader.error ?? new Error("Failed to read file chunk"));
+      reject(reader.error ?? new Error("error.failedToReadFileChunk"));
     reader.onload = () => {
       if (reader.result instanceof ArrayBuffer) {
         resolve(reader.result);
         return;
       }
 
-      reject(new Error("File chunk reader returned an unexpected result"));
+      reject(new Error("error.unexpectedFileChunkResult"));
     };
     reader.readAsArrayBuffer(blob);
   });

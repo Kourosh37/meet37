@@ -19,7 +19,9 @@ import {
   DEFAULT_FILE_CHUNK_SIZE,
   reassembleChunks
 } from "@/lib/utils/fileChunker";
+import { isMessageKey } from "@/lib/i18n/messages";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
+import { useLocale } from "@/providers/LocaleProvider";
 
 const OBJECT_URL_TTL_MS = 10 * 60 * 1000;
 const RECEIVE_IDLE_TIMEOUT_MS = 30_000;
@@ -97,6 +99,24 @@ function base64ToArrayBuffer(value: string) {
 }
 
 export function useFileTransfer(roomId: string | null) {
+  const { t } = useLocale();
+  const getErrorMessage = useCallback(
+    (error: unknown, fallbackKey: Parameters<typeof t>[0]) => {
+      if (!(error instanceof Error)) {
+        return fallbackKey;
+      }
+
+      return isMessageKey(error.message) ? error.message : fallbackKey;
+    },
+    []
+  );
+  const getToastErrorMessage = useCallback(
+    (error: unknown, fallbackKey: Parameters<typeof t>[0]) => {
+      const message = getErrorMessage(error, fallbackKey);
+      return isMessageKey(message) ? t(message) : message;
+    },
+    [getErrorMessage, t]
+  );
   const transfersById = useFileTransferStore((state) => state.transfers);
   const addOrUpdateTransfer = useFileTransferStore(
     (state) => state.addOrUpdateTransfer
@@ -195,12 +215,12 @@ export function useFileTransfer(roomId: string | null) {
       } catch (error) {
         failTransfer(
           fileId,
-          error instanceof Error ? error.message : "File transfer failed"
+          getErrorMessage(error, "error.fileTransferFailed")
         );
         throw error;
       }
     },
-    [completeTransfer, failTransfer, updateProgress]
+    [completeTransfer, failTransfer, getErrorMessage, updateProgress]
   );
 
   const sendSharedFileToPeer = useCallback(
@@ -270,7 +290,7 @@ export function useFileTransfer(roomId: string | null) {
         window.setTimeout(() => {
           receiveTimeouts.current.delete(fileId);
           receiveBuffers.current.delete(fileId);
-          failTransfer(fileId, "File transfer timed out.");
+          failTransfer(fileId, "error.fileTransferTimedOut");
         }, RECEIVE_IDLE_TIMEOUT_MS)
       );
     },
@@ -529,9 +549,7 @@ export function useFileTransfer(roomId: string | null) {
       try {
         assertFilePolicy(file);
       } catch (error) {
-        toast.error(
-          error instanceof Error ? error.message : "File is not allowed."
-        );
+        toast.error(getToastErrorMessage(error, "error.fileNotAllowed"));
         return;
       }
 
@@ -574,13 +592,21 @@ export function useFileTransfer(roomId: string | null) {
       const peerIds = Object.keys(peers);
 
       if (peerIds.length === 0) {
-        toast.success("File is ready and will be sent to new participants.");
+        toast.success(t("meeting.fileReady"));
         return;
       }
 
       peerIds.forEach((peerId) => sendSharedFileToPeer(sourceFileId, peerId));
     },
-    [addOrUpdateTransfer, localPeerId, peers, roomId, sendSharedFileToPeer]
+    [
+      addOrUpdateTransfer,
+      getToastErrorMessage,
+      localPeerId,
+      peers,
+      roomId,
+      sendSharedFileToPeer,
+      t
+    ]
   );
 
   return {

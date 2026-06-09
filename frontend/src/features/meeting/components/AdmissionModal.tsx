@@ -4,6 +4,7 @@ import { UserPlus } from "lucide-react";
 import { useState } from "react";
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import type { PendingPeer } from "@/features/meeting/types/peer";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface AdmissionModalProps {
   onApprove: (peerId: string) => void;
@@ -18,6 +19,7 @@ export function AdmissionModal({
   onReject,
   pendingPeers
 }: AdmissionModalProps) {
+  const { t } = useLocale();
   const [approving, setApproving] = useState<"one" | "all" | null>(null);
 
   if (pendingPeers.length === 0) {
@@ -27,19 +29,19 @@ export function AdmissionModal({
   const firstPeer = pendingPeers[0];
 
   return (
-    <div className="fixed bottom-24 right-4 z-30 w-[min(360px,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-4 shadow-xl">
+    <div className="fixed bottom-24 end-4 z-30 w-[min(360px,calc(100vw-2rem))] rounded-lg border border-border bg-surface p-4 shadow-xl">
       <div className="flex items-start gap-3">
         <div className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/15 text-primary">
           <UserPlus className="size-5" />
         </div>
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-surface-foreground">
-            {firstPeer.displayName} wants to join
+            {t("meeting.wantsToJoin", { name: firstPeer.displayName })}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {pendingPeers.length > 1
-              ? `${pendingPeers.length - 1} more waiting in the queue.`
-              : "Review this admission request."}
+              ? t("meeting.moreWaiting", { count: pendingPeers.length - 1 })
+              : t("meeting.requestReview")}
           </p>
           <div className="mt-3 flex gap-2">
             <button
@@ -52,9 +54,9 @@ export function AdmissionModal({
               type="button"
             >
               {approving === "one" ? (
-                <LoadingSpinner label="Admitting participant" size="sm" />
+                <LoadingSpinner label={t("meeting.admitParticipant")} size="sm" />
               ) : null}
-              Admit
+              {t("meeting.admit")}
             </button>
             {pendingPeers.length > 1 ? (
               <button
@@ -68,11 +70,11 @@ export function AdmissionModal({
               >
                 {approving === "all" ? (
                   <LoadingSpinner
-                    label="Admitting all participants"
+                    label={t("meeting.admittingAll")}
                     size="sm"
                   />
                 ) : null}
-                Admit all
+                {t("meeting.admitAll")}
               </button>
             ) : null}
             <button
@@ -80,7 +82,7 @@ export function AdmissionModal({
               onClick={() => onReject(firstPeer.id)}
               type="button"
             >
-              Decline
+              {t("meeting.decline")}
             </button>
           </div>
         </div>

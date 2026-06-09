@@ -8,6 +8,7 @@ import type {
   BannedParticipant,
   PeerPermissions
 } from "@/features/meeting/types/signaling";
+import { useLocale } from "@/providers/LocaleProvider";
 
 const defaultPermissions: PeerPermissions = {
   can_chat: true,
@@ -36,7 +37,7 @@ function AccordionSection({
     <section className="rounded-md border border-border bg-background/60">
       <button
         aria-expanded={isOpen}
-        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground transition hover:bg-muted/70"
+        className="flex w-full items-center justify-between gap-3 px-3 py-3 text-start text-xs font-semibold uppercase tracking-wide text-muted-foreground transition hover:bg-muted/70"
         onClick={() => onToggle(id)}
         type="button"
       >
@@ -109,9 +110,10 @@ export function SettingsDrawer({
   onUpdateRoomSettings,
   screenSharing,
   screenShareSupported = true,
-  screenShareUnavailableReason = "Screen sharing is not available in this browser.",
+  screenShareUnavailableReason,
   videoEnabled
 }: SettingsDrawerProps) {
+  const { t } = useLocale();
   const [shouldRender, setShouldRender] = useState(isOpen);
   const [joinPolicy, setJoinPolicy] = useState<"open" | "approval">("open");
   const [password, setPassword] = useState("");
@@ -156,16 +158,16 @@ export function SettingsDrawer({
     <aside
       className={
         isOpen
-          ? "meet-settings-drawer-open fixed bottom-[4.25rem] right-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-l border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
-          : "meet-settings-drawer-close fixed bottom-[4.25rem] right-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-l border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
+          ? "meet-settings-drawer-open fixed bottom-[4.25rem] end-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
+          : "meet-settings-drawer-close fixed bottom-[4.25rem] end-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
       }
     >
       <div className="flex shrink-0 items-center justify-between border-b border-border p-4">
         <h2 className="text-sm font-semibold text-surface-foreground">
-          Meeting settings
+          {t("meeting.meetingSettings")}
         </h2>
         <button
-          aria-label="Close settings"
+          aria-label={t("meeting.closeSettings")}
           className="grid size-9 place-items-center rounded-md border border-border text-foreground transition hover:bg-muted"
           onClick={onClose}
           type="button"
@@ -179,7 +181,7 @@ export function SettingsDrawer({
             id="meeting"
             isOpen={openSections.has("meeting")}
             onToggle={toggleSection}
-            title="Meeting controls"
+            title={t("meeting.meetingControls")}
           >
             <div className="grid gap-3">
               <button
@@ -188,8 +190,8 @@ export function SettingsDrawer({
                 onClick={onToggleAudio}
                 type="button"
               >
-                Microphone
-                <span>{audioEnabled ? "On" : "Off"}</span>
+                {t("meeting.microphone")}
+                <span>{audioEnabled ? t("common.on") : t("common.off")}</span>
               </button>
               <button
                 className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-50"
@@ -197,8 +199,8 @@ export function SettingsDrawer({
                 onClick={onToggleVideo}
                 type="button"
               >
-                Camera
-                <span>{videoEnabled ? "On" : "Off"}</span>
+                {t("meeting.camera")}
+                <span>{videoEnabled ? t("common.on") : t("common.off")}</span>
               </button>
               <button
                 className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-50"
@@ -209,17 +211,17 @@ export function SettingsDrawer({
                 title={
                   screenSharing || screenShareSupported
                     ? undefined
-                    : screenShareUnavailableReason
+                    : screenShareUnavailableReason ?? t("common.unavailable")
                 }
                 type="button"
               >
-                Screen share
+                {t("meeting.shareScreen")}
                 <span>
                   {screenSharing
-                    ? "On"
+                    ? t("common.on")
                     : screenShareSupported
-                      ? "Off"
-                      : "Unavailable"}
+                      ? t("common.off")
+                      : t("common.unavailable")}
                 </span>
               </button>
             </div>
@@ -230,11 +232,11 @@ export function SettingsDrawer({
               id="host"
               isOpen={openSections.has("host")}
               onToggle={toggleSection}
-              title="Host controls"
+              title={t("meeting.hostControls")}
             >
               <div className="grid gap-3">
                 <label className="grid gap-1 text-sm font-medium text-foreground">
-                  Join policy
+                  {t("room.joinPolicy")}
                   <select
                     className="h-10 rounded-md border border-border bg-background px-3 text-sm"
                     onChange={(event) =>
@@ -242,30 +244,30 @@ export function SettingsDrawer({
                     }
                     value={joinPolicy}
                   >
-                    <option value="open">Open</option>
-                    <option value="approval">Host approval</option>
+                    <option value="open">{t("common.open")}</option>
+                    <option value="approval">{t("meeting.hostApproval")}</option>
                   </select>
                 </label>
                 <label className="grid gap-1 text-sm font-medium text-foreground">
-                  Room password
+                  {t("room.roomPassword")}
                   <input
                     className="h-10 rounded-md border border-border bg-background px-3 text-sm"
                     onChange={(event) => {
                       setPassword(event.target.value);
                       setPasswordTouched(true);
                     }}
-                    placeholder="Leave empty to remove"
+                    placeholder={t("meeting.leaveEmptyToRemove")}
                     type="password"
                     value={password}
                   />
                 </label>
                 <div className="grid gap-2 rounded-md border border-border p-3">
                   {[
-                    ["can_use_mic", "Microphone"],
-                    ["can_use_camera", "Camera"],
-                    ["can_share_screen", "Screen share"],
-                    ["can_chat", "Chat"],
-                    ["can_react", "Reactions"]
+                    ["can_use_mic", t("meeting.microphone")],
+                    ["can_use_camera", t("meeting.camera")],
+                    ["can_share_screen", t("meeting.shareScreen")],
+                    ["can_chat", t("meeting.chat")],
+                    ["can_react", t("meeting.sendReaction")]
                   ].map(([key, label]) => (
                     <label
                       className="flex items-center justify-between gap-3 text-sm text-foreground"
@@ -287,7 +289,7 @@ export function SettingsDrawer({
                   ))}
                 </div>
                 <label className="flex items-center justify-between gap-3 text-sm text-foreground">
-                  Apply to current participants
+                  {t("meeting.applyToCurrentParticipants")}
                   <input
                     checked={applyToExisting}
                     className="size-4"
@@ -306,11 +308,11 @@ export function SettingsDrawer({
                       password: passwordTouched ? password : undefined,
                       permissions
                     });
-                    toast.success("Meeting settings saved");
+                    toast.success(t("meeting.permissionsSaved"));
                   }}
                   type="button"
                 >
-                  Save host controls
+                  {t("meeting.saveHostControls")}
                 </button>
               </div>
             </AccordionSection>
@@ -321,7 +323,7 @@ export function SettingsDrawer({
               id="bans"
               isOpen={openSections.has("bans")}
               onToggle={toggleSection}
-              title="Banned participants"
+              title={t("meeting.bannedParticipants")}
             >
               <div className="flex items-center justify-end">
                 <button
@@ -329,7 +331,7 @@ export function SettingsDrawer({
                   onClick={onListBans}
                   type="button"
                 >
-                  Refresh
+                  {t("common.refresh")}
                 </button>
               </div>
               <div className="mt-4 grid gap-2">
@@ -346,28 +348,30 @@ export function SettingsDrawer({
                           </p>
                           <p className="mt-1 text-xs text-muted-foreground">
                             {ban.permanent
-                              ? "Blocked permanently"
-                              : `Blocked until ${new Date(
-                                  ban.banned_until * 1000
-                                ).toLocaleString()}`}
+                              ? t("meeting.blockedPermanently")
+                              : t("meeting.blockedUntil", {
+                                  date: new Date(
+                                    ban.banned_until * 1000
+                                  ).toLocaleString()
+                                })}
                           </p>
                         </div>
                         <button
                           className="shrink-0 rounded-md border border-danger/30 px-2 py-1 text-xs font-semibold text-danger transition hover:bg-danger/10"
                           onClick={() => {
                             onUnbanPeer?.(ban.id);
-                            toast.success("Participant unbanned");
+                            toast.success(t("meeting.participantUnbanned"));
                           }}
                           type="button"
                         >
-                          Unban
+                          {t("meeting.unban")}
                         </button>
                       </div>
                     </div>
                   ))
                 ) : (
                   <p className="rounded-md border border-dashed border-border px-3 py-4 text-sm text-muted-foreground">
-                    No banned participants.
+                    {t("meeting.emptyBans")}
                   </p>
                 )}
               </div>

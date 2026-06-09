@@ -3,9 +3,36 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import { isMessageKey, type MessageKey } from "@/lib/i18n/messages";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
+import { useLocale } from "@/providers/LocaleProvider";
+
+const signalErrorKeys: Record<string, MessageKey> = {
+  "display_name required": "validation.displayNameRequired",
+  "host permission required": "error.hostPermissionRequired",
+  "join room before using sfu": "error.joinRoomBeforeUsingSfu",
+  "please join a room before using sfu": "error.joinRoomBeforeUsingSfu",
+  "room is full": "error.roomFull",
+  "room is locked": "error.roomLocked",
+  "room not found or expired": "error.roomNotFoundOrExpired",
+  "that display name is already in this room. choose another name.":
+    "error.displayNameAlreadyInRoom",
+  "wrong room password": "error.wrongRoomPassword"
+};
+
+function normalizeSignalError(
+  message: string | null | undefined,
+  fallbackKey: MessageKey = "common.error"
+) {
+  if (!message) {
+    return fallbackKey;
+  }
+
+  return signalErrorKeys[message.trim().toLowerCase()] ?? message;
+}
 
 export function useSignalingMessages() {
+  const { t } = useLocale();
   const store = useMeetingStore();
 
   useEffect(() => {
@@ -21,7 +48,7 @@ export function useSignalingMessages() {
       ),
       webSocketManager.subscribe("join-rejected", (message) => {
         store.setError(
-          message.payload?.reason ?? "Your request to join was declined."
+          normalizeSignalError(message.payload?.reason, "meeting.joinDeclined")
         );
         store.setPhase("rejected");
       }),
@@ -78,7 +105,10 @@ export function useSignalingMessages() {
       ),
       webSocketManager.subscribe("kicked", (message) => {
         store.setError(
-          message.payload?.reason ?? "You were removed from the meeting."
+          normalizeSignalError(
+            message.payload?.reason,
+            "meeting.removedFromMeeting"
+          )
         );
         store.setPhase("kicked");
       }),
@@ -91,17 +121,18 @@ export function useSignalingMessages() {
           currentState.phase === "reconnecting"
         ) {
           webSocketManager.close();
-          currentState.failJoin(message.payload.message);
+          currentState.failJoin(normalizeSignalError(message.payload.message));
           return;
         }
 
-        currentState.setError(message.payload.message);
-        toast.error(message.payload.message);
+        const errorMessage = normalizeSignalError(message.payload.message);
+        currentState.setError(errorMessage);
+        toast.error(isMessageKey(errorMessage) ? t(errorMessage) : errorMessage);
       })
     ];
 
     return () => {
       unsubscribers.forEach((unsubscribe) => unsubscribe());
     };
-  }, [store]);
+  }, [store, t]);
 }

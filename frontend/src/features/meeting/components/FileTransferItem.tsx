@@ -2,14 +2,30 @@
 
 import { Download, FileText } from "lucide-react";
 import { InlineError } from "@/components/feedback/InlineError";
-import type { FileTransferRecord } from "@/features/meeting/types/file";
+import type {
+  FileTransferRecord,
+  FileTransferRuntimeStatus
+} from "@/features/meeting/types/file";
 import { formatBytes } from "@/lib/utils/formatters";
+import { useLocale } from "@/providers/LocaleProvider";
+import type { MessageKey } from "@/lib/i18n/messages";
 
 interface FileTransferItemProps {
   transfer: FileTransferRecord;
 }
 
 export function FileTransferItem({ transfer }: FileTransferItemProps) {
+  const { t } = useLocale();
+  const statusLabels: Record<FileTransferRuntimeStatus, MessageKey> = {
+    accepted: "file.statusAccepted",
+    cancelled: "file.statusCancelled",
+    completed: "file.statusCompleted",
+    failed: "file.statusFailed",
+    offered: "file.statusOffered",
+    rejected: "file.statusRejected",
+    transferring: "file.statusTransferring"
+  };
+
   return (
     <article className="rounded-md border border-border bg-background p-3">
       <div className="flex gap-3">
@@ -19,8 +35,8 @@ export function FileTransferItem({ transfer }: FileTransferItemProps) {
             {transfer.name}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {formatBytes(transfer.size)} - {transfer.mime || "unknown"} -{" "}
-            {transfer.status}
+            {formatBytes(transfer.size)} - {transfer.mime || t("common.unknown")} -{" "}
+            {t(statusLabels[transfer.status])}
           </p>
           {["offered", "accepted", "transferring"].includes(transfer.status) ? (
             <div className="mt-2 space-y-1">
@@ -46,7 +62,7 @@ export function FileTransferItem({ transfer }: FileTransferItemProps) {
           href={transfer.objectUrl}
         >
           <Download className="size-3.5" />
-          Download
+          {t("file.download")}
         </a>
       ) : null}
     </article>

@@ -4,19 +4,21 @@ import { InlineError } from "@/components/feedback/InlineError";
 import { CreateUserModal } from "@/features/admin/components/CreateUserModal";
 import { UserTable } from "@/features/admin/components/UserTable";
 import { useAdminUsers } from "@/features/admin/hooks/useAdminUsers";
+import { useLocale } from "@/providers/LocaleProvider";
 
 export default function AdminUsersPage() {
   const users = useAdminUsers();
+  const { t } = useLocale();
 
   return (
     <section className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-3xl font-semibold tracking-normal text-foreground">
-            Users
+            {t("admin.users")}
           </h1>
           <p className="mt-3 text-sm text-muted-foreground">
-            Manage accounts allowed to create rooms in private mode.
+            {t("admin.usersDescription")}
           </p>
         </div>
         <CreateUserModal
@@ -24,7 +26,7 @@ export default function AdminUsersPage() {
           onCreate={users.createUser}
         />
       </div>
-      <InlineError message={users.error ? "Could not load users." : null} />
+      <InlineError message={users.error ? t("error.couldNotLoadUsers") : null} />
       <UserTable
         disabled={users.isLoading || users.isMutating}
         onDelete={users.deleteUser}

@@ -76,7 +76,7 @@ describe("fileChunker", () => {
     const blob = new Blob([new ArrayBuffer(MAX_FILE_SIZE_BYTES + 1)]);
     const iterator = chunkBlob("file-2", blob);
 
-    await expect(iterator.next()).rejects.toThrow("500 MB");
+    await expect(iterator.next()).rejects.toThrow("error.fileTooLarge");
   });
 });
 

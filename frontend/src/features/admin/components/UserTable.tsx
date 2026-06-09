@@ -2,6 +2,7 @@
 
 import type { AdminUser, UpdateAdminUserRequest } from "@/types/api";
 import { formatUnixSeconds } from "@/lib/utils/formatters";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface UserTableProps {
   disabled?: boolean;
@@ -16,16 +17,18 @@ export function UserTable({
   onUpdate,
   users
 }: UserTableProps) {
+  const { t } = useLocale();
+
   if (users.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface p-5 text-sm text-muted-foreground shadow-sm">
-        No private-mode users exist yet.
+        {t("admin.noPrivateUsers")}
       </div>
     );
   }
 
   function handleRename(user: AdminUser) {
-    const username = window.prompt("New username", user.username)?.trim();
+    const username = window.prompt(t("admin.newUsername"), user.username)?.trim();
 
     if (username && username !== user.username) {
       onUpdate(user.id, { username });
@@ -33,7 +36,7 @@ export function UserTable({
   }
 
   function handlePassword(user: AdminUser) {
-    const password = window.prompt("New password")?.trim();
+    const password = window.prompt(t("admin.newPassword"))?.trim();
 
     if (password) {
       onUpdate(user.id, { password });
@@ -45,9 +48,9 @@ export function UserTable({
       <table className="w-full border-collapse text-left text-sm">
         <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
-            <th className="px-4 py-3">Username</th>
-            <th className="px-4 py-3">Created</th>
-            <th className="px-4 py-3 text-right">Actions</th>
+            <th className="px-4 py-3">{t("admin.username")}</th>
+            <th className="px-4 py-3">{t("admin.created")}</th>
+            <th className="px-4 py-3 text-right">{t("admin.actions")}</th>
           </tr>
         </thead>
         <tbody>
@@ -67,7 +70,7 @@ export function UserTable({
                     onClick={() => handleRename(user)}
                     type="button"
                   >
-                    Rename
+                    {t("admin.rename")}
                   </button>
                   <button
                     className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold"
@@ -75,7 +78,7 @@ export function UserTable({
                     onClick={() => handlePassword(user)}
                     type="button"
                   >
-                    Password
+                    {t("admin.password")}
                   </button>
                   <button
                     className="rounded-md border border-danger/30 px-2.5 py-1 text-xs font-semibold text-danger"
@@ -83,7 +86,7 @@ export function UserTable({
                     onClick={() => onDelete(user.id)}
                     type="button"
                   >
-                    Delete
+                    {t("admin.delete")}
                   </button>
                 </div>
               </td>

@@ -22,7 +22,7 @@ function storageKey(roomId: string, fileId: string) {
 function openDatabase() {
   if (typeof indexedDB === "undefined") {
     return Promise.reject(
-      new Error("Persistent file storage is not available")
+      new Error("error.persistentFileStorageUnavailable")
     );
   }
 
@@ -40,7 +40,7 @@ function openDatabase() {
       }
     };
     request.onerror = () =>
-      reject(request.error ?? new Error("Could not open file storage"));
+      reject(request.error ?? new Error("error.couldNotOpenFileStorage"));
     request.onsuccess = () => resolve(request.result);
   });
 }

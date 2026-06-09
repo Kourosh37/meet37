@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
+import { isMessageKey } from "@/lib/i18n/messages";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface InlineErrorProps {
   className?: string;
@@ -9,16 +11,18 @@ interface InlineErrorProps {
 }
 
 export function InlineError({ className = "", message }: InlineErrorProps) {
+  const { t } = useLocale();
   const [dismissedMessage, setDismissedMessage] = useState<string | null>(null);
-  const text = message?.trim();
+  const rawText = message?.trim();
+  const text = rawText && isMessageKey(rawText) ? t(rawText) : rawText;
 
   useEffect(() => {
-    if (text && text !== dismissedMessage) {
+    if (rawText && rawText !== dismissedMessage) {
       setDismissedMessage(null);
     }
-  }, [dismissedMessage, text]);
+  }, [dismissedMessage, rawText]);
 
-  if (!text || dismissedMessage === text) {
+  if (!rawText || !text || dismissedMessage === rawText) {
     return null;
   }
 
@@ -29,9 +33,9 @@ export function InlineError({ className = "", message }: InlineErrorProps) {
     >
       <span className="min-w-0 leading-5">{text}</span>
       <button
-        aria-label="Dismiss error"
-        className="-mr-1 grid size-6 shrink-0 place-items-center rounded-md transition hover:bg-danger/10"
-        onClick={() => setDismissedMessage(text)}
+        aria-label={t("common.dismissError")}
+        className="-me-1 grid size-6 shrink-0 place-items-center rounded-md transition hover:bg-danger/10"
+        onClick={() => setDismissedMessage(rawText)}
         type="button"
       >
         <X className="size-4" />

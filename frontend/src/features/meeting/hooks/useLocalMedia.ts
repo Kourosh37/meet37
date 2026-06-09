@@ -14,6 +14,8 @@ import {
   buildScreenShareConstraints,
   setVideoContentHint
 } from "@/lib/webrtc/videoQuality";
+import type { MessageKey } from "@/lib/i18n/messages";
+import { useLocale } from "@/providers/LocaleProvider";
 
 function isLocalhost(hostname: string) {
   return ["localhost", "127.0.0.1", "::1"].includes(hostname);
@@ -27,21 +29,21 @@ function isIOSBrowser() {
   return /iPhone|iPad|iPod/i.test(navigator.userAgent);
 }
 
-function getScreenShareUnavailableReason() {
+function getScreenShareUnavailableReason(t: (key: MessageKey) => string) {
   if (!window.isSecureContext && !isLocalhost(window.location.hostname)) {
-    return "Screen sharing requires HTTPS on this browser.";
+    return t("error.screenShareRequiresHttps");
   }
 
   if (!navigator.mediaDevices?.getDisplayMedia && isIOSBrowser()) {
-    return "Screen sharing is not supported in iPhone and iPad browsers. Use the desktop app/browser version, or join from a desktop browser such as Chrome, Edge, Safari, or Firefox to share your screen.";
+    return t("error.screenShareUnsupportedIos");
   }
 
   if (!navigator.mediaDevices?.getDisplayMedia && isMobileBrowser()) {
-    return "Screen sharing is not supported by this mobile browser. Use a desktop browser to share your screen, or keep joining from mobile for camera, microphone, chat, and viewing shared screens.";
+    return t("error.screenShareUnsupportedMobile");
   }
 
   if (!navigator.mediaDevices?.getDisplayMedia) {
-    return "Screen sharing is not supported by this browser or device. Try a current desktop browser such as Chrome, Edge, Safari, or Firefox.";
+    return t("error.screenShareUnsupportedDevice");
   }
 
   return "";
@@ -93,6 +95,7 @@ async function getDisplayMediaWithFallback() {
 }
 
 export function useLocalMedia() {
+  const { t } = useLocale();
   const audioEnabled = useMediaStore((state) => state.audioEnabled);
   const videoEnabled = useMediaStore((state) => state.videoEnabled);
   const screenSharing = useMediaStore((state) => state.screenSharing);
@@ -119,7 +122,7 @@ export function useLocalMedia() {
     useState<MediaTrackStatus>("off");
   const [screenShareSupported, setScreenShareSupported] = useState(false);
   const [screenShareUnavailableReason, setScreenShareUnavailableReason] =
-    useState("Screen sharing is not available in this browser.");
+    useState(t("error.screenShareNotAvailable"));
   const [audioInputs, setAudioInputs] = useState<MediaDeviceInfo[]>([]);
   const [videoInputs, setVideoInputs] = useState<MediaDeviceInfo[]>([]);
   const currentStreamRef = useRef<MediaStream | null>(null);
@@ -141,8 +144,8 @@ export function useLocalMedia() {
     const isLocal = isLocalhost(window.location.hostname);
 
     setScreenShareSupported(hasDisplayMedia && (isSecure || isLocal));
-    setScreenShareUnavailableReason(getScreenShareUnavailableReason());
-  }, []);
+    setScreenShareUnavailableReason(getScreenShareUnavailableReason(t));
+  }, [t]);
 
   const enumerateDevices = useCallback(async () => {
     if (!navigator.mediaDevices?.enumerateDevices) {
@@ -157,7 +160,7 @@ export function useLocalMedia() {
   const startImmediately = useCallback(
     async (overrides?: { audioEnabled?: boolean; videoEnabled?: boolean }) => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setError("Media devices are not available in this browser.");
+        setError("error.mediaDevicesUnavailable");
         return null;
       }
 
@@ -218,14 +221,10 @@ export function useLocalMedia() {
         setError(null);
         await enumerateDevices();
         return nextStream;
-      } catch (error) {
+      } catch {
         setAudioStatus(shouldUseAudio ? "error" : "off");
         setVideoStatus(shouldUseVideo ? "error" : "off");
-        setError(
-          error instanceof Error
-            ? error.message
-            : "Could not start local media."
-        );
+        setError("error.couldNotStartLocalMedia");
         return null;
       } finally {
         setIsStarting(false);
@@ -243,7 +242,7 @@ export function useLocalMedia() {
   const startAudioTrackImmediately = useCallback(async () => {
     if (!navigator.mediaDevices?.getUserMedia) {
       setAudioStatus("error");
-      setError("Media devices are not available in this browser.");
+      setError("error.mediaDevicesUnavailable");
       return;
     }
 
@@ -259,7 +258,7 @@ export function useLocalMedia() {
       if (!audioTracks.length) {
         stopMediaStream(audioStream);
         setAudioStatus("error");
-        setError("Could not start local microphone.");
+        setError("error.couldNotStartMicrophone");
         return;
       }
 
@@ -282,13 +281,9 @@ export function useLocalMedia() {
       setAudioStatus("ready");
       setError(null);
       await enumerateDevices();
-    } catch (error) {
+    } catch {
       setAudioStatus("error");
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Could not start local microphone."
-      );
+      setError("error.couldNotStartMicrophone");
     }
   }, [enumerateDevices, setError]);
 
@@ -344,13 +339,13 @@ export function useLocalMedia() {
 
     if (!window.isSecureContext && !isLocalhost(window.location.hostname)) {
       setScreenShareStatus("error");
-      setError(getScreenShareUnavailableReason());
+      setError(getScreenShareUnavailableReason(t));
       return;
     }
 
     if (!navigator.mediaDevices?.getDisplayMedia) {
       setScreenShareStatus("error");
-      setError(getScreenShareUnavailableReason());
+      setError(getScreenShareUnavailableReason(t));
       return;
     }
 
@@ -362,7 +357,7 @@ export function useLocalMedia() {
       if (!screenTrack) {
         stopMediaStream(displayStream);
         setScreenShareStatus("error");
-        setError("Could not start screen sharing.");
+        setError("error.couldNotStartScreenSharing");
         return;
       }
 
@@ -388,19 +383,16 @@ export function useLocalMedia() {
         });
         return new MediaStream([...audioTracks, screenTrack]);
       });
-    } catch (error) {
+    } catch {
       setScreenShareStatus("error");
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Could not start screen sharing."
-      );
+      setError("error.couldNotStartScreenSharing");
     }
   }, [
     setError,
     setScreenSharing,
     setVideoEnabled,
     stopScreenShare,
+    t,
     updateScreenShareSupport
   ]);
 

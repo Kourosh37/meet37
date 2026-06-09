@@ -2,6 +2,7 @@
 
 import { Shield, Crown, Mic, MicOff, Video, VideoOff } from "lucide-react";
 import type { MeetingPeer } from "@/features/meeting/types/peer";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface ParticipantItemProps {
   canModerate?: boolean;
@@ -26,6 +27,8 @@ export function ParticipantItem({
   onPermissions,
   peer
 }: ParticipantItemProps) {
+  const { t } = useLocale();
+
   return (
     <li className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2">
       <div className="flex min-w-0 items-center gap-3">
@@ -35,14 +38,14 @@ export function ParticipantItem({
         <div className="min-w-0">
           <p className="block max-w-full truncate text-sm font-semibold text-foreground">
             {peer.displayName}
-            {isLocal ? " (You)" : ""}
+            {isLocal ? ` (${t("common.you")})` : ""}
           </p>
           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
             {peer.isHost ? (
-              <Crown className="size-3.5" aria-label="Host" />
+              <Crown className="size-3.5" aria-label={t("common.host")} />
             ) : null}
             {peer.isAdmin ? (
-              <Shield className="size-3.5" aria-label="Admin" />
+              <Shield className="size-3.5" aria-label={t("common.admin")} />
             ) : null}
             {peer.media.audioEnabled ? (
               <Mic className="size-3.5" />
@@ -71,7 +74,7 @@ export function ParticipantItem({
             }}
             type="button"
           >
-            Permissions
+            {t("meeting.participantPermissions")}
           </button>
           {canKick ? (
             <button
@@ -85,7 +88,7 @@ export function ParticipantItem({
               }}
               type="button"
             >
-              Kick
+              {t("common.remove")}
             </button>
           ) : null}
         </div>

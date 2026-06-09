@@ -10,6 +10,7 @@ import type {
   PeerPermissions
 } from "@/features/meeting/types/signaling";
 import { cn } from "@/lib/utils/cn";
+import { useLocale } from "@/providers/LocaleProvider";
 
 const defaultPeerPermissions: PeerPermissions = {
   can_chat: true,
@@ -81,6 +82,7 @@ export function ParticipantsPanel({
   peers,
   pendingPeers
 }: ParticipantsPanelProps) {
+  const { t } = useLocale();
   const [permissionPeer, setPermissionPeer] = useState<MeetingPeer | null>(
     null
   );
@@ -125,8 +127,8 @@ export function ParticipantsPanel({
   function showBlockedPeerToast(peer: MeetingPeer) {
     toast.error(
       peer.isHost
-        ? "Admins cannot manage the host."
-        : "Admins cannot manage other admins."
+        ? t("meeting.adminCannotManageHost")
+        : t("meeting.adminCannotManageAdmins")
     );
   }
 
@@ -139,10 +141,12 @@ export function ParticipantsPanel({
     >
       <div>
         <h2 className="text-sm font-semibold text-surface-foreground">
-          Participants
+          {t("meeting.participants", {
+            count: Object.keys(peers).length + 1
+          })}
         </h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          {Object.keys(peers).length + 1} in call
+          {t("meeting.inCall", { count: Object.keys(peers).length + 1 })}
         </p>
       </div>
 
@@ -150,7 +154,7 @@ export function ParticipantsPanel({
         <section className="mt-4 rounded-md border border-primary/30 bg-primary/10 p-3">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-primary">
-              Waiting
+              {t("meeting.waitingRoom")}
             </h3>
             {pendingPeers.length > 1 ? (
               <button
@@ -164,11 +168,11 @@ export function ParticipantsPanel({
               >
                 {approvingAll ? (
                   <LoadingSpinner
-                    label="Admitting all participants"
+                    label={t("meeting.admittingAll")}
                     size="sm"
                   />
                 ) : null}
-                Admit all
+                {t("meeting.admitAll")}
               </button>
             ) : null}
           </div>
@@ -189,16 +193,19 @@ export function ParticipantsPanel({
                     type="button"
                   >
                     {approvingPeerId === peer.id ? (
-                      <LoadingSpinner label="Admitting participant" size="sm" />
+                      <LoadingSpinner
+                        label={t("meeting.admitParticipant")}
+                        size="sm"
+                      />
                     ) : null}
-                    Admit
+                    {t("meeting.admit")}
                   </button>
                   <button
                     className="rounded-md border border-border px-2.5 py-1 text-xs font-semibold text-foreground"
                     onClick={() => onReject(peer.id)}
                     type="button"
                   >
-                    Decline
+                    {t("meeting.decline")}
                   </button>
                 </div>
               </div>
@@ -239,25 +246,25 @@ export function ParticipantsPanel({
         }}
         type="button"
       >
-        Back to top
+        {t("meeting.backToTop")}
       </button>
 
       {permissionPeer ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
           <section className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 shadow-xl">
             <h3 className="text-sm font-semibold text-surface-foreground">
-              Participant permissions
+              {t("meeting.participantPermissions")}
             </h3>
             <p className="mt-1 truncate text-xs text-muted-foreground">
               {permissionPeer.displayName}
             </p>
             <div className="mt-4 grid gap-3">
               {[
-                ["can_use_mic", "Can use microphone"],
-                ["can_use_camera", "Can use camera"],
-                ["can_share_screen", "Can share screen"],
-                ["can_chat", "Can chat"],
-                ["can_react", "Can send reactions"]
+                ["can_use_mic", t("meeting.canUseMicrophone")],
+                ["can_use_camera", t("meeting.canUseCamera")],
+                ["can_share_screen", t("meeting.canShareScreen")],
+                ["can_chat", t("meeting.canChat")],
+                ["can_react", t("meeting.canSendReactions")]
               ].map(([key, label]) => (
                 <label
                   className="flex items-center justify-between gap-3 text-sm text-foreground"
@@ -281,7 +288,7 @@ export function ParticipantsPanel({
             {canAssignAdmin && !permissionPeer.isHost ? (
               <div className="mt-5 border-t border-border pt-4">
                 <label className="flex items-center justify-between gap-3 text-sm font-medium text-foreground">
-                  Make admin
+                  {t("meeting.makeAdmin")}
                   <input
                     checked={adminEnabled}
                     className="size-4"
@@ -297,13 +304,13 @@ export function ParticipantsPanel({
                 </label>
                 <div className="mt-4 grid gap-3">
                   {[
-                    ["can_kick", "Can kick participants"],
-                    ["can_mute_mic", "Can disable microphones"],
-                    ["can_disable_camera", "Can disable cameras"],
-                    ["can_disable_screen", "Can disable screen share"],
-                    ["can_disable_chat", "Can disable chat"],
-                    ["can_disable_emoji", "Can disable reactions"],
-                    ["can_manage_bans", "Can manage ban list"]
+                    ["can_kick", t("meeting.canKickParticipants")],
+                    ["can_mute_mic", t("meeting.canDisableMicrophones")],
+                    ["can_disable_camera", t("meeting.canDisableCameras")],
+                    ["can_disable_screen", t("meeting.canDisableScreenShare")],
+                    ["can_disable_chat", t("meeting.canDisableChat")],
+                    ["can_disable_emoji", t("meeting.canDisableReactions")],
+                    ["can_manage_bans", t("meeting.canManageBanList")]
                   ].map(([key, label]) => (
                     <label
                       className="flex items-center justify-between gap-3 text-sm text-foreground"
@@ -333,7 +340,7 @@ export function ParticipantsPanel({
                 onClick={() => setPermissionPeer(null)}
                 type="button"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
@@ -347,17 +354,17 @@ export function ParticipantsPanel({
                     );
                     toast.success(
                       adminEnabled
-                        ? "Admin permissions updated"
-                        : "Admin role removed"
+                        ? t("meeting.adminPermissionsUpdated")
+                        : t("meeting.adminRoleRemoved")
                     );
                   } else {
-                    toast.success("Participant permissions updated");
+                    toast.success(t("meeting.participantPermissionsUpdated"));
                   }
                   setPermissionPeer(null);
                 }}
                 type="button"
               >
-                Save
+                {t("common.save")}
               </button>
             </div>
           </section>
@@ -368,28 +375,30 @@ export function ParticipantsPanel({
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4">
           <section className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 shadow-xl">
             <h3 className="text-sm font-semibold text-surface-foreground">
-              Remove participant
+              {t("meeting.removeParticipant")}
             </h3>
             <p className="mt-1 truncate text-xs text-muted-foreground">
               {kickPeer.displayName}
             </p>
             <label className="mt-4 grid gap-1 text-sm font-medium text-foreground">
-              Rejoin block time
+              {t("meeting.rejoinBlockTime")}
               <select
                 className="h-10 rounded-md border border-border bg-background px-3 text-sm"
                 disabled={banPermanent}
                 onChange={(event) => setBanMinutes(Number(event.target.value))}
                 value={banMinutes}
               >
-                <option value={0}>No block</option>
-                <option value={5}>5 minutes</option>
-                <option value={15}>15 minutes</option>
-                <option value={60}>1 hour</option>
-                <option value={1440}>1 day</option>
+                <option value={0}>{t("meeting.noBlock")}</option>
+                <option value={5}>{t("meeting.minutes", { count: 5 })}</option>
+                <option value={15}>
+                  {t("meeting.minutes", { count: 15 })}
+                </option>
+                <option value={60}>{t("meeting.oneHour")}</option>
+                <option value={1440}>{t("meeting.oneDay")}</option>
               </select>
             </label>
             <label className="mt-3 flex items-center justify-between gap-3 text-sm text-foreground">
-              Block permanently
+              {t("meeting.blockPermanently")}
               <input
                 checked={banPermanent}
                 className="size-4"
@@ -403,21 +412,21 @@ export function ParticipantsPanel({
                 onClick={() => setKickPeer(null)}
                 type="button"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 className="rounded-md bg-danger px-3 py-2 text-sm font-semibold text-danger-foreground"
                 onClick={() => {
                   onKick(
                     kickPeer.id,
-                    "Removed by a moderator.",
+                    t("meeting.removedByModerator"),
                     banMinutes,
                     banPermanent
                   );
                   toast.success(
                     banPermanent || banMinutes > 0
-                      ? "Participant removed and blocked"
-                      : "Participant removed"
+                      ? t("meeting.participantRemovedAndBlocked")
+                      : t("meeting.participantRemoved")
                   );
                   setKickPeer(null);
                   setBanMinutes(0);
@@ -425,7 +434,7 @@ export function ParticipantsPanel({
                 }}
                 type="button"
               >
-                Remove
+                {t("common.remove")}
               </button>
             </div>
           </section>

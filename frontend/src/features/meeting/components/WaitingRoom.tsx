@@ -1,6 +1,7 @@
 "use client";
 
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface WaitingRoomProps {
   onCancel: () => void;
@@ -8,29 +9,32 @@ interface WaitingRoomProps {
 }
 
 export function WaitingRoom({ onCancel, roomName }: WaitingRoomProps) {
+  const { t } = useLocale();
+
   return (
     <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        Waiting room
+        {t("meeting.waitingRoom")}
       </p>
       <h1 className="mt-2 text-2xl font-semibold tracking-normal text-surface-foreground">
-        Waiting for approval
+        {t("meeting.waitingApproval")}
       </h1>
       <LoadingSpinner
         className="mt-5 text-primary"
-        label="Waiting for approval"
+        label={t("meeting.waitingApproval")}
         size="lg"
       />
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        Your request to join {roomName ?? "this meeting"} has been sent. The
-        host will let you in when they are ready.
+        {t("meeting.waitingRoomBody", {
+          roomName: roomName ?? t("meeting.defaultRoomName")
+        })}
       </p>
       <button
         className="mt-6 rounded-md border border-border bg-background px-4 py-2 text-sm font-semibold text-foreground transition hover:bg-muted"
         onClick={onCancel}
         type="button"
       >
-        Cancel
+        {t("common.cancel")}
       </button>
     </section>
   );

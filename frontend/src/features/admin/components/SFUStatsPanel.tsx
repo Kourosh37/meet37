@@ -2,12 +2,14 @@
 
 import type { AdminSfuStatsResponse } from "@/types/api";
 import { formatBytes } from "@/lib/utils/formatters";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface SFUStatsPanelProps {
   stats?: AdminSfuStatsResponse;
 }
 
 export function SFUStatsPanel({ stats }: SFUStatsPanelProps) {
+  const { t } = useLocale();
   const sessions = Object.entries(stats?.sessions ?? {});
   const totals = sessions.reduce(
     (acc, [, session]) => ({
@@ -22,9 +24,9 @@ export function SFUStatsPanel({ stats }: SFUStatsPanelProps) {
     <div className="space-y-4">
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          ["Sessions", stats?.session_count ?? 0],
-          ["Peers", totals.peers],
-          ["Relayed bytes", formatBytes(totals.bytes)]
+          [t("admin.sessions"), stats?.session_count ?? 0],
+          [t("admin.peers"), totals.peers],
+          [t("admin.relayedBytes"), formatBytes(totals.bytes)]
         ].map(([label, value]) => (
           <div
             className="rounded-lg border border-border bg-surface p-5 shadow-sm"
@@ -42,17 +44,17 @@ export function SFUStatsPanel({ stats }: SFUStatsPanelProps) {
         <table className="w-full border-collapse text-left text-sm">
           <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Session</th>
-              <th className="px-4 py-3">Peers</th>
-              <th className="px-4 py-3">Tracks</th>
-              <th className="px-4 py-3">Bytes</th>
+              <th className="px-4 py-3">{t("admin.session")}</th>
+              <th className="px-4 py-3">{t("admin.peers")}</th>
+              <th className="px-4 py-3">{t("admin.tracks")}</th>
+              <th className="px-4 py-3">{t("admin.bytes")}</th>
             </tr>
           </thead>
           <tbody>
             {sessions.length === 0 ? (
               <tr>
                 <td className="px-4 py-4 text-muted-foreground" colSpan={4}>
-                  No active SFU sessions.
+                  {t("admin.noActiveSfuSessions")}
                 </td>
               </tr>
             ) : (

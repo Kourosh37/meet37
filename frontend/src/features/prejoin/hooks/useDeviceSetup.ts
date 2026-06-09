@@ -122,7 +122,7 @@ export function useDeviceSetup() {
       if (!navigator.mediaDevices?.getUserMedia) {
         setState((current) => ({
           ...current,
-          error: "Media devices are not available in this browser.",
+          error: "error.mediaDevicesUnavailable",
           permissionState: "error"
         }));
         return;
@@ -189,13 +189,10 @@ export function useDeviceSetup() {
           };
         });
         await enumerateDevices();
-      } catch (error) {
+      } catch {
         setState((current) => ({
           ...current,
-          error:
-            error instanceof Error
-              ? error.message
-              : "Could not start camera or microphone.",
+          error: "error.couldNotStartCameraOrMicrophone",
           permissionState: "denied"
         }));
       }

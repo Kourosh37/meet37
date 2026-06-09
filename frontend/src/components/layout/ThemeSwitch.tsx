@@ -4,6 +4,7 @@ import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils/cn";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface ThemeSwitchProps {
   className?: string;
@@ -11,6 +12,7 @@ interface ThemeSwitchProps {
 
 export function ThemeSwitch({ className }: ThemeSwitchProps) {
   const { resolvedTheme, setTheme } = useTheme();
+  const { t } = useLocale();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -19,7 +21,7 @@ export function ThemeSwitch({ className }: ThemeSwitchProps) {
 
   const isDark = mounted && resolvedTheme === "dark";
   const nextTheme = isDark ? "light" : "dark";
-  const label = `Switch theme to ${nextTheme}`;
+  const label = t("common.switchTheme", { theme: nextTheme });
 
   return (
     <button

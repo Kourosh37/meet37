@@ -53,8 +53,8 @@ export function DeviceSplitControl({
     ? "h-11 min-w-11 max-[430px]:h-7"
     : "h-10 min-w-[6.75rem] px-3";
   const selectorClassName = isCompact
-    ? "relative grid w-8 self-stretch place-items-center border-l border-border text-muted-foreground transition max-[430px]:order-first max-[430px]:h-4 max-[430px]:w-full max-[430px]:self-auto max-[430px]:border-b max-[430px]:border-l-0"
-    : "relative grid w-8 self-stretch place-items-center border-l border-border text-muted-foreground transition";
+    ? "relative grid w-8 self-stretch place-items-center border-s border-border text-muted-foreground transition max-[430px]:order-first max-[430px]:h-4 max-[430px]:w-full max-[430px]:self-auto max-[430px]:border-b max-[430px]:border-s-0"
+    : "relative grid w-8 self-stretch place-items-center border-s border-border text-muted-foreground transition";
   const canSelectDevice = !disabled;
   const deviceOptions = [
     {
@@ -159,7 +159,7 @@ export function DeviceSplitControl({
               <button
                 aria-selected={selectedDeviceId === device.deviceId}
                 className={cn(
-                  "flex min-h-10 w-full items-center rounded-md px-3 text-left text-sm font-medium text-surface-foreground transition hover:bg-muted",
+                  "flex min-h-10 w-full items-center rounded-md px-3 text-start text-sm font-medium text-surface-foreground transition hover:bg-muted",
                   selectedDeviceId === device.deviceId && "bg-muted"
                 )}
                 key={`${device.deviceId || "default"}-${index}`}

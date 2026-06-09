@@ -1,23 +1,27 @@
+"use client";
+
 import Link from "next/link";
+import { useLocale } from "@/providers/LocaleProvider";
 
 export default function AdminDashboardPage() {
+  const { t } = useLocale();
+
   return (
     <section className="space-y-6">
       <div>
-        <p className="text-sm font-medium text-primary">Admin</p>
+        <p className="text-sm font-medium text-primary">{t("common.admin")}</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">
-          Dashboard
+          {t("admin.dashboard")}
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          Admin data will be connected after auth and REST infrastructure are
-          implemented.
+          {t("admin.dashboardDescription")}
         </p>
       </div>
       <div className="grid gap-4 md:grid-cols-3">
         {[
-          ["App mode", "Public/private toggle"],
-          ["Live rooms", "Room stats"],
-          ["SFU", "Relay metrics"]
+          [t("admin.appMode"), t("admin.appModeSummary")],
+          [t("admin.liveRooms"), t("admin.roomStats")],
+          [t("admin.sfuStats"), t("admin.relayMetrics")]
         ].map(([title, detail]) => (
           <div
             className="rounded-lg border border-border bg-surface p-5 shadow-sm"
@@ -34,7 +38,7 @@ export default function AdminDashboardPage() {
         className="text-sm font-medium text-primary hover:text-primary/80"
         href="/admin/users"
       >
-        Manage users
+        {t("admin.manageUsers")}
       </Link>
     </section>
   );

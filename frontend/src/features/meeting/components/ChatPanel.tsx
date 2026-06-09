@@ -8,6 +8,7 @@ import { FileTransferItem } from "@/features/meeting/components/FileTransferItem
 import { FileTransferPanel } from "@/features/meeting/components/FileTransferPanel";
 import { useChat } from "@/features/meeting/hooks/useChat";
 import { useFileTransfer } from "@/features/meeting/hooks/useFileTransfer";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface ChatPanelProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
   const [shouldRender, setShouldRender] = useState(isOpen);
   const chat = useChat(roomId, isOpen);
   const files = useFileTransfer(roomId);
+  const { t } = useLocale();
   const timeline = [
     ...chat.messages.map((message) => ({
       id: message.id,
@@ -64,28 +66,28 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
     <aside
       className={
         isOpen
-          ? "meet-chat-panel-open fixed bottom-[4.25rem] right-0 top-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
-          : "meet-chat-panel-close fixed bottom-[4.25rem] right-0 top-0 z-40 flex w-[min(420px,100vw)] flex-col border-l border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
+          ? "meet-chat-panel-open fixed bottom-[4.25rem] end-0 top-0 z-40 flex w-[min(420px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
+          : "meet-chat-panel-close fixed bottom-[4.25rem] end-0 top-0 z-40 flex w-[min(420px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
       }
     >
       <div className="flex items-center justify-between border-b border-border p-4">
         <div>
           <h2 className="text-sm font-semibold text-surface-foreground">
-            Chat
+            {t("meeting.chat")}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {chat.isLoadingHistory ? (
               <span className="inline-flex items-center gap-1.5">
-                <LoadingSpinner label="Loading chat history" size="sm" />
-                Loading history
+                <LoadingSpinner label={t("meeting.loadingChatHistory")} size="sm" />
+                {t("meeting.loadingChatHistory")}
               </span>
             ) : (
-              `${chat.messages.length} messages`
+              t("meeting.messages", { count: chat.messages.length })
             )}
           </p>
         </div>
         <button
-          aria-label="Close chat"
+          aria-label={t("meeting.closeChat")}
           className="grid size-9 place-items-center rounded-md border border-border text-foreground transition hover:bg-muted"
           onClick={onClose}
           type="button"
@@ -97,7 +99,7 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {timeline.length === 0 ? (
           <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-            No messages yet.
+            {t("meeting.emptyChat")}
           </p>
         ) : (
           timeline.map((entry) =>
@@ -114,21 +116,21 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
 
       <form className="border-t border-border p-4" onSubmit={handleSubmit}>
         <label className="sr-only" htmlFor="meeting-chat-message">
-          Message
+          {t("meeting.chat")}
         </label>
         <div className="flex gap-2">
           <input
             className="h-10 min-w-0 flex-1 rounded-md border border-border bg-background px-3 text-sm text-foreground"
             id="meeting-chat-message"
             onChange={(event) => setDraft(event.target.value)}
-            placeholder="Type a message"
+            placeholder={t("meeting.typeMessage")}
             value={draft}
           />
           <button
             className="rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
             type="submit"
           >
-            Send
+            {t("common.send")}
           </button>
         </div>
       </form>

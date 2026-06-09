@@ -15,7 +15,9 @@ import { DisplayNameInput } from "@/features/prejoin/components/DisplayNameInput
 import { PasswordPrompt } from "@/features/prejoin/components/PasswordPrompt";
 import { saveRecentRoom } from "@/features/rooms/lib/recentRooms";
 import { useRoomMeta } from "@/features/rooms/hooks/useRoomMeta";
+import { isMessageKey } from "@/lib/i18n/messages";
 import { displayNameSchema } from "@/lib/utils/validators";
+import { useLocale } from "@/providers/LocaleProvider";
 import Link from "next/link";
 
 const DISPLAY_NAME_KEY = "meet_display_name";
@@ -25,12 +27,16 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   const { data, error, isLoading } = useRoomMeta(roomId);
   const { cancelJoin, joinMeeting, meeting, websocket } =
     useMeetingRoom(roomId);
+  const { t } = useLocale();
   const pingMs = useWebSocketPing(websocket.status === "open");
   const [displayName, setDisplayName] = useState("");
   const [password, setPassword] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const hasShownWaitingToastRef = useRef(false);
   const hasShownJoinedToastRef = useRef(false);
+
+  const meetingErrorMessage =
+    meeting.error && isMessageKey(meeting.error) ? t(meeting.error) : meeting.error;
 
   useEffect(() => {
     const stored = window.localStorage.getItem(DISPLAY_NAME_KEY);
@@ -46,7 +52,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   );
   const displayNameError =
     submitted && !displayNameResult.success
-      ? displayNameResult.error.issues[0]?.message
+      ? t("validation.displayNameRequired")
       : undefined;
 
   function handleJoin() {
@@ -63,10 +69,10 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     });
     hasShownWaitingToastRef.current = false;
     hasShownJoinedToastRef.current = false;
-    toast.loading("Joining room", {
+    toast.loading(t("meeting.joiningRoom"), {
       description: joinedAsHost
-        ? "Joining as room host."
-        : "Checking room access.",
+        ? t("meeting.joiningAsHost")
+        : t("meeting.joiningAsGuest"),
       id: JOIN_TOAST_ID
     });
   }
@@ -76,11 +82,11 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
       return;
     }
 
-    toast.error("Could not join room", {
-      description: meeting.error,
+    toast.error(t("error.couldNotJoinRoom"), {
+      description: meetingErrorMessage,
       id: JOIN_TOAST_ID
     });
-  }, [meeting.error, meeting.phase]);
+  }, [meeting.error, meeting.phase, meetingErrorMessage, t]);
 
   useEffect(() => {
     if (
@@ -91,11 +97,11 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     }
 
     hasShownWaitingToastRef.current = true;
-    toast.info("Waiting for host approval", {
-      description: "The host has been notified.",
+    toast.info(t("meeting.waitingForApproval"), {
+      description: t("meeting.waitingHostNotified"),
       id: JOIN_TOAST_ID
     });
-  }, [meeting.phase]);
+  }, [meeting.phase, t]);
 
   useEffect(() => {
     if (meeting.phase !== "in-call" || hasShownJoinedToastRef.current) {
@@ -103,14 +109,14 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     }
 
     hasShownJoinedToastRef.current = true;
-    toast.success("Joined room", {
-      description: "Media and signaling are ready.",
+    toast.success(t("meeting.joinedRoom"), {
+      description: t("meeting.joinedDescription"),
       id: JOIN_TOAST_ID
     });
     if (data?.room) {
       saveRecentRoom(data.room);
     }
-  }, [data?.room, meeting.phase]);
+  }, [data?.room, meeting.phase, t]);
 
   useEffect(() => {
     if (["kicked", "rejected", "room-closed"].includes(meeting.phase)) {
@@ -126,8 +132,10 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
           participantCount={data?.live.peer_count}
           pingMs={pingMs}
           roomId={roomId}
-          roomName={data?.room.name ?? "Meeting room"}
-          statusLabel={websocket.status === "open" ? "Ready" : websocket.status}
+          roomName={data?.room.name ?? t("meeting.defaultRoomName")}
+          statusLabel={
+            websocket.status === "open" ? t("common.ready") : websocket.status
+          }
         />
         <div className="pt-20">{children}</div>
       </>
@@ -155,20 +163,22 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     return renderPrejoinChrome(
       <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
         <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
-          {meeting.phase === "room-closed" ? "Meeting ended" : "Unable to join"}
+          {meeting.phase === "room-closed"
+            ? t("meeting.ended")
+            : t("meeting.unableToJoin")}
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          {meeting.error ??
-            (meeting.phase === "room-closed"
-              ? "This room has been closed by the host."
-              : "Your meeting session is no longer active.")}
+          {meetingErrorMessage ??
+              (meeting.phase === "room-closed"
+                ? t("meeting.roomClosedBody")
+              : t("meeting.sessionInactive"))}
         </p>
         <button
           className="mt-6 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
           onClick={cancelJoin}
           type="button"
         >
-          Back to prejoin
+          {t("meeting.backToPrejoin")}
         </button>
       </section>
     );
@@ -180,7 +190,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
         <div className="grid aspect-video place-items-center rounded-lg border border-border bg-muted">
           <LoadingSpinner
             className="text-primary"
-            label="Loading preview"
+            label={t("meeting.loadingPreview")}
             size="lg"
           />
         </div>
@@ -188,10 +198,10 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
           <div className="flex flex-col items-center gap-3 text-center text-muted-foreground">
             <LoadingSpinner
               className="text-primary"
-              label="Loading room"
+              label={t("meeting.loadingRoom")}
               size="lg"
             />
-            <p className="text-sm font-medium">Loading room</p>
+            <p className="text-sm font-medium">{t("meeting.loadingRoom")}</p>
           </div>
         </div>
       </div>
@@ -202,16 +212,16 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     return renderPrejoinChrome(
       <section className="mx-auto max-w-md rounded-lg border border-border bg-surface p-6 text-center shadow-sm">
         <h1 className="text-2xl font-semibold tracking-normal text-surface-foreground">
-          Room unavailable
+          {t("meeting.roomUnavailable")}
         </h1>
         <p className="mt-3 text-sm text-muted-foreground">
-          This meeting link is invalid or the room has expired.
+          {t("error.roomUnavailable")}
         </p>
         <Link
           className="mt-6 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
           href="/"
         >
-          Back home
+          {t("common.backHome")}
         </Link>
       </section>
     );
@@ -224,18 +234,19 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
       <aside className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {data.room.join_policy === "approval"
-            ? "Host approval required"
-            : "Open meeting"}
+            ? t("room.hostApproval")
+            : t("room.openMeeting")}
         </p>
         <h1 className="mt-2 text-2xl font-semibold tracking-normal text-surface-foreground">
           {data.room.name}
         </h1>
         <p className="mt-3 text-sm leading-6 text-muted-foreground">
-          {data.live.peer_count} participant
-          {data.live.peer_count === 1 ? "" : "s"} in call.
+          {t("meeting.singleParticipantInCall", {
+            count: data.live.peer_count
+          })}
           {data.room.join_policy === "approval"
-            ? " The host will need to let you in."
-            : " You can join as soon as signaling is connected."}
+            ? t("meeting.hostWillLetYouIn")
+            : t("meeting.youCanJoinWhenConnected")}
         </p>
 
         <div className="mt-6 grid gap-4">
@@ -256,8 +267,8 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
             type="button"
           >
             {meeting.phase === "joining" || websocket.status === "connecting"
-              ? "Joining..."
-              : "Continue"}
+              ? t("common.joining")
+              : t("common.continue")}
           </button>
           <InlineError message={meeting.error} />
         </div>

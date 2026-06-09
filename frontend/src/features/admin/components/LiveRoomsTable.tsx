@@ -1,6 +1,7 @@
 "use client";
 
 import type { LiveRoomStats, Room } from "@/types/api";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface LiveRoomsTableProps {
   rows: Array<{
@@ -10,10 +11,12 @@ interface LiveRoomsTableProps {
 }
 
 export function LiveRoomsTable({ rows }: LiveRoomsTableProps) {
+  const { t } = useLocale();
+
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-border bg-surface p-5 text-sm text-muted-foreground shadow-sm">
-        No live rooms with participants.
+        {t("admin.noLiveRooms")}
       </div>
     );
   }
@@ -23,10 +26,10 @@ export function LiveRoomsTable({ rows }: LiveRoomsTableProps) {
       <table className="w-full border-collapse text-left text-sm">
         <thead className="bg-muted text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
-            <th className="px-4 py-3">Room</th>
-            <th className="px-4 py-3">Peers</th>
-            <th className="px-4 py-3">Pending</th>
-            <th className="px-4 py-3">Mode</th>
+            <th className="px-4 py-3">{t("admin.rooms")}</th>
+            <th className="px-4 py-3">{t("admin.peers")}</th>
+            <th className="px-4 py-3">{t("admin.pending")}</th>
+            <th className="px-4 py-3">{t("admin.mode")}</th>
           </tr>
         </thead>
         <tbody>
@@ -44,7 +47,9 @@ export function LiveRoomsTable({ rows }: LiveRoomsTableProps) {
               <td className="px-4 py-3 text-surface-foreground">
                 {stats?.pending_count ?? 0}
               </td>
-              <td className="px-4 py-3 text-muted-foreground">SFU</td>
+              <td className="px-4 py-3 text-muted-foreground">
+                {t("admin.sfu")}
+              </td>
             </tr>
           ))}
         </tbody>

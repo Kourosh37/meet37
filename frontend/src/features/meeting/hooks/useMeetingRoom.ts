@@ -60,7 +60,7 @@ export function useMeetingRoom(roomId: string) {
       const normalizedDisplayName = displayName.trim();
 
       if (!normalizedDisplayName) {
-        meeting.setError("Display name is required");
+        meeting.setError("validation.displayNameRequired");
         return { joinedAsHost: false };
       }
 

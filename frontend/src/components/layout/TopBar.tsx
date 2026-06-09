@@ -1,29 +1,33 @@
 "use client";
 
 import { BrandMark } from "@/components/layout/BrandMark";
+import { LanguageSwitch } from "@/components/layout/LanguageSwitch";
 import { ThemeSwitch } from "@/components/layout/ThemeSwitch";
 import { usePublicSettings } from "@/features/rooms/hooks/useRoomMeta";
+import { useLocale } from "@/providers/LocaleProvider";
 import { LogIn, Plus } from "lucide-react";
 import Link from "next/link";
 
 export function TopBar() {
   const { data } = usePublicSettings();
+  const { t } = useLocale();
   const showLogin = data?.app_mode === "private";
 
   return (
     <header className="sticky top-0 z-20 border-b border-border bg-background/95 backdrop-blur">
-      <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-4 border-x border-border px-4 sm:px-6">
+      <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center justify-between gap-2 border-x border-border px-3 sm:gap-4 sm:px-6">
         <Link
-          className="inline-flex items-center gap-2 text-lg font-semibold tracking-normal text-foreground"
+          className="inline-flex min-w-0 shrink-0 items-center gap-2 text-lg font-semibold tracking-normal text-foreground"
           href="/"
         >
           <BrandMark className="h-8 w-8" />
           meet37
         </Link>
         <nav
-          aria-label="Primary navigation"
-          className="flex items-center gap-2"
+          aria-label={t("common.primaryNavigation")}
+          className="flex min-w-0 items-center gap-1.5 sm:gap-2"
         >
+          <LanguageSwitch />
           <ThemeSwitch />
           {showLogin ? (
             <Link
@@ -31,7 +35,7 @@ export function TopBar() {
               href="/login"
             >
               <LogIn className="size-4" />
-              Login
+              <span className="hidden sm:inline">{t("auth.login")}</span>
             </Link>
           ) : null}
           <Link
@@ -39,7 +43,7 @@ export function TopBar() {
             href="/rooms/new"
           >
             <Plus className="size-4" />
-            New room
+            <span className="hidden sm:inline">{t("room.newRoom")}</span>
           </Link>
         </nav>
       </div>

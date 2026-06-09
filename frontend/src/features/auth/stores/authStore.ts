@@ -89,8 +89,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set(setStoredSession(session));
       return session;
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Login failed";
-      set(anonymousState(message));
+      set(anonymousState("auth.loginFailed"));
       throw error;
     }
   },
@@ -99,7 +98,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const refreshToken = getRefreshToken();
 
     if (!refreshToken) {
-      set(anonymousState("Session expired"));
+      set(anonymousState("auth.sessionExpired"));
       return false;
     }
 
@@ -110,7 +109,7 @@ export const useAuthStore = create<AuthState>((set) => ({
       set(setStoredSession(sessionFromAuthResponse(response)));
       return true;
     } catch {
-      set(anonymousState("Session expired"));
+      set(anonymousState("auth.sessionExpired"));
       return false;
     }
   },

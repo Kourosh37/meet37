@@ -3,6 +3,7 @@
 import { FormEvent, useState } from "react";
 import { InlineError } from "@/components/feedback/InlineError";
 import { adminUserCreateSchema } from "@/lib/utils/validators";
+import { useLocale } from "@/providers/LocaleProvider";
 import type { CreateAdminUserRequest } from "@/types/api";
 
 interface CreateUserModalProps {
@@ -14,6 +15,7 @@ export function CreateUserModal({
   disabled = false,
   onCreate
 }: CreateUserModalProps) {
+  const { t } = useLocale();
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
@@ -24,7 +26,7 @@ export function CreateUserModal({
     const result = adminUserCreateSchema.safeParse({ password, username });
 
     if (!result.success) {
-      setError(result.error.issues[0]?.message ?? "Invalid user details");
+      setError(result.error.issues[0]?.message ?? t("error.invalidUserDetails"));
       return;
     }
 
@@ -43,7 +45,7 @@ export function CreateUserModal({
         onClick={() => setOpen(true)}
         type="button"
       >
-        Create user
+        {t("admin.createUser")}
       </button>
     );
   }
@@ -51,19 +53,19 @@ export function CreateUserModal({
   return (
     <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-surface-foreground">
-        Create user
+        {t("admin.createUser")}
       </h2>
       <form className="mt-4 grid gap-3" onSubmit={handleSubmit}>
         <input
           className="h-10 rounded-md border border-border bg-background px-3 text-sm"
           onChange={(event) => setUsername(event.target.value)}
-          placeholder="Username"
+          placeholder={t("auth.username")}
           value={username}
         />
         <input
           className="h-10 rounded-md border border-border bg-background px-3 text-sm"
           onChange={(event) => setPassword(event.target.value)}
-          placeholder="Password"
+          placeholder={t("auth.password")}
           type="password"
           value={password}
         />
@@ -74,14 +76,14 @@ export function CreateUserModal({
             disabled={disabled}
             type="submit"
           >
-            Save
+            {t("common.save")}
           </button>
           <button
             className="rounded-md border border-border px-4 py-2 text-sm font-semibold text-foreground"
             onClick={() => setOpen(false)}
             type="button"
           >
-            Cancel
+            {t("common.cancel")}
           </button>
         </div>
       </form>

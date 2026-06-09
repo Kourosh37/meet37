@@ -10,8 +10,10 @@ import type {
   PeerPermissions
 } from "@/features/meeting/types/signaling";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
+import { useLocale } from "@/providers/LocaleProvider";
 
 export function useModeration() {
+  const { t } = useLocale();
   const isHost = useMeetingStore((state) => state.isHost);
   const isAdmin = useMeetingStore((state) => state.isAdmin);
   const adminPermissions = useMeetingStore(
@@ -70,11 +72,11 @@ export function useModeration() {
       });
       removePendingPeer(peer.id);
     });
-    toast.success("All waiting participants admitted");
-  }, [isHost, pendingPeers, removePendingPeer]);
+    toast.success(t("meeting.admitAll"));
+  }, [isHost, pendingPeers, removePendingPeer, t]);
 
   const rejectPeer = useCallback(
-    (peerId: string, reason = "The host declined your request.") => {
+    (peerId: string, reason = t("meeting.hostDeclinedRequest")) => {
       if (!isHost) {
         return;
       }
@@ -85,7 +87,7 @@ export function useModeration() {
       });
       removePendingPeer(peerId);
     },
-    [isHost, removePendingPeer]
+    [isHost, removePendingPeer, t]
   );
 
   const mutePeer = useCallback(
@@ -106,15 +108,15 @@ export function useModeration() {
         payload: { kind, peer_id: peerId },
         type: "mute-peer"
       });
-      toast.info("Mute request sent");
+      toast.info(t("meeting.muteRequestSent"));
     },
-    [canDisableCamera, canDisableScreen, canMuteMic]
+    [canDisableCamera, canDisableScreen, canMuteMic, t]
   );
 
   const kickPeer = useCallback(
     (
       peerId: string,
-      reason = "Removed by the host.",
+      reason = t("meeting.removedByHost"),
       banMinutes?: number,
       banPermanent?: boolean
     ) => {
@@ -132,7 +134,7 @@ export function useModeration() {
         type: "kick-peer"
       });
     },
-    [canKick]
+    [canKick, t]
   );
 
   const setPeerPermissions = useCallback(

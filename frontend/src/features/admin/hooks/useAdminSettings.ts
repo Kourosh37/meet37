@@ -7,11 +7,13 @@ import {
   updateAdminSettings
 } from "@/features/admin/api/adminApi";
 import { roomQueryKeys } from "@/features/rooms/hooks/useRoomMeta";
+import { useLocale } from "@/providers/LocaleProvider";
 import type { AppMode } from "@/types/api";
 
 const adminSettingsKey = ["admin", "settings"] as const;
 
 export function useAdminSettings() {
+  const { t } = useLocale();
   const queryClient = useQueryClient();
   const settings = useQuery({
     queryFn: getAdminSettings,
@@ -25,7 +27,7 @@ export function useAdminSettings() {
       queryClient.setQueryData(roomQueryKeys.settings, data);
       void queryClient.invalidateQueries({ queryKey: adminSettingsKey });
       void queryClient.invalidateQueries({ queryKey: roomQueryKeys.settings });
-      toast.success("Application mode updated");
+      toast.success(t("admin.applicationModeUpdated"));
     }
   });
 

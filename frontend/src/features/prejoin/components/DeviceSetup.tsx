@@ -5,9 +5,11 @@ import { useEffect, useRef } from "react";
 import { InlineError } from "@/components/feedback/InlineError";
 import { DeviceSplitControl } from "@/features/meeting/components/DeviceSplitControl";
 import { useDeviceSetup } from "@/features/prejoin/hooks/useDeviceSetup";
+import { useLocale } from "@/providers/LocaleProvider";
 
 export function DeviceSetup() {
   const setup = useDeviceSetup();
+  const { t } = useLocale();
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
@@ -33,7 +35,7 @@ export function DeviceSetup() {
           <div className="flex h-full items-center justify-center text-center text-slate-300">
             <div>
               <CameraOff className="mx-auto size-10" />
-              <p className="mt-3 text-sm">Camera preview is off</p>
+              <p className="mt-3 text-sm">{t("meeting.cameraPreviewOff")}</p>
             </div>
           </div>
         )}
@@ -44,35 +46,39 @@ export function DeviceSetup() {
       <div className="flex flex-wrap gap-2">
         <DeviceSplitControl
           activeIcon={<Mic className="size-4" />}
-          defaultDeviceLabel="Default microphone"
+          defaultDeviceLabel={t("meeting.defaultMicrophone")}
           devices={setup.audioInputs}
           disabled={setup.permissionState === "prompting"}
           inactiveIcon={<MicOff className="size-4" />}
           isEnabled={setup.audioEnabled}
-          label="Mic"
+          label={t("meeting.microphone")}
           onSelectDevice={setup.setSelectedAudioDeviceId}
           onToggle={() => setup.setAudioEnabled(!setup.audioEnabled)}
-          selectLabel="Select microphone"
+          selectLabel={t("meeting.selectMicrophone")}
           selectedDeviceId={setup.selectedAudioDeviceId}
           toggleLabel={
-            setup.audioEnabled ? "Mute microphone" : "Unmute microphone"
+            setup.audioEnabled
+              ? t("meeting.muteMicrophone")
+              : t("meeting.unmuteMicrophone")
           }
           variant="labeled"
         />
         <DeviceSplitControl
           activeIcon={<Camera className="size-4" />}
-          defaultDeviceLabel="Default camera"
+          defaultDeviceLabel={t("meeting.defaultCamera")}
           devices={setup.videoInputs}
           disabled={setup.permissionState === "prompting"}
           inactiveIcon={<CameraOff className="size-4" />}
           isEnabled={setup.videoEnabled}
-          label="Camera"
+          label={t("meeting.camera")}
           onSelectDevice={setup.setSelectedVideoDeviceId}
           onToggle={() => setup.setVideoEnabled(!setup.videoEnabled)}
-          selectLabel="Select camera"
+          selectLabel={t("meeting.selectCamera")}
           selectedDeviceId={setup.selectedVideoDeviceId}
           toggleLabel={
-            setup.videoEnabled ? "Turn camera off" : "Turn camera on"
+            setup.videoEnabled
+              ? t("meeting.turnCameraOff")
+              : t("meeting.turnCameraOn")
           }
           variant="labeled"
         />

@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale } from "@/providers/LocaleProvider";
 import type { AppMode } from "@/types/api";
 
 interface AppModeToggleProps {
@@ -13,10 +14,12 @@ export function AppModeToggle({
   disabled = false,
   onChange
 }: AppModeToggleProps) {
+  const { t } = useLocale();
+
   return (
     <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
       <h2 className="text-sm font-semibold text-surface-foreground">
-        Application mode
+        {t("admin.appMode")}
       </h2>
       <div className="mt-4 inline-grid grid-cols-2 rounded-md border border-border bg-background p-1">
         {(["public", "private"] as const).map((mode) => (
@@ -31,13 +34,12 @@ export function AppModeToggle({
             onClick={() => onChange(mode)}
             type="button"
           >
-            {mode === "public" ? "Public" : "Private"}
+            {mode === "public" ? t("admin.public") : t("admin.private")}
           </button>
         ))}
       </div>
       <p className="mt-3 text-sm leading-6 text-muted-foreground">
-        Public mode allows anonymous room creation. Private mode requires an
-        admin-created user account for room creation.
+        {t("admin.appModeDescription")}
       </p>
     </div>
   );

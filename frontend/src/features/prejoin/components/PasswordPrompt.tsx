@@ -1,3 +1,5 @@
+import { useLocale } from "@/providers/LocaleProvider";
+
 export function PasswordPrompt({
   onChange,
   value
@@ -5,13 +7,15 @@ export function PasswordPrompt({
   onChange: (value: string) => void;
   value: string;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="space-y-2">
       <label
         className="text-sm font-medium text-surface-foreground"
         htmlFor="room-password"
       >
-        Room password
+        {t("room.roomPassword")}
       </label>
       <input
         autoComplete="off"

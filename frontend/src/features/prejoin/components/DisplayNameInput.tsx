@@ -1,6 +1,7 @@
 "use client";
 
 import { InlineError } from "@/components/feedback/InlineError";
+import { useLocale } from "@/providers/LocaleProvider";
 
 export function DisplayNameInput({
   error,
@@ -11,13 +12,15 @@ export function DisplayNameInput({
   onChange: (value: string) => void;
   value: string;
 }) {
+  const { t } = useLocale();
+
   return (
     <div className="space-y-2">
       <label
         className="text-sm font-medium text-surface-foreground"
         htmlFor="display-name"
       >
-        Display name
+        {t("validation.displayName")}
       </label>
       <input
         autoComplete="name"

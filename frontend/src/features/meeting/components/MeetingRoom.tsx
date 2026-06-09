@@ -29,6 +29,7 @@ import type { MeetingPeer } from "@/features/meeting/types/peer";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
+import { useLocale } from "@/providers/LocaleProvider";
 
 interface MeetingRoomProps {
   displayName: string;
@@ -43,6 +44,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const topScrollSettleFrameRef = useRef<number | null>(null);
   const meeting = useMeetingStore();
   const websocket = useWebSocket();
+  const { t } = useLocale();
   const pingMs = useWebSocketPing(websocket.status === "open");
   const localMedia = useLocalMedia();
   const moderation = useModeration();
@@ -190,39 +192,39 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     return webSocketManager.subscribe("mute-request", (message) => {
       if (message.payload.kind === "audio" && audioEnabled) {
         toggleAudio();
-        toast.info("The host requested that your microphone be muted.");
+        toast.info(t("meeting.micMuteRequested"));
       }
       if (message.payload.kind === "video" && localMedia.videoEnabled) {
         localMedia.toggleVideo();
-        toast.info("The host disabled your camera.");
+        toast.info(t("meeting.cameraDisabled"));
       }
       if (message.payload.kind === "screen" && localMedia.screenSharing) {
         localMedia.toggleScreenShare();
-        toast.info("The host disabled your screen share.");
+        toast.info(t("meeting.screenShareDisabled"));
       }
     });
-  }, [audioEnabled, localMedia, toggleAudio]);
+  }, [audioEnabled, localMedia, t, toggleAudio]);
 
   useEffect(() => {
     if (!canUseMic && localMedia.audioEnabled) {
       localMedia.toggleAudio();
-      toast.info("Microphone permission was disabled.");
+      toast.info(t("meeting.microphonePermissionDisabled"));
     }
-  }, [canUseMic, localMedia]);
+  }, [canUseMic, localMedia, t]);
 
   useEffect(() => {
     if (!canUseCamera && localMedia.videoEnabled) {
       localMedia.toggleVideo();
-      toast.info("Camera permission was disabled.");
+      toast.info(t("meeting.cameraPermissionDisabled"));
     }
-  }, [canUseCamera, localMedia]);
+  }, [canUseCamera, localMedia, t]);
 
   useEffect(() => {
     if (!canShareScreen && localMedia.screenSharing) {
       localMedia.toggleScreenShare();
-      toast.info("Screen sharing permission was disabled.");
+      toast.info(t("meeting.screenSharePermissionDisabled"));
     }
-  }, [canShareScreen, localMedia]);
+  }, [canShareScreen, localMedia, t]);
 
   useEffect(() => {
     if (!canChat && ui.chatOpen) {
@@ -434,13 +436,13 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const handleReaction = useCallback(
     (emoji: string) => {
       if (!canReact) {
-        toast.info("Reactions are disabled in this meeting.");
+        toast.info(t("meeting.emojiDisabled"));
         return;
       }
       addReaction(emoji, displayName);
       webSocketManager.send({ payload: { emoji }, type: "reaction" });
     },
-    [addReaction, canReact, displayName]
+    [addReaction, canReact, displayName, t]
   );
 
   useEffect(() => {
@@ -451,17 +453,17 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       const senderName =
         message.payload.display_name ??
         (message.from ? meeting.peers[message.from]?.displayName : undefined) ??
-        "Guest";
+        t("common.guest");
       addReaction(message.payload.emoji, senderName);
     });
-  }, [addReaction, meeting.peers]);
+  }, [addReaction, meeting.peers, t]);
 
   async function handleCopyInvite() {
     try {
       await navigator.clipboard.writeText(window.location.href);
-      toast.success("Invite link copied");
+      toast.success(t("meeting.copyInviteSuccess"));
     } catch {
-      toast.error("Could not copy invite link");
+      toast.error(t("meeting.copyInviteFailed"));
     }
   }
 
@@ -574,9 +576,9 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         roomName={roomName}
         statusLabel={
           meeting.phase === "reconnecting"
-            ? "Rejoining"
+            ? t("common.reconnecting")
             : websocket.status === "open"
-              ? "Connected"
+              ? t("common.connected")
               : websocket.status
         }
       />
@@ -593,8 +595,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
 
           {onlineStatus.isOffline ? (
             <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-200">
-              You are offline. Signaling and media may reconnect when your
-              network returns.
+              {t("meeting.youAreOffline")}
             </div>
           ) : null}
 
@@ -603,7 +604,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
             onClick={scrollToParticipants}
             type="button"
           >
-            Go to participants
+            {t("meeting.goToParticipants")}
           </button>
 
           <div className="grid min-h-0 flex-1 items-start overflow-hidden rounded-lg border border-border bg-border p-px lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-4 lg:overflow-visible lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0">
@@ -740,11 +741,10 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
               className="text-base font-semibold tracking-normal"
               id="leave-meeting-title"
             >
-              Leave meeting?
+              {t("meeting.leaveConfirmTitle")}
             </h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Your camera, microphone, screen share, and connection to this room
-              will stop.
+              {t("meeting.leaveConfirmMediaBody")}
             </p>
             <div className="mt-5 flex justify-end gap-2">
               <button
@@ -752,14 +752,14 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
                 onClick={() => setLeaveConfirmOpen(false)}
                 type="button"
               >
-                Cancel
+                {t("common.cancel")}
               </button>
               <button
                 className="inline-flex h-10 items-center justify-center rounded-md bg-danger px-3 text-sm font-semibold text-danger-foreground transition hover:bg-danger/90"
                 onClick={handleLeave}
                 type="button"
               >
-                Leave
+                {t("meeting.leave")}
               </button>
             </div>
           </section>

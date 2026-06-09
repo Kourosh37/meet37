@@ -1,6 +1,9 @@
 import { QueryProvider } from "@/providers/QueryProvider";
 import { ThemeProvider } from "@/providers/ThemeProvider";
 import { ToastProvider } from "@/providers/ToastProvider";
+import { LocaleProvider } from "@/providers/LocaleProvider";
+import { SkipToContent } from "@/components/layout/SkipToContent";
+import { localeHydrationScript } from "@/lib/i18n/config";
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
@@ -55,16 +58,14 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html dir="ltr" lang="en" suppressHydrationWarning>
       <body>
-        <a
-          className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-primary-foreground"
-          href="#main-content"
-        >
-          Skip to content
-        </a>
+        <script dangerouslySetInnerHTML={{ __html: localeHydrationScript }} />
         <ThemeProvider>
-          <QueryProvider>{children}</QueryProvider>
+          <LocaleProvider>
+            <SkipToContent />
+            <QueryProvider>{children}</QueryProvider>
+          </LocaleProvider>
           <ToastProvider />
         </ThemeProvider>
       </body>

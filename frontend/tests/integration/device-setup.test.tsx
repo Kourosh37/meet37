@@ -130,7 +130,15 @@ describe("DeviceSetup", () => {
     render(<DeviceSetup />);
 
     await waitFor(() => {
-      expect(document.querySelector("video")?.srcObject).toBe(stream);
+      const previewStream = document.querySelector("video")
+        ?.srcObject as MediaStream;
+
+      expect(previewStream?.getAudioTracks()).toContain(
+        stream.tracks.audioTrack
+      );
+      expect(previewStream?.getVideoTracks()).toContain(
+        stream.tracks.videoTrack
+      );
     });
 
     expect(
@@ -143,7 +151,12 @@ describe("DeviceSetup", () => {
     fireEvent.click(screen.getByRole("button", { name: /turn camera on/i }));
 
     await waitFor(() => {
-      expect(document.querySelector("video")?.srcObject).toBe(stream);
+      const previewStream = document.querySelector("video")
+        ?.srcObject as MediaStream;
+
+      expect(previewStream?.getVideoTracks()).toContain(
+        stream.tracks.videoTrack
+      );
     });
   });
 
@@ -168,7 +181,7 @@ describe("DeviceSetup", () => {
     await waitFor(() => {
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
         audio: expect.objectContaining({ deviceId: { exact: "audio-2" } }),
-        video: expect.objectContaining({ deviceId: { exact: "video-1" } })
+        video: false
       });
     });
 
@@ -177,7 +190,7 @@ describe("DeviceSetup", () => {
 
     await waitFor(() => {
       expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
-        audio: expect.objectContaining({ deviceId: { exact: "audio-2" } }),
+        audio: false,
         video: expect.objectContaining({ deviceId: { exact: "video-2" } })
       });
     });

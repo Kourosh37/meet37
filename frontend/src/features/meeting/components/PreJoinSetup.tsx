@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { toast } from "sonner";
 import { InlineError } from "@/components/feedback/InlineError";
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
+import { ConnectionQualityIndicator } from "@/features/meeting/components/ConnectionQualityIndicator";
 import { MeetingHeader } from "@/features/meeting/components/MeetingHeader";
 import { MeetingRoom } from "@/features/meeting/components/MeetingRoom";
 import { WaitingRoom } from "@/features/meeting/components/WaitingRoom";
@@ -27,6 +28,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   const { data, error, isLoading } = useRoomMeta(roomId);
   const { cancelJoin, joinMeeting, meeting, websocket } =
     useMeetingRoom(roomId);
+  const { close: closeWebSocket, connect: connectWebSocket } = websocket;
   const { t } = useLocale();
   const pingMs = useWebSocketPing(websocket.status === "open");
   const [displayName, setDisplayName] = useState("");
@@ -34,6 +36,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
   const [submitted, setSubmitted] = useState(false);
   const hasShownWaitingToastRef = useRef(false);
   const hasShownJoinedToastRef = useRef(false);
+  const meetingPhaseRef = useRef(meeting.phase);
 
   const meetingErrorMessage =
     meeting.error && isMessageKey(meeting.error) ? t(meeting.error) : meeting.error;
@@ -54,6 +57,34 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     submitted && !displayNameResult.success
       ? t("validation.displayNameRequired")
       : undefined;
+  const prejoinConnectionLabel =
+    websocket.status !== "open" || pingMs === null
+      ? t("connection.pending")
+      : pingMs <= 120
+        ? t("connection.good")
+        : pingMs <= 250
+          ? t("connection.unstable")
+          : t("connection.poor");
+  const prejoinStatusLabel =
+    websocket.status === "open"
+      ? t("common.ready")
+      : websocket.status === "reconnecting"
+        ? t("common.reconnecting")
+        : t("connection.pending");
+
+  useEffect(() => {
+    meetingPhaseRef.current = meeting.phase;
+  }, [meeting.phase]);
+
+  useEffect(() => {
+    connectWebSocket();
+
+    return () => {
+      if (meetingPhaseRef.current === "idle") {
+        closeWebSocket();
+      }
+    };
+  }, [closeWebSocket, connectWebSocket]);
 
   function handleJoin() {
     setSubmitted(true);
@@ -128,14 +159,9 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
     return (
       <>
         <MeetingHeader
-          isConnected={websocket.status === "open"}
           participantCount={data?.live.peer_count}
-          pingMs={pingMs}
           roomId={roomId}
           roomName={data?.room.name ?? t("meeting.defaultRoomName")}
-          statusLabel={
-            websocket.status === "open" ? t("common.ready") : websocket.status
-          }
         />
         <div className="pt-20">{children}</div>
       </>
@@ -248,6 +274,18 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
             ? t("meeting.hostWillLetYouIn")
             : t("meeting.youCanJoinWhenConnected")}
         </p>
+
+        <div className="mt-4 flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2">
+          <span className="text-xs font-semibold text-muted-foreground">
+            {prejoinConnectionLabel}
+          </span>
+          <ConnectionQualityIndicator
+            isConnected={websocket.status === "open"}
+            pingMs={pingMs}
+            quality="unknown"
+            statusLabel={prejoinStatusLabel}
+          />
+        </div>
 
         <div className="mt-6 grid gap-4">
           <DisplayNameInput

@@ -112,9 +112,12 @@ export function ConnectionQualityIndicator({
         </span>
       ) : null}
       <span className="h-3.5 w-px bg-current/20" />
-      <span className="inline-flex min-w-9 items-baseline leading-none">
+      <span
+        className="inline-flex min-w-9 items-baseline justify-end leading-none"
+        dir="ltr"
+      >
         <span className="text-[11px] font-bold tabular-nums">{pingLabel}</span>
-        <span className="ms-0.5 text-[7px] font-bold uppercase tracking-normal opacity-70">
+        <span className="ml-0.5 text-[7px] font-bold uppercase tracking-normal opacity-70">
           ms
         </span>
       </span>

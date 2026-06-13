@@ -81,7 +81,7 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
         "meet-locale-to-ltr",
         "meet-locale-to-rtl"
       );
-    }, 620);
+    }, 340);
 
     applyDocumentLocale(config.code);
     window.localStorage.setItem(LOCALE_STORAGE_KEY, config.code);

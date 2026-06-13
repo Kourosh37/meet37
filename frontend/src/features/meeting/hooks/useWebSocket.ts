@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { OutgoingSignalMessage } from "@/features/meeting/types/signaling";
 import {
   webSocketManager,
@@ -17,12 +17,19 @@ export function useWebSocket() {
     []
   );
 
-  return {
-    close: () => webSocketManager.close(),
-    connect: () => webSocketManager.connect(),
+  const close = useCallback(() => webSocketManager.close(), []);
+  const connect = useCallback(() => webSocketManager.connect(), []);
+  const send = useCallback(
+    (message: OutgoingSignalMessage) => webSocketManager.send(message),
+    []
+  );
+
+  return useMemo(() => ({
+    close,
+    connect,
     connectionId,
     isConnected: status === "open",
-    send: (message: OutgoingSignalMessage) => webSocketManager.send(message),
+    send,
     status
-  };
+  }), [close, connect, connectionId, send, status]);
 }

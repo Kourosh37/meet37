@@ -104,7 +104,7 @@ export default function HomePage() {
     <section className="mx-auto flex min-h-[calc(100vh-12rem)] max-w-6xl flex-col gap-10 py-8 lg:gap-12 lg:py-12">
       <div className="mx-auto flex w-full flex-col items-center gap-7 text-center">
         <div className="space-y-5">
-          <h1 className="mx-auto max-w-3xl text-4xl font-semibold leading-tight tracking-normal text-foreground sm:text-5xl lg:text-6xl">
+          <h1 className="meet-landing-title mx-auto max-w-3xl text-4xl font-semibold tracking-normal text-foreground sm:text-5xl lg:text-6xl">
             {t("room.startHeroTitle")}
           </h1>
           <p className="mx-auto max-w-2xl text-base leading-7 text-muted-foreground">
@@ -186,7 +186,7 @@ export default function HomePage() {
                       <h3 className="line-clamp-2 text-sm font-semibold leading-snug text-foreground">
                         {room.name}
                       </h3>
-                      <p className="mt-1 font-mono text-xs text-muted-foreground">
+                      <p className="mt-1 text-xs text-muted-foreground">
                         {room.id}
                       </p>
                       <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

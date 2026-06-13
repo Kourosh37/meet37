@@ -72,8 +72,11 @@ export function VideoTile({
   const hasLiveVideoTrack = videoTracks.some(
     (track) => track.readyState === "live"
   );
+  const hasUnmutedVideoTrack = videoTracks.some(
+    (track) => track.readyState === "live" && !track.muted
+  );
   const hasVideo = Boolean(
-    hasLiveVideoTrack && (videoEnabled || screenSharing)
+    hasUnmutedVideoTrack && (videoEnabled || screenSharing)
   );
   const shouldRenderVideo =
     hasLiveVideoTrack && (videoEnabled || screenSharing);

@@ -2,38 +2,12 @@
 
 import { useLocale } from "@/providers/LocaleProvider";
 import { cn } from "@/lib/utils/cn";
-import * as FlagIcons from "country-flag-icons/react/3x2";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import { Globe2 } from "lucide-react";
-import type { ComponentType, CSSProperties, SVGProps } from "react";
+import type { CSSProperties } from "react";
 
 interface LanguageSwitchProps {
   className?: string;
-}
-
-const flagIcons = FlagIcons as Record<
-  string,
-  ComponentType<SVGProps<SVGSVGElement>>
->;
-
-function CountryFlag({ code }: { code: string }) {
-  const Flag = flagIcons[code];
-
-  if (!Flag) {
-    return (
-      <span className="grid h-4 min-w-6 place-items-center rounded-sm border border-border bg-muted px-1 text-[9px] font-black leading-none text-muted-foreground">
-        {code}
-      </span>
-    );
-  }
-
-  return (
-    <Flag
-      aria-hidden="true"
-      className="h-4 w-6 shrink-0 rounded-[2px] object-cover shadow-sm ring-1 ring-black/10"
-      focusable="false"
-    />
-  );
 }
 
 export function LanguageSwitch({ className }: LanguageSwitchProps) {
@@ -72,36 +46,30 @@ export function LanguageSwitch({ className }: LanguageSwitchProps) {
             return (
               <DropdownMenu.Item
                 className={cn(
-                  "meet-language-item grid min-h-12 cursor-pointer select-none gap-1.5 rounded-md px-2.5 py-2 text-sm outline-none transition hover:bg-muted focus:bg-muted",
+                  "meet-language-item grid min-h-11 cursor-pointer select-none grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-md px-3 py-2 text-sm outline-none transition hover:bg-muted focus:bg-muted",
                   selected && "bg-primary/10 text-primary"
                 )}
-                dir={locale.direction}
                 key={locale.code}
                 onSelect={() => setLocale(locale.code)}
                 style={
                   {
-                    "--meet-language-index": index
+                    "--meet-language-index": index,
+                    direction: "ltr"
                   } as CSSProperties
                 }
               >
-                <span className="flex min-w-0 items-center justify-between gap-3">
-                  <span className="min-w-0 truncate text-xs font-bold leading-none">
-                    {locale.nativeName}
-                  </span>
-                  <span className="shrink-0 text-[11px] font-black uppercase leading-none tracking-normal">
-                    {locale.label}
-                  </span>
-                </span>
                 <span
-                  aria-hidden="true"
-                  className="flex flex-wrap gap-1"
+                  className={cn(
+                    "block w-full min-w-0 truncate text-xs font-bold leading-none",
+                    locale.direction === "rtl" ? "text-right" : "text-left"
+                  )}
+                  dir={locale.direction}
+                  style={{ justifySelf: "stretch" }}
                 >
-                  {locale.flagCountries.map((countryCode, flagIndex) => (
-                    <CountryFlag
-                      code={countryCode}
-                      key={`${locale.code}-${countryCode}-${flagIndex}`}
-                    />
-                  ))}
+                  {locale.nativeName}
+                </span>
+                <span className="shrink-0 rounded border border-border bg-muted px-1.5 py-1 text-[10px] font-black uppercase leading-none tracking-normal text-muted-foreground">
+                  {locale.label}
                 </span>
               </DropdownMenu.Item>
             );

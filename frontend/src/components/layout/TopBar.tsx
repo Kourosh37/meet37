@@ -21,7 +21,7 @@ export function TopBar() {
           href="/"
         >
           <BrandMark className="h-8 w-8" />
-          meet37
+          <span className="meet-brand-word">meet37</span>
         </Link>
         <nav
           aria-label={t("common.primaryNavigation")}

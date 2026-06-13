@@ -18,6 +18,10 @@ const config: Config = {
         danger: "rgb(var(--danger) / <alpha-value>)",
         "danger-foreground": "rgb(var(--danger-foreground) / <alpha-value>)",
         ring: "rgb(var(--ring) / <alpha-value>)"
+      },
+      fontFamily: {
+        mono: ["var(--meet-font-current)"],
+        sans: ["var(--meet-font-current)"]
       }
     }
   },

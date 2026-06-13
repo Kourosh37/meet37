@@ -3,7 +3,6 @@ export type LocaleDirection = "ltr" | "rtl";
 export interface LocaleConfig {
   code: string;
   direction: LocaleDirection;
-  flagCountries: readonly string[];
   htmlLang: string;
   label: string;
   nativeName: string;
@@ -16,64 +15,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "en",
     direction: "ltr",
-    flagCountries: [
-      "US",
-      "GB",
-      "CA",
-      "AU",
-      "NZ",
-      "IE",
-      "ZA",
-      "NG",
-      "GH",
-      "KE",
-      "UG",
-      "TZ",
-      "ZM",
-      "ZW",
-      "MW",
-      "RW",
-      "SL",
-      "LR",
-      "GM",
-      "BW",
-      "LS",
-      "SZ",
-      "NA",
-      "SS",
-      "JM",
-      "TT",
-      "BS",
-      "BB",
-      "BZ",
-      "GY",
-      "AG",
-      "DM",
-      "GD",
-      "KN",
-      "LC",
-      "VC",
-      "IN",
-      "PK",
-      "PH",
-      "SG",
-      "FJ",
-      "PG",
-      "SB",
-      "VU",
-      "WS",
-      "KI",
-      "TO",
-      "TV",
-      "NR",
-      "PW",
-      "MH",
-      "FM",
-      "MT",
-      "MU",
-      "SC",
-      "CM",
-    ],
     htmlLang: "en",
     label: "EN",
     nativeName: "English"
@@ -81,7 +22,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "fa",
     direction: "rtl",
-    flagCountries: ["IR", "AF", "TJ"],
     htmlLang: "fa",
     label: "FA",
     nativeName: "فارسی"
@@ -89,31 +29,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "ar",
     direction: "rtl",
-    flagCountries: [
-      "DZ",
-      "BH",
-      "KM",
-      "TD",
-      "DJ",
-      "EG",
-      "IQ",
-      "JO",
-      "KW",
-      "LB",
-      "LY",
-      "MR",
-      "MA",
-      "OM",
-      "PS",
-      "QA",
-      "SA",
-      "SO",
-      "SD",
-      "SY",
-      "TN",
-      "AE",
-      "YE",
-    ],
     htmlLang: "ar",
     label: "AR",
     nativeName: "العربية"
@@ -121,37 +36,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "fr",
     direction: "ltr",
-    flagCountries: [
-      "FR",
-      "BE",
-      "CH",
-      "LU",
-      "MC",
-      "CA",
-      "HT",
-      "BJ",
-      "BF",
-      "BI",
-      "CM",
-      "CF",
-      "TD",
-      "KM",
-      "CG",
-      "CD",
-      "CI",
-      "DJ",
-      "GQ",
-      "GA",
-      "GN",
-      "MG",
-      "ML",
-      "NE",
-      "RW",
-      "SN",
-      "SC",
-      "TG",
-      "VU",
-    ],
     htmlLang: "fr",
     label: "FR",
     nativeName: "Français"
@@ -159,29 +43,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "es",
     direction: "ltr",
-    flagCountries: [
-      "ES",
-      "MX",
-      "GT",
-      "SV",
-      "HN",
-      "NI",
-      "CR",
-      "PA",
-      "CU",
-      "DO",
-      "PR",
-      "CO",
-      "VE",
-      "EC",
-      "PE",
-      "BO",
-      "CL",
-      "AR",
-      "UY",
-      "PY",
-      "GQ",
-    ],
     htmlLang: "es",
     label: "ES",
     nativeName: "Español"
@@ -189,17 +50,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "pt",
     direction: "ltr",
-    flagCountries: [
-      "PT",
-      "BR",
-      "AO",
-      "MZ",
-      "CV",
-      "GW",
-      "ST",
-      "TL",
-      "GQ",
-    ],
     htmlLang: "pt",
     label: "PT",
     nativeName: "Português"
@@ -207,7 +57,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "ru",
     direction: "ltr",
-    flagCountries: ["RU", "BY", "KZ", "KG"],
     htmlLang: "ru",
     label: "RU",
     nativeName: "Русский"
@@ -215,7 +64,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "zh",
     direction: "ltr",
-    flagCountries: ["CN", "TW", "SG", "HK", "MO"],
     htmlLang: "zh",
     label: "ZH",
     nativeName: "中文"
@@ -223,7 +71,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "ja",
     direction: "ltr",
-    flagCountries: ["JP"],
     htmlLang: "ja",
     label: "JA",
     nativeName: "日本語"
@@ -231,7 +78,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "ko",
     direction: "ltr",
-    flagCountries: ["KR", "KP"],
     htmlLang: "ko",
     label: "KO",
     nativeName: "한국어"
@@ -239,7 +85,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "de",
     direction: "ltr",
-    flagCountries: ["DE", "AT", "CH", "LI", "LU", "BE"],
     htmlLang: "de",
     label: "DE",
     nativeName: "Deutsch"
@@ -247,7 +92,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "it",
     direction: "ltr",
-    flagCountries: ["IT", "CH", "SM", "VA"],
     htmlLang: "it",
     label: "IT",
     nativeName: "Italiano"
@@ -255,7 +99,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "hi",
     direction: "ltr",
-    flagCountries: ["IN", "FJ"],
     htmlLang: "hi",
     label: "HI",
     nativeName: "हिन्दी"
@@ -263,7 +106,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "tr",
     direction: "ltr",
-    flagCountries: ["TR", "CY"],
     htmlLang: "tr",
     label: "TR",
     nativeName: "Türkçe"
@@ -271,7 +113,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "ur",
     direction: "rtl",
-    flagCountries: ["PK", "IN"],
     htmlLang: "ur-PK",
     label: "UR",
     nativeName: "اردو"
@@ -279,7 +120,6 @@ export const SUPPORTED_LOCALES = [
   {
     code: "he",
     direction: "rtl",
-    flagCountries: ["IL"],
     htmlLang: "he",
     label: "HE",
     nativeName: "עברית"

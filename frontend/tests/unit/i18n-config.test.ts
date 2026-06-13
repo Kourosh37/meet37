@@ -54,12 +54,8 @@ describe("i18n config", () => {
     ]);
     expect(getLocaleConfig("fa")).toMatchObject({
       direction: "rtl",
-      flagCountries: ["IR", "AF", "TJ"],
       nativeName: "فارسی"
     });
-    expect(
-      SUPPORTED_LOCALES.every((locale) => locale.flagCountries.length > 0)
-    ).toBe(true);
     expect(
       SUPPORTED_LOCALES.filter((locale) => locale.direction === "rtl").map(
         (locale) => locale.code
@@ -73,7 +69,6 @@ describe("i18n config", () => {
     });
     expect(getLocaleConfig("he")).toMatchObject({
       direction: "rtl",
-      flagCountries: ["IL"],
       htmlLang: "he",
       label: "HE",
       nativeName: "עברית"

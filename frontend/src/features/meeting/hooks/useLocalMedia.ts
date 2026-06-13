@@ -270,7 +270,6 @@ export function useLocalMedia() {
       });
       setStream((current) => {
         current?.getAudioTracks().forEach((track) => {
-          current.removeTrack(track);
           track.stop();
         });
         return new MediaStream([
@@ -284,6 +283,64 @@ export function useLocalMedia() {
     } catch {
       setAudioStatus("error");
       setError("error.couldNotStartMicrophone");
+    }
+  }, [enumerateDevices, setError]);
+
+  const startVideoTrackImmediately = useCallback(async () => {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setVideoStatus("error");
+      setError("error.mediaDevicesUnavailable");
+      return;
+    }
+
+    try {
+      setVideoStatus("starting");
+      const videoDeviceId = useMediaStore.getState().selectedVideoDeviceId;
+      const videoStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: buildCameraConstraints(videoDeviceId)
+      });
+      const videoTracks = videoStream.getVideoTracks();
+
+      if (!videoTracks.length) {
+        stopMediaStream(videoStream);
+        setVideoStatus("error");
+        setError("error.couldNotStartLocalMedia");
+        return;
+      }
+
+      videoTracks.forEach((track) => {
+        setVideoContentHint(track, "motion");
+        track.enabled = true;
+      });
+      await Promise.all(
+        videoTracks.map((track) => applyVideoTrackConstraints(track))
+      );
+
+      if (
+        !useMediaStore.getState().videoEnabled ||
+        useMediaStore.getState().screenSharing
+      ) {
+        stopMediaStream(videoStream);
+        setVideoStatus("off");
+        return;
+      }
+
+      setStream((current) => {
+        current?.getVideoTracks().forEach((track) => {
+          track.stop();
+        });
+        return new MediaStream([
+          ...(current?.getAudioTracks() ?? []),
+          ...videoTracks
+        ]);
+      });
+      setVideoStatus("ready");
+      setError(null);
+      await enumerateDevices();
+    } catch {
+      setVideoStatus("error");
+      setError("error.couldNotStartLocalMedia");
     }
   }, [enumerateDevices, setError]);
 
@@ -311,7 +368,7 @@ export function useLocalMedia() {
 
     if (useMediaStore.getState().videoEnabled) {
       setVideoStatus("starting");
-      await startImmediately({ videoEnabled: true });
+      await startVideoTrackImmediately();
       return;
     }
 
@@ -320,14 +377,14 @@ export function useLocalMedia() {
         return null;
       }
 
+      const audioTracks = current.getAudioTracks();
       current.getVideoTracks().forEach((track) => {
-        current.removeTrack(track);
         track.stop();
       });
       setVideoStatus("off");
-      return new MediaStream(current.getTracks());
+      return audioTracks.length ? new MediaStream(audioTracks) : null;
     });
-  }, [setScreenSharing, startImmediately]);
+  }, [setScreenSharing, startVideoTrackImmediately]);
 
   const stopScreenShare = useCallback(
     () => runMediaOperation(stopScreenShareImmediately),
@@ -376,7 +433,6 @@ export function useLocalMedia() {
       setStream((current) => {
         const audioTracks = current?.getAudioTracks() ?? [];
         current?.getVideoTracks().forEach((track) => {
-          current.removeTrack(track);
           if (track !== screenTrack) {
             track.stop();
           }
@@ -439,7 +495,7 @@ export function useLocalMedia() {
 
       if (enabled) {
         setVideoStatus("starting");
-        await startImmediately({ videoEnabled: true });
+        await startVideoTrackImmediately();
         return;
       }
 
@@ -450,7 +506,7 @@ export function useLocalMedia() {
     runMediaOperation,
     screenSharing,
     setVideoEnabled,
-    startImmediately,
+    startVideoTrackImmediately,
     stopScreenShare
   ]);
 
@@ -478,9 +534,9 @@ export function useLocalMedia() {
         return;
       }
 
-      void runMediaOperation(() => startImmediately({ videoEnabled: true }));
+      void runMediaOperation(startVideoTrackImmediately);
     },
-    [runMediaOperation, startImmediately]
+    [runMediaOperation, startVideoTrackImmediately]
   );
 
   useEffect(() => {

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { RoomCreationForm } from "@/features/rooms/components/RoomCreationForm";
 import { useLocale } from "@/providers/LocaleProvider";
+import { Home } from "lucide-react";
 
 export default function CreateRoomPage() {
   const { t } = useLocale();
@@ -10,6 +11,13 @@ export default function CreateRoomPage() {
   return (
     <section className="mx-auto max-w-2xl space-y-6">
       <div>
+        <Link
+          className="mb-5 inline-flex h-10 items-center gap-2 rounded-md border border-border bg-surface px-3 text-sm font-semibold text-surface-foreground shadow-sm transition hover:bg-muted"
+          href="/"
+        >
+          <Home className="size-4" />
+          {t("common.backHome")}
+        </Link>
         <p className="text-sm font-medium text-primary">{t("room.roomSetup")}</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-normal text-foreground">
           {t("room.createRoomTitle")}
@@ -21,14 +29,6 @@ export default function CreateRoomPage() {
 
       <div className="rounded-lg border border-border bg-surface p-5 shadow-sm">
         <RoomCreationForm />
-        <div className="mt-6">
-          <Link
-            className="text-sm font-medium text-muted-foreground hover:text-foreground"
-            href="/"
-          >
-            {t("common.backHome")}
-          </Link>
-        </div>
       </div>
     </section>
   );

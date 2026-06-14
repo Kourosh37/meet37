@@ -19,6 +19,7 @@ import { useRoomMeta } from "@/features/rooms/hooks/useRoomMeta";
 import { isMessageKey } from "@/lib/i18n/messages";
 import { displayNameSchema } from "@/lib/utils/validators";
 import { useLocale } from "@/providers/LocaleProvider";
+import { Home } from "lucide-react";
 import Link from "next/link";
 
 const DISPLAY_NAME_KEY = "meet_display_name";
@@ -258,6 +259,13 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
       <DeviceSetup />
 
       <aside className="rounded-lg border border-border bg-surface p-5 shadow-sm">
+        <Link
+          className="mb-4 inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
+          href="/"
+        >
+          <Home className="size-4" />
+          {t("common.backHome")}
+        </Link>
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {data.room.join_policy === "approval"
             ? t("room.hostApproval")

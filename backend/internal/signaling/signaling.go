@@ -168,23 +168,55 @@ func protectedPeerError(actor, target *Peer) string {
 }
 
 type Peer struct {
-	id          string
-	userID      string
-	clientID    string
-	displayName string
-	remoteIP    string
-	userAgent   string
-	roomID      string
-	isHost      bool
-	isAdmin     bool
-	permissions models.PeerPermissions
-	adminPerms  models.AdminPermissions
-	conn        *websocket.Conn
-	send        chan []byte
-	mode        string
-	hub         *Hub
-	mu          sync.Mutex
-	closed      sync.Once
+	id                string
+	userID            string
+	clientID          string
+	displayName       string
+	remoteIP          string
+	userAgent         string
+	roomID            string
+	isHost            bool
+	isAdmin           bool
+	permissions       models.PeerPermissions
+	adminPerms        models.AdminPermissions
+	audioEnabled      bool
+	audioStatus       string
+	videoEnabled      bool
+	videoStatus       string
+	screenSharing     bool
+	screenShareStatus string
+	mediaUpdatedAt    int64
+	conn              *websocket.Conn
+	send              chan []byte
+	mode              string
+	hub               *Hub
+	mu                sync.Mutex
+	closed            sync.Once
+}
+
+type LivePeerDetail struct {
+	ID                string `json:"id"`
+	UserID            string `json:"user_id,omitempty"`
+	DisplayName       string `json:"display_name"`
+	Mode              string `json:"mode"`
+	IsHost            bool   `json:"is_host"`
+	IsAdmin           bool   `json:"is_admin"`
+	AudioEnabled      bool   `json:"audio_enabled"`
+	AudioStatus       string `json:"audio_status"`
+	VideoEnabled      bool   `json:"video_enabled"`
+	VideoStatus       string `json:"video_status"`
+	ScreenSharing     bool   `json:"screen_sharing"`
+	ScreenShareStatus string `json:"screen_share_status"`
+	MediaUpdatedAt    int64  `json:"media_updated_at,omitempty"`
+}
+
+type LiveRoomDetail struct {
+	Active        bool             `json:"active"`
+	PeerCount     int              `json:"peer_count"`
+	PendingCount  int              `json:"pending_count"`
+	SFUPeers      int              `json:"sfu_peers"`
+	HasSFUSession bool             `json:"has_sfu_session"`
+	Peers         []LivePeerDetail `json:"peers"`
 }
 
 type Room struct {
@@ -479,7 +511,31 @@ func (h *Hub) handleMediaState(p *Peer, msg models.SignalMessage) {
 		body.ScreenSharing = false
 		body.ScreenShareStatus = "off"
 	}
+	now := time.Now().Unix()
+	p.mu.Lock()
+	p.audioEnabled = body.AudioEnabled
+	p.audioStatus = normalizeMediaStatus(body.AudioStatus, body.AudioEnabled)
+	p.videoEnabled = body.VideoEnabled
+	p.videoStatus = normalizeMediaStatus(body.VideoStatus, body.VideoEnabled)
+	p.screenSharing = body.ScreenSharing
+	p.screenShareStatus = normalizeMediaStatus(body.ScreenShareStatus, body.ScreenSharing)
+	p.mediaUpdatedAt = now
+	body.AudioStatus = p.audioStatus
+	body.VideoStatus = p.videoStatus
+	body.ScreenShareStatus = p.screenShareStatus
+	p.mu.Unlock()
 	h.broadcast(p.roomID, models.SignalMessage{Type: "media-state", From: p.id, Payload: body}, p.id)
+}
+
+func normalizeMediaStatus(status string, enabled bool) string {
+	status = strings.TrimSpace(status)
+	if status != "" {
+		return status
+	}
+	if enabled {
+		return "ready"
+	}
+	return "off"
 }
 
 func (h *Hub) handlePeerPermissions(actor *Peer, msg models.SignalMessage) {
@@ -1330,6 +1386,65 @@ func (h *Hub) GetRoomStats(roomID string) map[string]interface{} {
 		}
 	}
 	return map[string]interface{}{"active": true, "peer_count": len(room.peers), "pending_count": len(room.pending), "sfu_peers": sfuCount, "has_sfu_session": room.sfuSession != nil}
+}
+
+func (h *Hub) GetRoomDetail(roomID string) LiveRoomDetail {
+	h.mu.RLock()
+	room := h.rooms[roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return LiveRoomDetail{Active: false, Peers: []LivePeerDetail{}}
+	}
+	room.mu.RLock()
+	defer room.mu.RUnlock()
+	peers := make([]LivePeerDetail, 0, len(room.peers))
+	sfuCount := 0
+	for _, peer := range room.peers {
+		if peer.mode == "sfu" {
+			sfuCount++
+		}
+		peer.mu.Lock()
+		peers = append(peers, LivePeerDetail{
+			ID:                peer.id,
+			UserID:            peer.userID,
+			DisplayName:       peer.displayName,
+			Mode:              peer.mode,
+			IsHost:            peer.isHost,
+			IsAdmin:           peer.isAdmin,
+			AudioEnabled:      peer.audioEnabled,
+			AudioStatus:       normalizeMediaStatus(peer.audioStatus, peer.audioEnabled),
+			VideoEnabled:      peer.videoEnabled,
+			VideoStatus:       normalizeMediaStatus(peer.videoStatus, peer.videoEnabled),
+			ScreenSharing:     peer.screenSharing,
+			ScreenShareStatus: normalizeMediaStatus(peer.screenShareStatus, peer.screenSharing),
+			MediaUpdatedAt:    peer.mediaUpdatedAt,
+		})
+		peer.mu.Unlock()
+	}
+	return LiveRoomDetail{
+		Active:        true,
+		PeerCount:     len(room.peers),
+		PendingCount:  len(room.pending),
+		SFUPeers:      sfuCount,
+		HasSFUSession: room.sfuSession != nil,
+		Peers:         peers,
+	}
+}
+
+func (h *Hub) TotalActivePeers() int {
+	h.mu.RLock()
+	rooms := make([]*Room, 0, len(h.rooms))
+	for _, room := range h.rooms {
+		rooms = append(rooms, room)
+	}
+	h.mu.RUnlock()
+	total := 0
+	for _, room := range rooms {
+		room.mu.RLock()
+		total += len(room.peers)
+		room.mu.RUnlock()
+	}
+	return total
 }
 
 func (h *Hub) GetSFUStats() sfu.Stats {

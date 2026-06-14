@@ -91,6 +91,79 @@ export interface LiveRoomStats {
   has_sfu_session: boolean;
 }
 
+export type AdminAnalyticsRange = "today" | "7d" | "30d";
+
+export interface AdminAnalyticsPoint {
+  label: string;
+  start: UnixSeconds;
+  end: UnixSeconds;
+  count: number;
+}
+
+export interface AdminAnalyticsSeries {
+  total: number;
+  series: AdminAnalyticsPoint[];
+}
+
+export interface AdminAnalyticsResponse {
+  range: AdminAnalyticsRange;
+  users: AdminAnalyticsSeries;
+  rooms: AdminAnalyticsSeries;
+}
+
+export interface AdminServerResource {
+  total_bytes: number;
+  used_bytes: number;
+  free_bytes: number;
+  percent: number;
+}
+
+export interface AdminServerStatusResponse {
+  collected_at: UnixSeconds;
+  cpu: {
+    percent: number;
+    cores: number;
+  };
+  memory: AdminServerResource;
+  disk: AdminServerResource & {
+    path: string;
+  };
+  runtime: {
+    heap_alloc_bytes: number;
+    goroutines: number;
+  };
+}
+
+export interface LiveRoomPeerDetail {
+  id: string;
+  user_id?: string;
+  display_name: string;
+  mode: string;
+  is_host: boolean;
+  is_admin: boolean;
+  audio_enabled: boolean;
+  audio_status: string;
+  video_enabled: boolean;
+  video_status: string;
+  screen_sharing: boolean;
+  screen_share_status: string;
+  media_updated_at?: UnixSeconds;
+}
+
+export interface LiveRoomResourceEstimate {
+  estimated_cpu_percent: number;
+  estimated_memory_bytes: number;
+  share_of_active_peers: number;
+  total_active_peer_count: number;
+  room_active_peer_count: number;
+  estimate_basis: string;
+}
+
+export interface AdminRoomDetailResponse extends LiveRoomStats {
+  peers: LiveRoomPeerDetail[];
+  resources: LiveRoomResourceEstimate;
+}
+
 export interface RoomDetailsResponse {
   room: Room;
   live: LiveRoomStats;

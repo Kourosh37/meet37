@@ -2,6 +2,8 @@ import type { SupportedLocale } from "@/lib/i18n/config";
 
 export const defaultMessages = {
   "admin.actions": "Actions",
+  "admin.access": "Access",
+  "admin.activeUsers": "Active users",
   "admin.admin": "Admin",
   "admin.applicationModeUpdated": "Application mode updated",
   "admin.appMode": "App mode",
@@ -11,13 +13,23 @@ export const defaultMessages = {
   "admin.created": "Created",
   "admin.createdAt": "Created {date}",
   "admin.createUser": "Create user",
+  "admin.cpu": "CPU",
   "admin.dashboard": "Dashboard",
-  "admin.dashboardDescription": "Admin data will be connected after auth and REST infrastructure are implemented.",
+  "admin.dashboardDescription": "Monitor usage, live rooms, server resources, access policy, and private-mode users from one place.",
   "admin.delete": "Delete",
+  "admin.estimatedCpu": "Estimated CPU",
+  "admin.estimatedMemory": "Estimated memory",
+  "admin.free": "Free",
+  "admin.goroutines": "Goroutines",
+  "admin.heap": "Heap",
+  "admin.last30Days": "Last month",
+  "admin.last7Days": "Last 7 days",
   "admin.liveRoomsDescription": "Monitor participant counts, pending approvals, and relay mode.",
   "admin.liveRooms": "Live rooms",
+  "admin.liveServerStatus": "Live server status",
   "admin.loadingLiveRooms": "Loading live rooms",
   "admin.manageUsers": "Manage users",
+  "admin.memory": "Memory",
   "admin.mode": "Mode",
   "admin.navigation": "Admin navigation",
   "admin.newPassword": "New password",
@@ -33,16 +45,26 @@ export const defaultMessages = {
   "admin.relayMetrics": "Relay metrics",
   "admin.relayedBytes": "Relayed bytes",
   "admin.rename": "Rename",
+  "admin.roomDetail": "Room detail",
+  "admin.roomResources": "Room resources",
   "admin.roomStats": "Room stats",
+  "admin.roomsCreated": "Rooms created",
   "admin.rooms": "Rooms",
+  "admin.selectRoom": "Select a live room to inspect its current participants and media state.",
+  "admin.server": "Server",
   "admin.settings": "Settings",
   "admin.settingsDescription": "Control public and private room creation policy.",
+  "admin.screenShare": "Screen share",
   "admin.session": "Session",
   "admin.sessions": "Sessions",
   "admin.sfu": "SFU",
   "admin.sfuStatsDescription": "Monitor active relay sessions and throughput.",
   "admin.sfuStats": "SFU stats",
+  "admin.storage": "Storage",
+  "admin.today": "Today",
   "admin.tracks": "Tracks",
+  "admin.totalUsers": "Total users",
+  "admin.used": "Used",
   "admin.userCreated": "User created",
   "admin.userDeleted": "User deleted",
   "admin.userUpdated": "User updated",
@@ -354,9 +376,12 @@ export const defaultMessages = {
 
 export type MessageKey = keyof typeof defaultMessages;
 type MessageMap = Record<MessageKey, string>;
+type MessageOverrides = Partial<MessageMap>;
 
-const faMessages: MessageMap = {
+const faMessages: MessageOverrides = {
   "admin.actions": "عملیات",
+  "admin.access": "دسترسی",
+  "admin.activeUsers": "کاربران فعال",
   "admin.admin": "مدیریت",
   "admin.applicationModeUpdated": "حالت برنامه به‌روزرسانی شد",
   "admin.appMode": "حالت برنامه",
@@ -366,13 +391,23 @@ const faMessages: MessageMap = {
   "admin.created": "ایجاد شده",
   "admin.createdAt": "ایجاد شده در {date}",
   "admin.createUser": "ایجاد کاربر",
+  "admin.cpu": "CPU",
   "admin.dashboard": "داشبورد",
-  "admin.dashboardDescription": "داده‌های مدیریت بعد از آماده شدن احراز هویت و REST متصل می‌شوند.",
+  "admin.dashboardDescription": "مصرف، اتاق‌های زنده، منابع سرور، سیاست دسترسی و کاربران حالت خصوصی را از یکجا مانیتور کنید.",
   "admin.delete": "حذف",
+  "admin.estimatedCpu": "CPU تخمینی",
+  "admin.estimatedMemory": "رم تخمینی",
+  "admin.free": "آزاد",
+  "admin.goroutines": "گوروتین‌ها",
+  "admin.heap": "هیپ",
+  "admin.last30Days": "ماه گذشته",
+  "admin.last7Days": "۷ روز گذشته",
   "admin.liveRoomsDescription": "تعداد شرکت‌کننده‌ها، درخواست‌های در انتظار و حالت رله را مانیتور کنید.",
   "admin.liveRooms": "اتاق‌های فعال",
+  "admin.liveServerStatus": "وضعیت زنده سرور",
   "admin.loadingLiveRooms": "در حال بارگذاری اتاق‌های فعال",
   "admin.manageUsers": "مدیریت کاربران",
+  "admin.memory": "رم",
   "admin.mode": "حالت",
   "admin.navigation": "ناوبری مدیریت",
   "admin.newPassword": "رمز عبور جدید",
@@ -388,16 +423,26 @@ const faMessages: MessageMap = {
   "admin.relayMetrics": "شاخص‌های رله",
   "admin.relayedBytes": "بایت‌های رله‌شده",
   "admin.rename": "تغییر نام",
+  "admin.roomDetail": "جزئیات اتاق",
+  "admin.roomResources": "منابع اتاق",
   "admin.roomStats": "آمار اتاق",
+  "admin.roomsCreated": "اتاق‌های ساخته‌شده",
   "admin.rooms": "اتاق‌ها",
+  "admin.selectRoom": "یک اتاق فعال را انتخاب کنید تا کاربران و وضعیت مدیای فعلی آن را ببینید.",
+  "admin.server": "سرور",
   "admin.settings": "تنظیمات",
   "admin.settingsDescription": "سیاست ساخت اتاق عمومی و خصوصی را کنترل کنید.",
+  "admin.screenShare": "اشتراک صفحه",
   "admin.session": "نشست",
   "admin.sessions": "نشست‌ها",
   "admin.sfu": "SFU",
   "admin.sfuStatsDescription": "نشست‌های رله فعال و throughput را مانیتور کنید.",
   "admin.sfuStats": "آمار SFU",
+  "admin.storage": "حافظه",
+  "admin.today": "امروز",
   "admin.tracks": "ترک‌ها",
+  "admin.totalUsers": "کل کاربران",
+  "admin.used": "مصرف‌شده",
   "admin.userCreated": "کاربر ایجاد شد",
   "admin.userDeleted": "کاربر حذف شد",
   "admin.userUpdated": "کاربر به‌روزرسانی شد",
@@ -707,7 +752,7 @@ const faMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "حداقل یک فیلد باید تغییر کند",
 };
 
-const arMessages: MessageMap = {
+const arMessages: MessageOverrides = {
   "admin.actions": "الإجراءات",
   "admin.admin": "المشرف",
   "admin.applicationModeUpdated": "تم تحديث وضع التطبيق",
@@ -1059,7 +1104,7 @@ const arMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "يجب تغيير حقل واحد على الأقل",
 };
 
-const frMessages: MessageMap = {
+const frMessages: MessageOverrides = {
   "admin.actions": "Actions",
   "admin.admin": "Administrateur",
   "admin.applicationModeUpdated": "Mode d'application mis à jour",
@@ -1411,7 +1456,7 @@ const frMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "Au moins un champ doit être modifié",
 };
 
-const esMessages: MessageMap = {
+const esMessages: MessageOverrides = {
   "admin.actions": "Acciones",
   "admin.admin": "administrador",
   "admin.applicationModeUpdated": "Modo de aplicación actualizado",
@@ -1763,7 +1808,7 @@ const esMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "Se debe cambiar al menos un campo.",
 };
 
-const ptMessages: MessageMap = {
+const ptMessages: MessageOverrides = {
   "admin.actions": "Ações",
   "admin.admin": "Administrador",
   "admin.applicationModeUpdated": "Modo de aplicativo atualizado",
@@ -2115,7 +2160,7 @@ const ptMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "Pelo menos um campo deve ser alterado",
 };
 
-const ruMessages: MessageMap = {
+const ruMessages: MessageOverrides = {
   "admin.actions": "Действия",
   "admin.admin": "Админ",
   "admin.applicationModeUpdated": "Обновлен режим приложения",
@@ -2467,7 +2512,7 @@ const ruMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "Хотя бы одно поле должно быть изменено",
 };
 
-const zhMessages: MessageMap = {
+const zhMessages: MessageOverrides = {
   "admin.actions": "行动",
   "admin.admin": "管理员",
   "admin.applicationModeUpdated": "应用模式更新",
@@ -2819,7 +2864,7 @@ const zhMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "至少必须更改一个字段",
 };
 
-const jaMessages: MessageMap = {
+const jaMessages: MessageOverrides = {
   "admin.actions": "アクション",
   "admin.admin": "管理者",
   "admin.applicationModeUpdated": "アプリケーションモードが更新されました",
@@ -3171,7 +3216,7 @@ const jaMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "少なくとも 1 つのフィールドを変更する必要があります",
 };
 
-const koMessages: MessageMap = {
+const koMessages: MessageOverrides = {
   "admin.actions": "작업",
   "admin.admin": "관리자",
   "admin.applicationModeUpdated": "애플리케이션 모드가 업데이트되었습니다.",
@@ -3523,7 +3568,7 @@ const koMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "하나 이상의 필드를 변경해야 합니다.",
 };
 
-const deMessages: MessageMap = {
+const deMessages: MessageOverrides = {
   "admin.actions": "Aktionen",
   "admin.admin": "Admin",
   "admin.applicationModeUpdated": "Anwendungsmodus aktualisiert",
@@ -3875,7 +3920,7 @@ const deMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "Mindestens ein Feld muss geändert werden",
 };
 
-const itMessages: MessageMap = {
+const itMessages: MessageOverrides = {
   "admin.actions": "Azioni",
   "admin.admin": "Ammin",
   "admin.applicationModeUpdated": "Modalità applicazione aggiornata",
@@ -4227,7 +4272,7 @@ const itMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "È necessario modificare almeno un campo",
 };
 
-const hiMessages: MessageMap = {
+const hiMessages: MessageOverrides = {
   "admin.actions": "क्रियाएँ",
   "admin.admin": "व्यवस्थापक",
   "admin.applicationModeUpdated": "एप्लिकेशन मोड अपडेट किया गया",
@@ -4579,7 +4624,7 @@ const hiMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "कम से कम एक फ़ील्ड अवश्य बदला जाना चाहिए",
 };
 
-const trMessages: MessageMap = {
+const trMessages: MessageOverrides = {
   "admin.actions": "Eylemler",
   "admin.admin": "Yönetici",
   "admin.applicationModeUpdated": "Uygulama modu güncellendi",
@@ -4931,7 +4976,7 @@ const trMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "En az bir alan değiştirilmeli",
 };
 
-const urMessages: MessageMap = {
+const urMessages: MessageOverrides = {
   "admin.actions": "اعمال",
   "admin.admin": "ایڈمن",
   "admin.applicationModeUpdated": "ایپلیکیشن موڈ اپ ڈیٹ ہو گیا۔",
@@ -5283,7 +5328,7 @@ const urMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "کم از کم ایک فیلڈ کو تبدیل کرنا ضروری ہے۔",
 };
 
-const heMessages: MessageMap = {
+const heMessages: MessageOverrides = {
   "admin.actions": "פעולות",
   "admin.admin": "מנהל מערכת",
   "admin.applicationModeUpdated": "מצב האפליקציה עודכן",
@@ -5635,7 +5680,7 @@ const heMessages: MessageMap = {
   "validation.atLeastOneFieldChanged": "יש לשנות לפחות שדה אחד",
 };
 
-const localeOverrides: Record<SupportedLocale, MessageMap> = {
+const localeOverrides: Record<SupportedLocale, MessageOverrides> = {
   en: defaultMessages,
   fa: faMessages,
   ar: arMessages,

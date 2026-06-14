@@ -299,6 +299,70 @@ func TestAdminSFUStatsEndpoint(t *testing.T) {
 	}
 }
 
+func TestAdminAnalyticsEndpoint(t *testing.T) {
+	cfg := testConfig()
+	database := testDatabase(t)
+	hub := signaling.NewHub(cfg, database, sfu.NewManager(cfg), nil)
+	handler := NewAdminHandler(database, hub)
+	now := time.Now().Unix()
+	_, err := database.Exec(
+		`INSERT INTO users (id, username, password, created_at) VALUES (?, ?, ?, ?)`,
+		"user-analytics", "analytics", "hash", now,
+	)
+	if err != nil {
+		t.Fatalf("insert user: %v", err)
+	}
+	_, err = database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		"analytics-room", "Analytics", "host", "open", 50, now,
+	)
+	if err != nil {
+		t.Fatalf("insert room: %v", err)
+	}
+
+	recorder := httptest.NewRecorder()
+	handler.GetAnalytics(recorder, httptest.NewRequest(http.MethodGet, "/api/admin/analytics?range=today", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if body["range"] != "today" {
+		t.Fatalf("expected today range, got %#v", body["range"])
+	}
+	users := body["users"].(map[string]interface{})
+	rooms := body["rooms"].(map[string]interface{})
+	if users["total"].(float64) < 1 || rooms["total"].(float64) < 1 {
+		t.Fatalf("expected analytics totals, got users=%#v rooms=%#v", users["total"], rooms["total"])
+	}
+}
+
+func TestAdminServerStatusEndpoint(t *testing.T) {
+	cfg := testConfig()
+	database := testDatabase(t)
+	hub := signaling.NewHub(cfg, database, sfu.NewManager(cfg), nil)
+	handler := NewAdminHandler(database, hub)
+
+	recorder := httptest.NewRecorder()
+	handler.GetServerStatus(recorder, httptest.NewRequest(http.MethodGet, "/api/admin/server/status", nil))
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d body=%s", recorder.Code, recorder.Body.String())
+	}
+	var body map[string]interface{}
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	cpu := body["cpu"].(map[string]interface{})
+	if cpu["cores"].(float64) < 1 {
+		t.Fatalf("expected at least one cpu core, got %#v", cpu)
+	}
+	if _, ok := body["memory"].(map[string]interface{}); !ok {
+		t.Fatalf("expected memory status, got %#v", body)
+	}
+}
+
 func TestWebSocketJoinAndChatPersistence(t *testing.T) {
 	cfg := testConfig()
 	database := testDatabase(t)
@@ -338,6 +402,62 @@ func TestWebSocketJoinAndChatPersistence(t *testing.T) {
 	}
 }
 
+func TestAdminRoomDetailIncludesPeerMediaState(t *testing.T) {
+	cfg := testConfig()
+	database := testDatabase(t)
+	hub := signaling.NewHub(cfg, database, sfu.NewManager(cfg), nil)
+	wsHandler := NewWSHandler(hub)
+	adminHandler := NewAdminHandler(database, hub)
+	roomID := "admin-room-detail"
+	_, err := database.Exec(
+		`INSERT INTO rooms (id, name, host_id, join_policy, max_peers, created_at) VALUES (?, ?, ?, ?, ?, ?)`,
+		roomID, "Admin detail", "host", "open", 50, time.Now().Unix(),
+	)
+	if err != nil {
+		t.Fatalf("insert room: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(wsHandler.ServeWS))
+	defer server.Close()
+	conn := dialWS(t, "ws"+strings.TrimPrefix(server.URL, "http"))
+	defer conn.Close()
+	writeWS(t, conn, map[string]interface{}{"type": "join", "payload": map[string]interface{}{"room_id": roomID, "display_name": "Alice"}})
+	expectSignalType(t, conn, "joined")
+	writeWS(t, conn, map[string]interface{}{
+		"type": "media-state",
+		"payload": map[string]interface{}{
+			"audio_enabled":       true,
+			"audio_status":        "ready",
+			"video_enabled":       true,
+			"video_status":        "ready",
+			"screen_sharing":      true,
+			"screen_share_status": "ready",
+		},
+	})
+
+	var body map[string]interface{}
+	waitFor(t, time.Second, func() bool {
+		recorder := httptest.NewRecorder()
+		adminHandler.GetRoomDetail(recorder, httptest.NewRequest(http.MethodGet, "/api/admin/rooms/"+roomID+"/detail", nil))
+		if recorder.Code != http.StatusOK {
+			return false
+		}
+		if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+			return false
+		}
+		peers, _ := body["peers"].([]interface{})
+		if len(peers) != 1 {
+			return false
+		}
+		peer := peers[0].(map[string]interface{})
+		return peer["audio_enabled"] == true && peer["video_enabled"] == true && peer["screen_sharing"] == true
+	})
+	resources := body["resources"].(map[string]interface{})
+	if resources["room_active_peer_count"].(float64) != 1 {
+		t.Fatalf("expected room resource estimate for one peer, got %#v", resources)
+	}
+}
+
 func dialWS(t *testing.T, url string) *websocket.Conn {
 	t.Helper()
 	conn, _, err := websocket.DefaultDialer.Dial(url, nil)
@@ -366,4 +486,16 @@ func expectSignalType(t *testing.T, conn *websocket.Conn, expected string) {
 			return
 		}
 	}
+}
+
+func waitFor(t *testing.T, timeout time.Duration, check func() bool) {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for time.Now().Before(deadline) {
+		if check() {
+			return
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("condition did not become true within %s", timeout)
 }

@@ -119,8 +119,32 @@ func main() {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 		}
 	}))))
+	mux.Handle("/api/admin/analytics", authMw(adminMw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		adminH.GetAnalytics(w, r)
+	}))))
+	mux.Handle("/api/admin/server/status", authMw(adminMw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		adminH.GetServerStatus(w, r)
+	}))))
 	mux.Handle("/api/admin/sfu/stats", authMw(adminMw(http.HandlerFunc(adminH.GetSFUStats))))
-	mux.Handle("/api/admin/rooms/", authMw(adminMw(http.HandlerFunc(adminH.GetRoomStats))))
+	mux.Handle("/api/admin/rooms/", authMw(adminMw(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/detail") {
+			adminH.GetRoomDetail(w, r)
+			return
+		}
+		adminH.GetRoomStats(w, r)
+	}))))
 
 	limiter := middleware.NewRateLimiter(cfg.RateLimitRPS, cfg.RateLimitBurst)
 	handler := middleware.Logger(limiter.Middleware(middleware.MaxBodyBytes(cfg.MaxBodyBytes)(middleware.CORS(cfg.AllowedOrigins)(mux))))

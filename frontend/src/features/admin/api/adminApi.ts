@@ -1,7 +1,11 @@
 import { apiRequest } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import type {
+  AdminAnalyticsRange,
+  AdminAnalyticsResponse,
+  AdminRoomDetailResponse,
   AdminSettingsResponse,
+  AdminServerStatusResponse,
   AdminSfuStatsResponse,
   AdminUser,
   CreateAdminUserRequest,
@@ -10,6 +14,20 @@ import type {
   UpdateAdminSettingsRequest,
   UpdateAdminUserRequest
 } from "@/types/api";
+
+export function getAdminAnalytics(range: AdminAnalyticsRange) {
+  return apiRequest<AdminAnalyticsResponse>(endpoints.admin.analytics(range), {
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
+
+export function getAdminServerStatus() {
+  return apiRequest<AdminServerStatusResponse>(endpoints.admin.serverStatus, {
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
 
 export function getAdminSettings() {
   return apiRequest<AdminSettingsResponse>(endpoints.admin.settings, {
@@ -78,6 +96,13 @@ export function listAdminRooms() {
 
 export function getAdminRoomStats(roomId: string) {
   return apiRequest<LiveRoomStats>(endpoints.admin.roomStats(roomId), {
+    protected: true,
+    retryOnUnauthorized: true
+  });
+}
+
+export function getAdminRoomDetail(roomId: string) {
+  return apiRequest<AdminRoomDetailResponse>(endpoints.admin.roomDetail(roomId), {
     protected: true,
     retryOnUnauthorized: true
   });

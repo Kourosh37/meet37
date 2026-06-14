@@ -151,6 +151,15 @@ func (h *AdminHandler) GetRoomStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, h.hub.GetRoomStats(parts[3]))
 }
 
+func (h *AdminHandler) GetRoomDetail(w http.ResponseWriter, r *http.Request) {
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) != 5 || parts[0] != "api" || parts[1] != "admin" || parts[2] != "rooms" || parts[4] != "detail" {
+		writeError(w, http.StatusBadRequest, "bad path")
+		return
+	}
+	writeJSON(w, http.StatusOK, h.roomDetailWithResources(parts[3]))
+}
+
 func (h *AdminHandler) GetSFUStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, h.hub.GetSFUStats())
 }

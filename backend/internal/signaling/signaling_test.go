@@ -236,12 +236,12 @@ func TestHandleMessageBroadcastsReactionWithDisplayName(t *testing.T) {
 		t.Fatalf("timed out waiting for sender reaction chat")
 	}
 
-	var chatCount int
-	if err := hub.db.QueryRow(`SELECT COUNT(*) FROM chat_messages WHERE room_id = ? AND text LIKE ?`, roomID, "%reacted%").Scan(&chatCount); err != nil {
-		t.Fatalf("count reaction chat: %v", err)
+	var reactionText string
+	if err := hub.db.QueryRow(`SELECT text FROM chat_messages WHERE room_id = ?`, roomID).Scan(&reactionText); err != nil {
+		t.Fatalf("load reaction chat: %v", err)
 	}
-	if chatCount != 1 {
-		t.Fatalf("expected one reaction chat row, got %d", chatCount)
+	if reactionText != "reacted 👏" {
+		t.Fatalf("unexpected reaction chat text: %q", reactionText)
 	}
 }
 

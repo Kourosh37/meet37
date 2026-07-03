@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 
 type FittedSize = {
@@ -37,6 +37,23 @@ export function FittedVideo({
     height: null,
     width: null
   });
+  const videoTrackKey = useMemo(
+    () =>
+      stream
+        ?.getVideoTracks()
+        .map((track) => {
+          const settings = track.getSettings?.() ?? {};
+          return [
+            track.id,
+            track.readyState,
+            track.muted ? "muted" : "live",
+            settings.width ?? 0,
+            settings.height ?? 0
+          ].join(":");
+        })
+        .join("|") ?? "",
+    [stream]
+  );
 
   const updateFit = useCallback(() => {
     const frame = frameRef.current;
@@ -89,8 +106,11 @@ export function FittedVideo({
       const play = () => {
         try {
           const result = video.play();
-          result?.catch?.(() => undefined);
+          result
+            ?.then?.(() => updateFit())
+            .catch?.(() => updateFit());
         } catch {
+          updateFit();
           return;
         }
       };
@@ -101,7 +121,7 @@ export function FittedVideo({
     updateFit();
     const animationFrame = window.requestAnimationFrame(updateFit);
     const timeout = window.setTimeout(updateFit, 100);
-    const retryTimeouts = [250, 500, 1000, 2000].map((delay) =>
+    const retryTimeouts = [250, 500, 1000, 2000, 3500].map((delay) =>
       window.setTimeout(updateFit, delay)
     );
 
@@ -115,7 +135,7 @@ export function FittedVideo({
         video.srcObject = null;
       }
     };
-  }, [muted, stream, updateFit]);
+  }, [muted, stream, updateFit, videoTrackKey]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -126,15 +146,29 @@ export function FittedVideo({
     video?.addEventListener("loadeddata", updateFit);
     video?.addEventListener("canplay", updateFit);
     video?.addEventListener("resize", updateFit);
+    window.addEventListener("orientationchange", updateFit);
+    document.addEventListener("visibilitychange", updateFit);
+    stream?.getVideoTracks().forEach((track) => {
+      track.addEventListener?.("mute", updateFit);
+      track.addEventListener?.("unmute", updateFit);
+      track.addEventListener?.("ended", updateFit);
+    });
 
     if (typeof ResizeObserver === "undefined" || !frame) {
       window.addEventListener("resize", updateFit);
       return () => {
         window.removeEventListener("resize", updateFit);
+        window.removeEventListener("orientationchange", updateFit);
+        document.removeEventListener("visibilitychange", updateFit);
         video?.removeEventListener("loadedmetadata", updateFit);
         video?.removeEventListener("loadeddata", updateFit);
         video?.removeEventListener("canplay", updateFit);
         video?.removeEventListener("resize", updateFit);
+        stream?.getVideoTracks().forEach((track) => {
+          track.removeEventListener?.("mute", updateFit);
+          track.removeEventListener?.("unmute", updateFit);
+          track.removeEventListener?.("ended", updateFit);
+        });
       };
     }
 
@@ -143,12 +177,19 @@ export function FittedVideo({
 
     return () => {
       observer.disconnect();
+      window.removeEventListener("orientationchange", updateFit);
+      document.removeEventListener("visibilitychange", updateFit);
       video?.removeEventListener("loadedmetadata", updateFit);
       video?.removeEventListener("loadeddata", updateFit);
       video?.removeEventListener("canplay", updateFit);
       video?.removeEventListener("resize", updateFit);
+      stream?.getVideoTracks().forEach((track) => {
+        track.removeEventListener?.("mute", updateFit);
+        track.removeEventListener?.("unmute", updateFit);
+        track.removeEventListener?.("ended", updateFit);
+      });
     };
-  }, [updateFit]);
+  }, [stream, updateFit, videoTrackKey]);
 
   return (
     <div

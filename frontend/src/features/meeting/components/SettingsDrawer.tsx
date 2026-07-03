@@ -74,6 +74,7 @@ interface SettingsDrawerProps {
   canUseMic?: boolean;
   isHost?: boolean;
   isOpen: boolean;
+  joinPolicy?: "open" | "approval";
   onClose: () => void;
   onToggleAudio: () => void;
   onToggleScreenShare: () => void;
@@ -101,6 +102,7 @@ export function SettingsDrawer({
   canUseMic = true,
   isHost = false,
   isOpen,
+  joinPolicy: initialJoinPolicy = "open",
   onClose,
   onListBans,
   onToggleAudio,
@@ -115,7 +117,8 @@ export function SettingsDrawer({
 }: SettingsDrawerProps) {
   const { t } = useLocale();
   const [shouldRender, setShouldRender] = useState(isOpen);
-  const [joinPolicy, setJoinPolicy] = useState<"open" | "approval">("open");
+  const [joinPolicy, setJoinPolicy] =
+    useState<"open" | "approval">(initialJoinPolicy);
   const [password, setPassword] = useState("");
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [permissions, setPermissions] =
@@ -128,6 +131,7 @@ export function SettingsDrawer({
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
+      setJoinPolicy(initialJoinPolicy);
       if (canManageBans) {
         onListBans?.();
       }
@@ -136,7 +140,7 @@ export function SettingsDrawer({
 
     const timeout = window.setTimeout(() => setShouldRender(false), 260);
     return () => window.clearTimeout(timeout);
-  }, [canManageBans, isOpen, onListBans]);
+  }, [canManageBans, initialJoinPolicy, isOpen, onListBans]);
 
   if (!shouldRender) {
     return null;

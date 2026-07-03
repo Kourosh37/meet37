@@ -28,6 +28,7 @@ import { useChatStore } from "@/features/meeting/stores/chatStore";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 import { useMeetingUiStore } from "@/features/meeting/stores/uiStore";
 import type { MeetingPeer } from "@/features/meeting/types/peer";
+import type { JoinPolicy } from "@/types/api";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
@@ -35,10 +36,15 @@ import { useLocale } from "@/providers/LocaleProvider";
 
 interface MeetingRoomProps {
   displayName: string;
+  roomJoinPolicy?: JoinPolicy;
   roomName?: string;
 }
 
-export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
+export function MeetingRoom({
+  displayName,
+  roomJoinPolicy = "open",
+  roomName
+}: MeetingRoomProps) {
   const router = useRouter();
   const meetingScrollRef = useRef<HTMLDivElement | null>(null);
   const participantsSectionRef = useRef<HTMLDivElement | null>(null);
@@ -75,6 +81,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   >({});
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  const [currentJoinPolicy, setCurrentJoinPolicy] =
+    useState<JoinPolicy>(roomJoinPolicy);
   const peerIds = useMemo(
     () => Object.keys(meeting.peers).sort().join(","),
     [meeting.peers]
@@ -249,6 +257,18 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       ui.closePanel("chat");
     }
   }, [canChat, ui]);
+
+  useEffect(() => {
+    setCurrentJoinPolicy(roomJoinPolicy);
+  }, [roomJoinPolicy]);
+
+  useEffect(() => {
+    return webSocketManager.subscribe("room-settings-updated", (message) => {
+      if (message.payload.join_policy) {
+        setCurrentJoinPolicy(message.payload.join_policy);
+      }
+    });
+  }, []);
 
   useEffect(() => {
     if (meeting.phase !== "in-call") {
@@ -684,6 +704,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         canShareScreen={canShareScreen}
         canUseCamera={canUseCamera}
         canUseMic={canUseMic}
+        joinPolicy={currentJoinPolicy}
         isHost={meeting.isHost}
         isOpen={ui.settingsOpen}
         onClose={() => ui.closePanel("settings")}

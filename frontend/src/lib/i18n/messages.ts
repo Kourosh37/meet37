@@ -325,6 +325,7 @@ export const defaultMessages = {
   "room.creatingRoom": "Creating room",
   "room.createdAt": "Created {date}",
   "room.enterMeetingId": "Enter meeting ID, like abc-def-ghi",
+  "room.roomIdFlexibleHint": "You can enter the meeting ID with or without dashes, in any letter case.",
   "room.expired": "Expired",
   "room.expiresAt": "Expires {date}",
   "room.forgetRoom": "Forget {name}",

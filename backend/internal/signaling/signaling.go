@@ -458,11 +458,7 @@ func (h *Hub) handleReaction(p *Peer, msg models.SignalMessage) {
 	if body.Emoji == "" || len([]rune(body.Emoji)) > 4 {
 		return
 	}
-	displayName := strings.TrimSpace(p.displayName)
-	if displayName == "" {
-		displayName = "Participant"
-	}
-	reactionText := displayName + " reacted " + body.Emoji
+	reactionText := "reacted " + body.Emoji
 	_, _ = h.db.Exec(
 		`INSERT INTO chat_messages (room_id, peer_id, user_id, display_name, text, ts) VALUES (?, ?, ?, ?, ?, ?)`,
 		p.roomID, p.id, p.userID, p.displayName, reactionText, time.Now().Unix(),

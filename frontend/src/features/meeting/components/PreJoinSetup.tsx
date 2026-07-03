@@ -181,6 +181,7 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
         displayName={
           displayNameResult.success ? displayNameResult.data : displayName
         }
+        roomJoinPolicy={data?.room.join_policy}
         roomName={data?.room.name}
       />
     );

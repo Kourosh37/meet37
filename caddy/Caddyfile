@@ -1,5 +1,0 @@
-{$PUBLIC_DOMAIN} {
-    tls {$CADDY_TLS_CERT} {$CADDY_TLS_KEY}
-    encode zstd gzip
-    reverse_proxy frontend:{$FRONTEND_PORT}
-}

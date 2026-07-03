@@ -1,5 +1,5 @@
-{$PUBLIC_DOMAIN} {
-    tls {$CADDY_TLS_CERT} {$CADDY_TLS_KEY}
+meet.dev37.ir:443 {
+    tls ./certs/fullchain.pem ./certs/privkey.pem
     encode zstd gzip
-    reverse_proxy frontend:{$FRONTEND_PORT}
+    reverse_proxy frontend:3000
 }

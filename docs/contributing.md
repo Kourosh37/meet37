@@ -66,8 +66,8 @@ cd frontend && pnpm build
 For deployment changes:
 
 ```bash
-python scripts/check_server_requirements.py
-python scripts/build_docker_images.py --version test
+python scripts/prepare_server.py
+python scripts/build_images.py --version test
 ```
 
 ## Pull Request Checklist

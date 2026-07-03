@@ -1,11 +1,59 @@
-# Local environment and secrets
+# Environment files and secrets
 .env
 .env.*
 !.env.example
+deploy/.env
+deploy/.env.*
+!deploy/.env.example
 backend/.env
+backend/.env.*
 frontend/.env
 frontend/.env.local
 frontend/.env.*.local
+
+# Certificates, private keys, and credentials
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_ed25519
+id_ed25519.*
+*.kubeconfig
+*.secrets
+*.secret
+secrets/
+
+# Deploy package runtime contents
+deploy/images/*
+!deploy/images/.gitkeep
+deploy/caddy/certs/*
+!deploy/caddy/certs/.gitkeep
+deploy/data/
+deploy/logs/
+deploy/backups/
+deploy/tmp/
+deploy/temp/
+deploy/.tmp/
+deploy/docker-compose.override.yml
+deploy/compose.override.yml
+deploy/**/*.tar
+deploy/**/*.tar.gz
+deploy/**/*.tgz
+deploy/**/*.zip
+deploy/**/*.7z
+deploy/**/*.db
+deploy/**/*.sqlite
+deploy/**/*.sqlite3
+deploy/**/*.log
+deploy/**/*.pid
+deploy/**/__pycache__/
+deploy/**/*.py[cod]
 
 # Python caches, virtualenvs, and tooling
 __pycache__/
@@ -25,6 +73,7 @@ ENV/
 .nox/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/
 pip-wheel-metadata/
 
@@ -36,7 +85,6 @@ out/
 target/
 release/
 debug/
-*.log
 *.tmp
 *.cache
 *.bak
@@ -52,20 +100,14 @@ debug/
 *.exe
 *.class
 *.ipynb_checkpoints
-*.log
-*.pid
-*.seed
-*.pid.lock
 *.gz
 *.zip
 *.tar
+*.tgz
 *.7z
-*.log
-*.log.*
-*.log.*.gz
-*.log.*.zip
-*.log.*.tar.gz
-*.log.*.7z
+*.pid
+*.seed
+*.pid.lock
 
 # Runtime data and databases
 data/
@@ -83,7 +125,6 @@ backend/tmp/
 backend/coverage.out
 backend/coverage/
 *.test
-*.exe
 
 # Frontend dependencies and package-manager noise
 frontend/node_modules/
@@ -111,11 +152,17 @@ frontend/.stylelintcache
 
 # Logs
 *.log
+*.log.*
 logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Docker and compose local overrides
+docker-compose.override.yml
+compose.override.yml
+*.env.override
 
 # OS/editor noise
 .DS_Store
@@ -128,10 +175,6 @@ Desktop.ini
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
-
-# Docker and compose local overrides
-docker-compose.override.yml
-compose.override.yml
 
 # Temporary files
 tmp/

@@ -1,93 +1,84 @@
 # Offline Images
 
-meet37 includes scripts that build/package Docker images and save them as compressed `.tar.gz` archives. The archives can be copied to a server and loaded without pulling from a registry. The scripts do not generate a full Caddy config or deployment bundle.
+meet37 uses one image build script that builds and packages every required Docker image into a single compressed `.tar.gz` archive.
 
-## Build Archives
+## Build
 
 From the repository root:
 
 ```bash
-python scripts/build_docker_images.py
+python scripts/build_images.py --version <tag>
 ```
 
-The script:
+The archive is written to `deploy/images` by default:
 
-- Requires Docker.
-- Reads `.env.example` and `.env`.
-- Uses `DOCKER_BACKEND_IMAGE` and `DOCKER_FRONTEND_IMAGE`.
-- Pulls and archives `COTURN_IMAGE`.
-- Pulls and archives comma-separated `DOCKER_EXTRA_IMAGES`, if set.
-- Uses `DOCKER_IMAGE_TAG` or the current git short SHA.
-- Builds `backend/Dockerfile`.
-- Builds `frontend/Dockerfile`.
-- Passes frontend build args from env.
-- Saves archives to `DOCKER_IMAGE_OUTPUT_DIR`, default `dist`.
+```text
+deploy/images/meet37-images-<tag>.tar.gz
+```
 
-## Useful Options
+The bundle includes:
+
+- `${DOCKER_BACKEND_IMAGE}:${DOCKER_IMAGE_TAG}`
+- `${DOCKER_FRONTEND_IMAGE}:${DOCKER_IMAGE_TAG}`
+- `${COTURN_IMAGE}`
+- `${CADDY_IMAGE}`
+- `DOCKER_EXTRA_IMAGES`, if configured
+
+## Transfer
+
+Copy the whole deploy directory to the server:
 
 ```bash
-python scripts/build_docker_images.py --version 2026-06-02-1
-python scripts/build_docker_images.py --output-dir dist/images
-python scripts/build_docker_images.py --backend-image meet37-backend --frontend-image meet37-frontend
-python scripts/build_docker_images.py --coturn-image coturn/coturn:latest
-python scripts/build_docker_images.py --extra-image prom/node-exporter:latest
+rsync -a deploy/ root@server:/opt/meet37/
 ```
 
-Frontend build arg overrides:
+The copied directory contains `.env.example`. The real `/opt/meet37/.env` is created by `scripts/prepare_server.py` and should not be committed.
 
-```bash
-python scripts/build_docker_images.py \
-  --api-base-url browser-origin \
-  --ws-url browser-origin \
-  --turn-public-ip 203.0.113.10 \
-  --backend-internal-url http://backend:8080 \
-  --frontend-port 3000
+Then put your TLS files here:
+
+```text
+/opt/meet37/caddy/certs/fullchain.pem
+/opt/meet37/caddy/certs/privkey.pem
 ```
 
-## Transfer To Server
-
-Copy archives to the server:
-
-```bash
-scp dist/*.tar.gz root@server:/opt/meet37/images/
-```
-
-## Load Images
+## Load And Start
 
 On the server:
 
 ```bash
 cd /opt/meet37
-python3 scripts/load_docker_images.py --images-dir images
+docker load -i images/meet37-images-<tag>.tar.gz
+python3 scripts/prepare_server.py \
+  --public-origin https://meet.example.com \
+  --public-ip <server-public-ip>
+docker compose --env-file .env -f docker-compose.prod.yml up -d
 ```
 
 Confirm:
 
 ```bash
-docker images | grep -E 'meet37|coturn'
+docker images | grep -E 'meet37|coturn|caddy'
+docker compose --env-file .env -f docker-compose.prod.yml ps
 ```
 
-## Run Loaded Images
-
-Set `.env`:
-
-```text
-DOCKER_BACKEND_IMAGE=meet37-backend
-DOCKER_FRONTEND_IMAGE=meet37-frontend
-DOCKER_IMAGE_TAG=<tag>
-COTURN_IMAGE=coturn/coturn:latest
-```
-
-Run:
+## Useful Options
 
 ```bash
-python3 scripts/check_server_requirements.py --compose-file docker-compose.yml --public-origin https://meet.example.com
-docker compose -f docker-compose.yml up -d
+python scripts/build_images.py --version 2026-07-03-1
+python scripts/build_images.py --output-dir deploy/images
+python scripts/build_images.py --backend-image meet37-backend --frontend-image meet37-frontend
+python scripts/build_images.py --coturn-image coturn/coturn:latest
+python scripts/build_images.py --caddy-image caddy:2-alpine
+python scripts/build_images.py --extra-image prom/node-exporter:latest
 ```
 
-## Notes
+Frontend build arg overrides:
 
-- The production compose file must already exist on the server.
-- If Caddy is a separate project, use `DOCKER_PROXY_NETWORK` for the shared external Docker network.
-- `check_server_requirements.py` prepares env defaults, Docker networks, and firewall rules for HTTP, HTTPS, TURN, TURN relay TCP/UDP, and WebRTC/SFU UDP ranges.
-- Media port counts are controlled by the min/max values in `.env`, such as `TURN_RELAY_PORT_MIN/MAX` and `WEBRTC_UDP_HOST_PORT_MIN/MAX`.
+```bash
+python scripts/build_images.py \
+  --api-base-url browser-origin \
+  --ws-url browser-origin \
+  --turn-public-ip <server-public-ip> \
+  --backend-internal-url http://backend:8080 \
+  --frontend-port 3000
+```

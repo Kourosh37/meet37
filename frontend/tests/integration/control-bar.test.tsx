@@ -70,4 +70,30 @@ describe("ControlBar", () => {
 
     expect(onReaction).toHaveBeenCalledWith("👏");
   });
+  it("shows capped unread chat count on the chat button", () => {
+    const { rerender } = renderControlBar({ chatUnreadCount: 7 });
+
+    expect(screen.getByText("7")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open chat (7)" })).toBeTruthy();
+
+    rerender(
+      <ControlBar
+        audioEnabled
+        chatUnreadCount={120}
+        onCopyInvite={vi.fn()}
+        onLeave={vi.fn()}
+        onOpenSettings={vi.fn()}
+        onReaction={vi.fn()}
+        onToggleAudio={vi.fn()}
+        onToggleChat={vi.fn()}
+        onToggleScreenShare={vi.fn()}
+        onToggleVideo={vi.fn()}
+        screenSharing={false}
+        videoEnabled
+      />
+    );
+
+    expect(screen.getByText("+99")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open chat (+99)" })).toBeTruthy();
+  });
 });

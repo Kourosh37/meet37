@@ -34,6 +34,7 @@ const (
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
 	maxMessageSize = 256 * 1024
+	p2pMaxPeers    = 3
 )
 
 var clientIDPattern = regexp.MustCompile(`^[A-Za-z0-9._:-]{8,128}$`)
@@ -292,7 +293,7 @@ func (h *Hub) ServeWS(w http.ResponseWriter, r *http.Request) {
 		userAgent:   r.UserAgent(),
 		conn:        conn,
 		send:        make(chan []byte, 256),
-		mode:        "sfu",
+		mode:        "p2p",
 		hub:         h,
 	}
 	go peer.writePump()
@@ -374,7 +375,7 @@ func (h *Hub) handleMessage(p *Peer, raw []byte) {
 	case "ping":
 		h.handlePing(p, msg)
 	case "offer", "answer", "ice-candidate":
-		p.sendMsg(errMsg("direct browser signaling is disabled"))
+		h.relay(p, msg)
 	case "media-state", "audio-level":
 		if msg.Type == "media-state" {
 			h.handleMediaState(p, msg)
@@ -536,6 +537,73 @@ func normalizeMediaStatus(status string, enabled bool) string {
 		return "ready"
 	}
 	return "off"
+}
+
+func desiredRoomMode(peerCount int) string {
+	if peerCount > p2pMaxPeers {
+		return "sfu"
+	}
+	return "p2p"
+}
+
+func (h *Hub) syncRoomMediaMode(roomID string) {
+	h.mu.RLock()
+	room := h.rooms[roomID]
+	h.mu.RUnlock()
+	if room == nil {
+		return
+	}
+
+	type peerModeUpdate struct {
+		peer *Peer
+		mode string
+	}
+
+	room.mu.Lock()
+	mode := desiredRoomMode(len(room.peers))
+	updates := make([]peerModeUpdate, 0, len(room.peers))
+	for _, peer := range room.peers {
+		peer.mu.Lock()
+		changed := peer.mode != mode
+		peer.mode = mode
+		peer.mu.Unlock()
+		if changed {
+			updates = append(updates, peerModeUpdate{peer: peer, mode: mode})
+		}
+	}
+	room.mu.Unlock()
+
+	if mode == "p2p" {
+		h.sfuMgr.DeleteSession(roomID)
+	}
+
+	sessionID := ""
+	if mode == "sfu" {
+		sessionID = h.sfuMgr.CreateSession(roomID).ID
+	}
+
+	for _, update := range updates {
+		h.upsertClusterPeer(update.peer)
+		if mode == "sfu" {
+			update.peer.sendMsg(models.SignalMessage{
+				Type: "sfu-switch",
+				Payload: map[string]interface{}{
+					"session_id":   sessionID,
+					"turn_servers": h.sfuMgr.GetTURNCredentials(update.peer.id),
+				},
+			})
+		} else {
+			update.peer.sendMsg(models.SignalMessage{Type: "p2p-switch"})
+		}
+		h.broadcast(roomID, models.SignalMessage{
+			Type: "peer-mode-changed",
+			From: update.peer.id,
+			Payload: map[string]interface{}{
+				"peer_id": update.peer.id,
+				"mode":    mode,
+			},
+		}, update.peer.id)
+	}
 }
 
 func (h *Hub) handlePeerPermissions(actor *Peer, msg models.SignalMessage) {
@@ -1021,7 +1089,8 @@ func (h *Hub) handleJoin(p *Peer, msg models.SignalMessage) {
 
 	go h.logEvent(req.RoomID, p.userID, "join")
 	p.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": p.id, "peers": h.getPeerList(req.RoomID, p.id), "mode": p.mode, "is_host": p.isHost, "is_admin": p.isAdmin, "permissions": p.permissions, "admin_permissions": p.adminPerms, "turn_servers": h.sfuMgr.GetTURNCredentials(p.id)}})
-	h.broadcast(req.RoomID, models.SignalMessage{Type: "peer-joined", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName, "is_host": p.isHost, "is_admin": p.isAdmin, "permissions": p.permissions, "admin_permissions": p.adminPerms}}, p.id)
+	h.broadcast(req.RoomID, models.SignalMessage{Type: "peer-joined", From: p.id, Payload: map[string]interface{}{"peer_id": p.id, "display_name": p.displayName, "mode": p.mode, "is_host": p.isHost, "is_admin": p.isAdmin, "permissions": p.permissions, "admin_permissions": p.adminPerms}}, p.id)
+	h.syncRoomMediaMode(req.RoomID)
 }
 
 func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
@@ -1080,7 +1149,8 @@ func (h *Hub) handleApprovePeer(host *Peer, msg models.SignalMessage) {
 
 	go h.logEvent(host.roomID, peer.userID, "join")
 	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(host.roomID, peer.id), "mode": peer.mode, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
-	h.broadcast(host.roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms}}, peer.id)
+	h.broadcast(host.roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "mode": peer.mode, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms}}, peer.id)
+	h.syncRoomMediaMode(host.roomID)
 }
 
 func (h *Hub) handleRejectPeer(host *Peer, msg models.SignalMessage) {
@@ -1334,6 +1404,8 @@ func (h *Hub) removePeer(p *Peer) {
 		h.sfuMgr.RemovePeer(p.roomID, p.id)
 		if empty {
 			h.CloseRoom(p.roomID)
+		} else {
+			h.syncRoomMediaMode(p.roomID)
 		}
 		close(p.send)
 	})
@@ -1910,7 +1982,8 @@ func (h *Hub) approvePendingPeer(roomID, peerID string) {
 	h.upsertClusterPeer(peer)
 	go h.logEvent(roomID, peer.userID, "join")
 	peer.sendMsg(models.SignalMessage{Type: "joined", Payload: map[string]interface{}{"your_id": peer.id, "peers": h.getPeerList(roomID, peer.id), "mode": peer.mode, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms, "turn_servers": h.sfuMgr.GetTURNCredentials(peer.id)}})
-	h.broadcast(roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms}}, peer.id)
+	h.broadcast(roomID, models.SignalMessage{Type: "peer-joined", From: peer.id, Payload: map[string]interface{}{"peer_id": peer.id, "display_name": peer.displayName, "mode": peer.mode, "is_host": false, "is_admin": peer.isAdmin, "permissions": peer.permissions, "admin_permissions": peer.adminPerms}}, peer.id)
+	h.syncRoomMediaMode(roomID)
 }
 
 func (h *Hub) closePendingPeer(roomID, peerID string, signal models.SignalMessage) {

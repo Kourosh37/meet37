@@ -1,6 +1,10 @@
-FROM golang:1.24-alpine AS builder
+FROM golang:1.24-alpine3.20 AS builder
 
-RUN apk add --no-cache gcc musl-dev
+RUN for attempt in 1 2 3; do \
+      apk add --no-cache gcc musl-dev && break; \
+      if [ "$attempt" = "3" ]; then exit 1; fi; \
+      sleep 5; \
+    done
 WORKDIR /app
 COPY go.mod go.sum* ./
 RUN go mod download

@@ -11,6 +11,7 @@ meet37 provides two Docker Compose files:
 
 Services:
 
+- `caddy`
 - `backend`
 - `coturn`
 - `frontend`
@@ -59,12 +60,13 @@ Data:
 Networks:
 
 - Internal application bridge network.
-- External reverse-proxy network, usually `proxy`.
+
+Public traffic goes through the `caddy` service on ports `80` and `443`.
 
 Run:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker compose --env-file .env -f docker-compose.prod.yml up -d
 ```
 
 Validate:
@@ -78,16 +80,15 @@ DOCKER_IMAGE_TAG=<tag> docker compose --env-file .env -f docker-compose.prod.yml
 Build and export images:
 
 ```bash
-python scripts/build_docker_images.py
+python scripts/build_images.py
 ```
 
-The script reads `.env.example` and `.env`, builds backend/frontend images, and writes `.tar.gz` archives into `DOCKER_IMAGE_OUTPUT_DIR`, which defaults to `dist`.
+The script reads `.env.example` and `.env`, builds backend/frontend images, pulls coturn/Caddy runtime images, and writes one `.tar.gz` archive into `DOCKER_IMAGE_OUTPUT_DIR`, which defaults to `deploy/images`.
 
 Load an archive on a server:
 
 ```bash
-gzip -dc dist/meet37-backend_<tag>.tar.gz | docker load
-gzip -dc dist/meet37-frontend_<tag>.tar.gz | docker load
+docker load -i images/meet37-images-<tag>.tar.gz
 ```
 
 ## Logs
@@ -99,6 +100,7 @@ docker compose logs -f coturn
 docker compose -f docker-compose.prod.yml logs -f backend
 docker compose -f docker-compose.prod.yml logs -f frontend
 docker compose -f docker-compose.prod.yml logs -f coturn
+docker compose -f docker-compose.prod.yml logs -f caddy
 ```
 
 ## Health
@@ -109,7 +111,7 @@ Backend:
 curl -i http://localhost:8080/health
 ```
 
-Through frontend/reverse proxy:
+Through Caddy:
 
 ```bash
 curl -i https://meet.example.com/api/settings

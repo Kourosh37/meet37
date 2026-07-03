@@ -61,6 +61,12 @@ export function useSignalingMessages() {
       webSocketManager.subscribe("peer-mode-changed", (message) =>
         store.setPeerMode(message.payload.peer_id, message.payload.mode)
       ),
+      webSocketManager.subscribe("p2p-switch", () =>
+        useMeetingStore.getState().setRoomMode("p2p")
+      ),
+      webSocketManager.subscribe("sfu-switch", () =>
+        useMeetingStore.getState().setRoomMode("sfu")
+      ),
       webSocketManager.subscribe("peer-permissions-updated", (message) => {
         store.setPeerPermissions(message.payload.peer_id, message.payload.permissions);
         if (message.payload.peer_id === store.localPeerId) {

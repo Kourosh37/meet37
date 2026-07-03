@@ -15,7 +15,7 @@ CD uses the short git SHA as the image tag:
 Manual offline builds can use:
 
 ```bash
-python scripts/build_docker_images.py --version 2026-06-02-1
+python scripts/build_images.py --version 2026-06-02-1
 ```
 
 ## Pre-Release Validation

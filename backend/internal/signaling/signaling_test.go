@@ -27,23 +27,120 @@ func testHub(t *testing.T) (*Hub, *db.DB) {
 	return NewHub(cfg, database, sfu.NewManager(cfg), nil), database
 }
 
-func TestHandleMessageRejectsDirectPeerSignaling(t *testing.T) {
+func TestHandleMessageRelaysDirectPeerSignaling(t *testing.T) {
 	hub, _ := testHub(t)
-	peer := &Peer{id: "peer-1", roomID: "room-1", mode: "sfu", send: make(chan []byte, 4), hub: hub}
+	roomID := "room-1"
+	peer := &Peer{id: "peer-1", roomID: roomID, mode: "p2p", send: make(chan []byte, 4), hub: hub}
+	target := &Peer{id: "peer-2", roomID: roomID, mode: "p2p", send: make(chan []byte, 4), hub: hub}
+	hub.rooms[roomID] = &Room{id: roomID, peers: map[string]*Peer{peer.id: peer, target.id: target}, pending: map[string]*Peer{}, permissions: map[string]models.PeerPermissions{}, adminPermissions: map[string]models.AdminPermissions{}, bans: map[string]int64{}, defaultPermissions: defaultPeerPermissions()}
 
 	hub.handleMessage(peer, []byte(`{"type":"offer","to":"peer-2","payload":{"sdp":"direct-offer"}}`))
 
 	select {
-	case raw := <-peer.send:
+	case raw := <-target.send:
 		var msg models.SignalMessage
 		if err := json.Unmarshal(raw, &msg); err != nil {
 			t.Fatalf("decode signal: %v", err)
 		}
-		if msg.Type != "error" {
-			t.Fatalf("expected direct signaling error, got %q", msg.Type)
+		if msg.Type != "offer" || msg.From != "peer-1" || msg.To != "peer-2" {
+			t.Fatalf("expected relayed offer, got %#v", msg)
 		}
 	case <-time.After(time.Second):
-		t.Fatalf("timed out waiting for direct signaling error")
+		t.Fatalf("timed out waiting for relayed offer")
+	}
+}
+
+func TestSyncRoomMediaModeSwitchesAtFourthPeer(t *testing.T) {
+	hub, _ := testHub(t)
+	roomID := "room-1"
+	room := &Room{
+		id:                 roomID,
+		peers:              map[string]*Peer{},
+		pending:            map[string]*Peer{},
+		permissions:        map[string]models.PeerPermissions{},
+		adminPermissions:   map[string]models.AdminPermissions{},
+		bans:               map[string]int64{},
+		defaultPermissions: defaultPeerPermissions(),
+	}
+	hub.rooms[roomID] = room
+
+	for index := 1; index <= p2pMaxPeers; index++ {
+		id := "peer-" + string(rune('0'+index))
+		room.peers[id] = &Peer{id: id, roomID: roomID, mode: "p2p", send: make(chan []byte, 4), hub: hub}
+	}
+	hub.syncRoomMediaMode(roomID)
+	for _, peer := range room.peers {
+		if peer.mode != "p2p" {
+			t.Fatalf("expected peer to remain p2p below threshold, got %q", peer.mode)
+		}
+		select {
+		case raw := <-peer.send:
+			t.Fatalf("unexpected signal below threshold: %s", string(raw))
+		default:
+		}
+	}
+
+	fourth := &Peer{id: "peer-4", roomID: roomID, mode: "p2p", send: make(chan []byte, 4), hub: hub}
+	room.peers[fourth.id] = fourth
+	hub.syncRoomMediaMode(roomID)
+	for _, peer := range room.peers {
+		if peer.mode != "sfu" {
+			t.Fatalf("expected peer to switch to sfu, got %q", peer.mode)
+		}
+		foundSwitch := false
+		deadline := time.After(time.Second)
+		for !foundSwitch {
+			select {
+			case raw := <-peer.send:
+				var msg models.SignalMessage
+				if err := json.Unmarshal(raw, &msg); err != nil {
+					t.Fatalf("decode switch signal: %v", err)
+				}
+				foundSwitch = msg.Type == "sfu-switch"
+			case <-deadline:
+				t.Fatalf("timed out waiting for sfu-switch")
+			}
+		}
+	}
+}
+
+func TestSyncRoomMediaModeDowngradesToP2PBelowThreshold(t *testing.T) {
+	hub, _ := testHub(t)
+	roomID := "room-1"
+	room := &Room{
+		id:                 roomID,
+		peers:              map[string]*Peer{},
+		pending:            map[string]*Peer{},
+		permissions:        map[string]models.PeerPermissions{},
+		adminPermissions:   map[string]models.AdminPermissions{},
+		bans:               map[string]int64{},
+		defaultPermissions: defaultPeerPermissions(),
+	}
+	hub.rooms[roomID] = room
+	for index := 1; index <= p2pMaxPeers; index++ {
+		id := "peer-" + string(rune('0'+index))
+		room.peers[id] = &Peer{id: id, roomID: roomID, mode: "sfu", send: make(chan []byte, 8), hub: hub}
+	}
+
+	hub.syncRoomMediaMode(roomID)
+	for _, peer := range room.peers {
+		if peer.mode != "p2p" {
+			t.Fatalf("expected peer to switch back to p2p, got %q", peer.mode)
+		}
+		foundSwitch := false
+		deadline := time.After(time.Second)
+		for !foundSwitch {
+			select {
+			case raw := <-peer.send:
+				var msg models.SignalMessage
+				if err := json.Unmarshal(raw, &msg); err != nil {
+					t.Fatalf("decode switch signal: %v", err)
+				}
+				foundSwitch = msg.Type == "p2p-switch"
+			case <-deadline:
+				t.Fatalf("timed out waiting for p2p-switch")
+			}
+		}
 	}
 }
 

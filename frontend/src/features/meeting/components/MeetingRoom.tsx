@@ -19,10 +19,12 @@ import { VideoGrid } from "@/features/meeting/components/VideoGrid";
 import { useLocalMedia } from "@/features/meeting/hooks/useLocalMedia";
 import { useAudioLevel } from "@/features/meeting/hooks/useAudioLevel";
 import { useModeration } from "@/features/meeting/hooks/useModeration";
+import { useP2PConnections } from "@/features/meeting/hooks/useP2PConnections";
 import { useQualityStats } from "@/features/meeting/hooks/useQualityStats";
 import { useSFUConnection } from "@/features/meeting/hooks/useSFUConnection";
 import { useWebSocket } from "@/features/meeting/hooks/useWebSocket";
 import { useWebSocketPing } from "@/features/meeting/hooks/useWebSocketPing";
+import { useChatStore } from "@/features/meeting/stores/chatStore";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 import { useMeetingUiStore } from "@/features/meeting/stores/uiStore";
 import type { MeetingPeer } from "@/features/meeting/types/peer";
@@ -43,6 +45,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const topScrollAnimationFrameRef = useRef<number | null>(null);
   const topScrollSettleFrameRef = useRef<number | null>(null);
   const meeting = useMeetingStore();
+  const chatUnreadCount = useChatStore((state) => state.unreadCount);
   const websocket = useWebSocket();
   const { t } = useLocale();
   const pingMs = useWebSocketPing(websocket.status === "open");
@@ -80,7 +83,18 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
     enabled:
       meeting.phase === "in-call" &&
       websocket.status === "open" &&
+      meeting.roomMode === "sfu" &&
       Boolean(meeting.localPeerId),
+    turnServers: meeting.turnServers ?? []
+  });
+  const p2p = useP2PConnections(localMedia.stream, {
+    enabled:
+      meeting.phase === "in-call" &&
+      websocket.status === "open" &&
+      meeting.roomMode === "p2p" &&
+      Boolean(meeting.localPeerId),
+    localPeerId: meeting.localPeerId,
+    peers: meeting.peers,
     turnServers: meeting.turnServers ?? []
   });
   const localPermissions = meeting.localPermissions;
@@ -89,13 +103,16 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
   const canShareScreen = localPermissions?.can_share_screen ?? true;
   const canChat = localPermissions?.can_chat ?? true;
   const canReact = localPermissions?.can_react ?? true;
-  const connectionQuality = useQualityStats(sfu.connections);
-  const remoteStreams = sfu.remoteStreams;
+  const activeConnections =
+    meeting.roomMode === "sfu" ? sfu.connections : p2p.connections;
+  const connectionQuality = useQualityStats(activeConnections);
+  const remoteStreams =
+    meeting.roomMode === "sfu" ? sfu.remoteStreams : p2p.remoteStreams;
   const localPeer = useMemo(
     () =>
       ({
         connection: {
-          mode: "sfu",
+          mode: meeting.roomMode,
           quality: "unknown"
         },
         displayName,
@@ -125,7 +142,8 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
       meeting.isHost,
       meeting.localAdminPermissions,
       meeting.localPermissions,
-      meeting.localPeerId
+      meeting.localPeerId,
+      meeting.roomMode
     ]
   );
   const shortcuts = useMemo(
@@ -615,6 +633,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
                 audioStatus: localMedia.audioStatus,
                 displayName,
                 isHost: meeting.isHost,
+                mode: meeting.roomMode,
                 screenSharing: localMedia.screenSharing,
                 screenShareStatus: localMedia.screenShareStatus,
                 stream: localMedia.stream,
@@ -692,6 +711,7 @@ export function MeetingRoom({ displayName, roomName }: MeetingRoomProps) {
         canShareScreen={canShareScreen}
         canUseCamera={canUseCamera}
         canUseMic={canUseMic}
+        chatUnreadCount={chatUnreadCount}
         onCopyInvite={() => void handleCopyInvite()}
         onLeave={() => setLeaveConfirmOpen(true)}
         onOpenSettings={() => ui.togglePanel("settings")}

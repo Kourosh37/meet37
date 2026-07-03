@@ -16,8 +16,10 @@ import {
 
 export class SFUClient {
   private connection: RTCPeerConnection | null = null;
+  private iceRestartTimer: number | null = null;
   private makingOffer = false;
   private pendingOffer = false;
+  private pendingRestartIce = false;
   private pendingIceCandidates: IceCandidatePayload[] = [];
 
   constructor(
@@ -66,11 +68,17 @@ export class SFUClient {
         !this.connection ||
         !["failed", "disconnected"].includes(this.connection.iceConnectionState)
       ) {
+        if (this.connection?.iceConnectionState === "connected") {
+          this.clearIceRestartTimer();
+          this.pendingRestartIce = false;
+        }
         return;
       }
 
-      window.setTimeout(
+      this.clearIceRestartTimer();
+      this.iceRestartTimer = window.setTimeout(
         () => {
+          this.iceRestartTimer = null;
           if (!this.connection) {
             return;
           }
@@ -80,6 +88,7 @@ export class SFUClient {
           } catch {
             return;
           }
+          this.pendingRestartIce = true;
           void this.createOffer().then((offer) => {
             if (offer) {
               this.options.onOffer?.(offer);
@@ -111,8 +120,14 @@ export class SFUClient {
     this.makingOffer = true;
 
     try {
-      const offer = await this.connection.createOffer();
+      const shouldRestartIce = this.pendingRestartIce;
+      const offer = await this.connection.createOffer({
+        iceRestart: shouldRestartIce
+      });
       await this.connection.setLocalDescription(offer);
+      if (shouldRestartIce) {
+        this.pendingRestartIce = false;
+      }
       return sessionDescriptionToPayload(offer);
     } finally {
       this.makingOffer = false;
@@ -172,10 +187,21 @@ export class SFUClient {
   }
 
   close() {
+    this.clearIceRestartTimer();
     closePeerConnection(this.connection);
     this.connection = null;
     this.makingOffer = false;
     this.pendingOffer = false;
+    this.pendingRestartIce = false;
     this.pendingIceCandidates = [];
+  }
+
+  private clearIceRestartTimer() {
+    if (this.iceRestartTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(this.iceRestartTimer);
+    this.iceRestartTimer = null;
   }
 }

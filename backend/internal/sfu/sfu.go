@@ -189,7 +189,7 @@ func (m *Manager) AddICECandidate(roomID, peerID string, candidate webrtc.ICECan
 }
 
 func (m *Manager) GetTURNCredentials(peerID string) []map[string]interface{} {
-	expiry := time.Now().Add(6 * time.Hour).Unix()
+	expiry := time.Now().Add(24 * time.Hour).Unix()
 	username := fmt.Sprintf("%d:%s", expiry, peerID)
 	mac := hmac.New(sha1.New, []byte(m.cfg.TURNSecret))
 	mac.Write([]byte(username))
@@ -236,8 +236,23 @@ func (s *Session) ensurePeer(m *Manager, peerID string, onCandidate func(webrtc.
 		}
 	})
 	pc.OnConnectionStateChange(func(state webrtc.PeerConnectionState) {
-		if state == webrtc.PeerConnectionStateFailed || state == webrtc.PeerConnectionStateClosed {
+		if state == webrtc.PeerConnectionStateClosed {
 			s.removePeer(peerID)
+			return
+		}
+		if state == webrtc.PeerConnectionStateFailed {
+			go func() {
+				time.Sleep(20 * time.Second)
+				s.mu.RLock()
+				current := s.peers[peerID]
+				s.mu.RUnlock()
+				if current == nil {
+					return
+				}
+				if current.pc.ConnectionState() == webrtc.PeerConnectionStateFailed {
+					s.removePeer(peerID)
+				}
+			}()
 		}
 	})
 	pc.OnTrack(func(remote *webrtc.TrackRemote, receiver *webrtc.RTPReceiver) {
@@ -275,6 +290,21 @@ func (s *Session) handleRemoteTrack(ownerID string, remote *webrtc.TrackRemote, 
 	s.mu.Unlock()
 
 	go readRTCP(receiver)
+	if strings.HasPrefix(strings.ToLower(ft.mimeType), "video/") {
+		go func() {
+			ticker := time.NewTicker(3 * time.Second)
+			defer ticker.Stop()
+			for range ticker.C {
+				s.mu.RLock()
+				_, trackActive := s.tracks[ft.id]
+				s.mu.RUnlock()
+				if !trackActive {
+					return
+				}
+				s.requestKeyFrame(ft)
+			}
+		}()
+	}
 	go func() {
 		for {
 			pkt, _, err := remote.ReadRTP()
@@ -342,7 +372,7 @@ func writeForwardedRTP(local *webrtc.TrackLocalStaticRTP, pkt *rtp.Packet) (bool
 		if errors.Is(err, io.ErrClosedPipe) {
 			return false, true
 		}
-		return false, false
+		return false, true
 	}
 	return true, true
 }

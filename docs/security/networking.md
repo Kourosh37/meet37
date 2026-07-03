@@ -8,7 +8,7 @@ Production users should only access meet37 through HTTPS:
 https://meet.example.com
 ```
 
-Caddy or another reverse proxy terminates TLS and proxies traffic to the frontend container.
+The production `caddy` container terminates TLS and proxies traffic to the frontend container.
 
 ## Internal HTTP
 
@@ -63,10 +63,9 @@ Use the actual values from `.env`.
 
 Production compose uses:
 
-- `DOCKER_INTERNAL_NETWORK`: private network between backend and frontend.
-- `DOCKER_PROXY_NETWORK`: external network shared by frontend and reverse proxy.
+- `DOCKER_INTERNAL_NETWORK`: private network between Caddy, frontend, backend, and coturn.
 
-The backend and coturn services should not join the proxy network unless there is a specific operational reason. The frontend joins the proxy network so Caddy can reach it.
+Backend HTTP and frontend HTTP are not published on the host in production. Caddy is the public HTTP entry point.
 
 ## NAT And VPN
 

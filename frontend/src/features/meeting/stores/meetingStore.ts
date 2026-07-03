@@ -36,6 +36,7 @@ export interface MeetingState {
   pendingPeers: PendingPeer[];
   peers: Record<string, MeetingPeer>;
   phase: MeetingPhase;
+  roomMode: MeetingPeer["connection"]["mode"];
   roomId: string | null;
   turnServers: JoinedPayload["turn_servers"];
   beginJoin: (roomId: string) => void;
@@ -67,13 +68,14 @@ export interface MeetingState {
   ) => void;
   setError: (message: string | null) => void;
   setPhase: (phase: MeetingPhase) => void;
+  setRoomMode: (mode: MeetingPeer["connection"]["mode"]) => void;
   reset: () => void;
 }
 
 function peerFromJoined(payload: JoinedPayload["peers"][number]): MeetingPeer {
   return {
     connection: {
-      mode: "sfu",
+      mode: payload.mode,
       quality: "unknown"
     },
     displayName: payload.display_name,
@@ -104,6 +106,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
   pendingPeers: [],
   peers: {},
   phase: "idle",
+  roomMode: "p2p",
   roomId: null,
   turnServers: [],
 
@@ -117,6 +120,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       pendingPeers: [],
       peers: {},
       phase: "idle",
+      roomMode: "p2p",
       roomId: state.roomId
     })),
 
@@ -132,6 +136,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
         payload.peers.map((peer) => [peer.id, peerFromJoined(peer)])
       ),
       phase: "in-call",
+      roomMode: payload.mode,
       turnServers: payload.turn_servers ?? []
     }),
 
@@ -159,7 +164,7 @@ export const useMeetingStore = create<MeetingState>((set) => ({
         ...state.peers,
         [payload.peer_id]: {
           connection: {
-            mode: "sfu",
+            mode: payload.mode ?? state.roomMode,
             quality: "unknown"
           },
           displayName: payload.display_name,
@@ -296,10 +301,27 @@ export const useMeetingStore = create<MeetingState>((set) => ({
       pendingPeers: [],
       peers: {},
       phase: "idle",
+      roomMode: "p2p",
       roomId: null,
       turnServers: []
     }),
 
   setError: (message) => set({ error: message }),
-  setPhase: (phase) => set({ phase })
+  setPhase: (phase) => set({ phase }),
+  setRoomMode: (mode) =>
+    set((state) => ({
+      roomMode: mode,
+      peers: Object.fromEntries(
+        Object.entries(state.peers).map(([peerId, peer]) => [
+          peerId,
+          {
+            ...peer,
+            connection: {
+              ...peer.connection,
+              mode
+            }
+          }
+        ])
+      )
+    }))
 }));

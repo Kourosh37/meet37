@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { ChatMessage } from "@/features/meeting/components/ChatMessage";
@@ -19,6 +19,8 @@ interface ChatPanelProps {
 export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [shouldRender, setShouldRender] = useState(isOpen);
+  const timelineRef = useRef<HTMLDivElement | null>(null);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
   const chat = useChat(roomId, isOpen);
   const files = useFileTransfer(roomId);
   const { t } = useLocale();
@@ -41,6 +43,7 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
         value: transfer
       }))
   ].sort((left, right) => left.timestamp - right.timestamp);
+  const lastTimelineId = timeline.at(-1)?.id ?? "";
 
   useEffect(() => {
     if (isOpen) {
@@ -51,6 +54,17 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
     const timeout = window.setTimeout(() => setShouldRender(false), 260);
     return () => window.clearTimeout(timeout);
   }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    timelineRef.current?.scrollTo({
+      top: timelineRef.current.scrollHeight
+    });
+    bottomRef.current?.scrollIntoView({ block: "end" });
+  }, [chat.isLoadingHistory, isOpen, lastTimelineId, timeline.length]);
 
   if (!shouldRender) {
     return null;
@@ -96,7 +110,10 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+      <div
+        className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4"
+        ref={timelineRef}
+      >
         {timeline.length === 0 ? (
           <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
             {t("meeting.emptyChat")}
@@ -110,6 +127,7 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
             )
           )
         )}
+        <div aria-hidden="true" ref={bottomRef} />
       </div>
 
       <FileTransferPanel onSendFile={files.sendFile} />

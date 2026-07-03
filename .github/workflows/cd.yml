@@ -110,8 +110,9 @@ jobs:
           username: ${{ env.SSH_USER }}
           key: ${{ env.SSH_KEY }}
           port: ${{ env.SSH_PORT || '22' }}
-          source: "docker-compose.prod.yml,.env.example,scripts/check_server_requirements.py"
+          source: "deploy/docker-compose.prod.yml,deploy/caddy/Caddyfile,deploy/scripts/prepare_server.py"
           target: ${{ env.DEPLOY_PATH }}
+          strip_components: 1
 
       - name: Deploy over SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -143,7 +144,7 @@ jobs:
             set_env DOCKER_FRONTEND_IMAGE "$FRONTEND_IMAGE"
             set_env DOCKER_IMAGE_TAG "$IMAGE_TAG"
 
-            python3 scripts/check_server_requirements.py --compose-file docker-compose.prod.yml
+            python3 scripts/prepare_server.py --compose-file docker-compose.prod.yml
             docker compose -f docker-compose.prod.yml pull
             docker compose -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.prod.yml ps

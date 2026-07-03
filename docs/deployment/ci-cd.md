@@ -61,18 +61,18 @@ NEXT_PUBLIC_TURN_PUBLIC_IP
 The deploy job copies these files to the server:
 
 ```text
-docker-compose.prod.yml
-.env.example
-scripts/check_server_requirements.py
+deploy/docker-compose.prod.yml
+deploy/caddy/Caddyfile
+deploy/scripts/prepare_server.py
 ```
 
-Then it updates `.env` with the pushed image names and tag, validates server requirements, pulls images, and runs:
+Then it updates `.env` with the pushed image names and tag, validates server requirements, pulls missing registry images when needed, and runs:
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d --remove-orphans
 ```
 
-The server must already have Docker, Docker Compose, Python 3, and the reverse-proxy network configured or allowed to be created by the requirements script.
+The server must already have Docker, Docker Compose, Python 3, and valid TLS files under `caddy/certs`.
 
 ## Planned Expansion
 

@@ -90,9 +90,17 @@ This page is the operational reference for meet37 environment variables. The sou
 | `BACKEND_CONTAINER_NAME` | Prod compose | Backend container name. |
 | `FRONTEND_CONTAINER_NAME` | Prod compose | Frontend container name. |
 | `COTURN_CONTAINER_NAME` | Prod compose | Coturn container name. |
+| `CADDY_CONTAINER_NAME` | Prod compose | Caddy container name. |
 | `COTURN_IMAGE` | Prod compose | Coturn image reference. |
+| `CADDY_IMAGE` | Prod compose | Caddy image reference included in offline bundles. |
 | `DOCKER_INTERNAL_NETWORK` | Prod compose | Private app network. |
-| `DOCKER_PROXY_NETWORK` | Prod compose | External reverse-proxy network. |
+
+## Caddy
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `CADDY_TLS_CERT` | Prod compose | Certificate path inside the Caddy container. |
+| `CADDY_TLS_KEY` | Prod compose | Private key path inside the Caddy container. |
 
 ## Production Example
 

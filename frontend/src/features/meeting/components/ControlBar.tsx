@@ -36,6 +36,7 @@ interface ControlBarProps {
   canShareScreen?: boolean;
   canUseCamera?: boolean;
   canUseMic?: boolean;
+  chatUnreadCount?: number;
   onCopyInvite: () => void;
   onLeave: () => void;
   onOpenSettings: () => void;
@@ -63,6 +64,7 @@ export function ControlBar({
   canShareScreen = true,
   canUseCamera = true,
   canUseMic = true,
+  chatUnreadCount = 0,
   onCopyInvite,
   onLeave,
   onOpenSettings,
@@ -91,6 +93,8 @@ export function ControlBar({
       : screenShareSupported
         ? t("meeting.shareScreen")
         : screenShareUnavailableReason;
+  const chatUnreadLabel =
+    chatUnreadCount > 99 ? "+99" : chatUnreadCount.toString();
 
   useEffect(() => {
     setMounted(true);
@@ -227,8 +231,12 @@ export function ControlBar({
           <SmilePlus className="size-5" />
         </button>
         <button
-          aria-label={t("meeting.openChat")}
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          aria-label={
+            chatUnreadCount > 0
+              ? `${t("meeting.openChat")} (${chatUnreadLabel})`
+              : t("meeting.openChat")
+          }
+          className="relative grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
           disabled={!canChat}
           onClick={onToggleChat}
           title={
@@ -237,6 +245,11 @@ export function ControlBar({
           type="button"
         >
           <MessageSquare className="size-5" />
+          {chatUnreadCount > 0 ? (
+            <span className="absolute -end-2 -top-2 grid h-5 min-w-5 place-items-center rounded-full border border-surface bg-danger px-1 text-[10px] font-bold leading-none text-danger-foreground shadow-sm">
+              {chatUnreadLabel}
+            </span>
+          ) : null}
         </button>
         <button
           aria-label={t("meeting.toggleSettings")}

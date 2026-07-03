@@ -9,7 +9,7 @@ Browser
   |
   | HTTPS / WSS
   v
-Reverse proxy, usually Caddy
+Caddy container
   |
   | HTTP to frontend container
   v
@@ -70,9 +70,9 @@ SQLite is the default database. It stores settings, users, rooms, room events, r
 ## Deployment Shapes
 
 - `docker-compose.yml` builds local backend/frontend images from source.
-- `docker-compose.prod.yml` runs prebuilt backend/frontend images and connects the frontend to an external reverse-proxy network.
-- `scripts/build_docker_images.py` builds backend/frontend images and exports `.tar.gz` archives.
-- `scripts/check_server_requirements.py` validates and can fix server env, port, Docker, and firewall requirements.
+- `docker-compose.prod.yml` runs prebuilt backend/frontend images with coturn and Caddy in one production stack.
+- `scripts/build_images.py` builds backend/frontend/runtime images and exports one `.tar.gz` image bundle.
+- `scripts/prepare_server.py` prepares server env, Docker networks, firewall rules, and OS media settings.
 
 ## Design Constraints
 

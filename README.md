@@ -16,6 +16,7 @@ This README is intentionally short. The complete project documentation lives in 
 - Docker and production deployment support.
 - Offline image build tooling.
 - Server requirement checks for media ports and runtime dependencies.
+- Self-contained `deploy/` layout for `/opt/meet37` with Caddy, certs, images, compose, and server prep script.
 - GitHub Actions CI/CD for the `production` branch.
 
 ## Documentation
@@ -63,13 +64,18 @@ docker compose up --build
 For production image-based deployment, use:
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+python scripts/build_images.py --version <tag>
+rsync -a deploy/ root@server:/opt/meet37/
+cd /opt/meet37
+docker load -i images/meet37-images-<tag>.tar.gz
+python3 scripts/prepare_server.py --public-origin https://meet.example.com --public-ip <server-public-ip>
+docker compose --env-file .env -f docker-compose.prod.yml up -d
 ```
 
 Before deploying media features on a server, validate ports and runtime requirements:
 
 ```bash
-python scripts/check_server_requirements.py --fix
+python scripts/prepare_server.py --install-docker
 ```
 
 ## Repository Layout
@@ -77,7 +83,7 @@ python scripts/check_server_requirements.py --fix
 ```text
 backend/      Go backend, HTTP APIs, signaling, media coordination
 frontend/     Next.js frontend, meeting UI, WebRTC client code
-scripts/      Build, image, and server validation scripts
+scripts/      Image bundle and server preparation scripts
 docs/         Central project documentation
 .github/      GitHub Actions workflows
 ```

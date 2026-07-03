@@ -125,7 +125,7 @@ DOCKER_IMAGE_TAG=local docker compose --env-file .env -f docker-compose.prod.yml
 Server requirements script:
 
 ```bash
-python scripts/check_server_requirements.py
+python scripts/prepare_server.py
 ```
 
 ## Common Local Issues

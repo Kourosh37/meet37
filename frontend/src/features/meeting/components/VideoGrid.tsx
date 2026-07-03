@@ -19,6 +19,7 @@ interface VideoGridProps {
     audioStatus: MediaTrackStatus;
     displayName: string;
     isHost: boolean;
+    mode: PeerMode;
     screenSharing: boolean;
     screenShareStatus: MediaTrackStatus;
     stream: MediaStream | null;
@@ -80,7 +81,7 @@ export function VideoGrid({
         id: "local",
         isHost: local.isHost,
         isLocal: true,
-        mode: "sfu",
+        mode: local.mode,
         screenSharing: local.screenSharing,
         screenShareStatus: local.screenShareStatus,
         stream: local.stream,

@@ -6,14 +6,12 @@ Check:
 
 ```bash
 docker ps
-docker network inspect proxy
-docker logs caddy --tail=100
+docker compose -f docker-compose.prod.yml logs caddy --tail=100
 docker logs meet37 --tail=100
 ```
 
 Common fixes:
 
-- Attach frontend to the proxy network.
 - Use the correct frontend container name in Caddyfile.
 - Confirm frontend is listening on `FRONTEND_PORT`.
 - Confirm `BACKEND_INTERNAL_URL` is set so Next.js can start.

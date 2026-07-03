@@ -12,7 +12,7 @@ meet37 security depends on correct authentication configuration, origin restrict
 - Keep `.env` out of git.
 - Publish only required ports.
 - Keep backend HTTP internal in production compose.
-- Use an external reverse proxy network for frontend exposure.
+- Use the production Caddy service as the public HTTP/TLS entry point.
 
 ## Authentication
 
@@ -61,10 +61,11 @@ Camera, microphone, and screen sharing require browser permission. In production
 
 Production compose publishes:
 
+- Caddy HTTP/HTTPS ports.
 - TURN/media TCP/UDP port.
 - WebRTC UDP media range.
 
-The backend HTTP port should stay internal to Docker. The frontend should be the only service attached to the reverse-proxy network.
+Backend and frontend HTTP ports should stay internal to Docker. Caddy is the only public HTTP service.
 
 ## Secret Checklist
 

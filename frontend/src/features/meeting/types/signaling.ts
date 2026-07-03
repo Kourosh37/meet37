@@ -1,4 +1,4 @@
-export type PeerMode = "sfu";
+export type PeerMode = "p2p" | "sfu";
 export type MediaKind = "audio" | "video" | string;
 export type MediaTrackStatus = "off" | "starting" | "ready" | "error";
 
@@ -93,6 +93,7 @@ export interface JoinRejectedPayload {
 export interface PeerJoinedPayload {
   peer_id: string;
   display_name: string;
+  mode?: PeerMode;
   is_host: boolean;
   is_admin?: boolean;
   permissions?: PeerPermissions;
@@ -255,6 +256,9 @@ export interface SignalErrorPayload {
 export type OutgoingSignalMessage =
   | SignalEnvelope<"join", JoinPayload>
   | SignalEnvelope<"leave", undefined>
+  | SignalEnvelope<"offer", SessionDescriptionPayload>
+  | SignalEnvelope<"answer", SessionDescriptionPayload>
+  | SignalEnvelope<"ice-candidate", IceCandidatePayload>
   | SignalEnvelope<"approve-peer", PeerIdPayload>
   | SignalEnvelope<"reject-peer", RejectPeerPayload>
   | SignalEnvelope<"sfu-offer", SessionDescriptionPayload>
@@ -286,6 +290,10 @@ export type IncomingSignalMessage =
   | SignalEnvelope<"peer-joined", PeerJoinedPayload>
   | SignalEnvelope<"peer-left", PeerIdPayload>
   | SignalEnvelope<"room-closed", undefined>
+  | SignalEnvelope<"p2p-switch", undefined>
+  | SignalEnvelope<"offer", SessionDescriptionPayload>
+  | SignalEnvelope<"answer", SessionDescriptionPayload>
+  | SignalEnvelope<"ice-candidate", IceCandidatePayload>
   | SignalEnvelope<"sfu-switch", SfuSwitchPayload>
   | SignalEnvelope<"sfu-answer", SfuAnswerPayload>
   | SignalEnvelope<"sfu-ice-candidate", IceCandidatePayload>

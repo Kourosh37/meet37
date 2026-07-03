@@ -2,6 +2,7 @@ services:
   caddy:
     image: "${CADDY_IMAGE:?CADDY_IMAGE is required}"
     container_name: "${CADDY_CONTAINER_NAME:?CADDY_CONTAINER_NAME is required}"
+    working_dir: /etc/caddy
     env_file:
       - ./.env
     ports:

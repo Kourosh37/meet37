@@ -94,6 +94,92 @@ async function getDisplayMediaWithFallback() {
   }
 }
 
+async function getUserMediaWithFallback(
+  constraints: MediaStreamConstraints,
+  fallback: MediaStreamConstraints
+) {
+  try {
+    return await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      ["NotAllowedError", "SecurityError", "AbortError"].includes(error.name)
+    ) {
+      throw error;
+    }
+
+    return navigator.mediaDevices.getUserMedia(fallback);
+  }
+}
+
+async function getAudioMediaWithFallback(deviceId?: string) {
+  return getUserMediaWithFallback(
+    {
+      audio: buildAudioConstraints(deviceId),
+      video: false
+    },
+    {
+      audio: true,
+      video: false
+    }
+  );
+}
+
+async function getVideoMediaWithFallback(deviceId?: string) {
+  return getUserMediaWithFallback(
+    {
+      audio: false,
+      video: buildCameraConstraints(deviceId)
+    },
+    {
+      audio: false,
+      video: true
+    }
+  );
+}
+
+async function getLocalMediaWithFallback(options: {
+  audioDeviceId?: string;
+  shouldUseAudio: boolean;
+  shouldUseVideo: boolean;
+  videoDeviceId?: string;
+}) {
+  const { audioDeviceId, shouldUseAudio, shouldUseVideo, videoDeviceId } =
+    options;
+
+  if (shouldUseAudio && shouldUseVideo) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: buildAudioConstraints(audioDeviceId),
+        video: buildCameraConstraints(videoDeviceId)
+      });
+    } catch {
+      const streams = await Promise.allSettled([
+        getAudioMediaWithFallback(audioDeviceId),
+        getVideoMediaWithFallback(videoDeviceId)
+      ]);
+      const tracks = streams.flatMap((result) =>
+        result.status === "fulfilled" ? result.value.getTracks() : []
+      );
+
+      if (tracks.length) {
+        return new MediaStream(tracks);
+      }
+
+      const firstFailure = streams.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected"
+      );
+      throw firstFailure?.reason ?? new Error("Could not start local media");
+    }
+  }
+
+  if (shouldUseAudio) {
+    return getAudioMediaWithFallback(audioDeviceId);
+  }
+
+  return getVideoMediaWithFallback(videoDeviceId);
+}
+
 export function useLocalMedia() {
   const { t } = useLocale();
   const audioEnabled = useMediaStore((state) => state.audioEnabled);
@@ -185,10 +271,14 @@ export function useLocalMedia() {
         setIsStarting(true);
         setAudioStatus(shouldUseAudio ? "starting" : "off");
         setVideoStatus(shouldUseVideo ? "starting" : "off");
-        const nextStream = await navigator.mediaDevices.getUserMedia({
-          audio: shouldUseAudio ? buildAudioConstraints(audioDeviceId) : false,
-          video: shouldUseVideo ? buildCameraConstraints(videoDeviceId) : false
+        const nextStream = await getLocalMediaWithFallback({
+          audioDeviceId,
+          shouldUseAudio,
+          shouldUseVideo,
+          videoDeviceId
         });
+        const hasAudioTrack = nextStream.getAudioTracks().length > 0;
+        const hasVideoTrack = nextStream.getVideoTracks().length > 0;
 
         setStream((current) => {
           stopMediaStream(current);
@@ -212,13 +302,17 @@ export function useLocalMedia() {
             .map((track) => applyVideoTrackConstraints(track))
         );
         setAudioStatus(
-          shouldUseAudio && nextStream.getAudioTracks().length ? "ready" : "off"
+          shouldUseAudio ? (hasAudioTrack ? "ready" : "error") : "off"
         );
         setVideoStatus(
-          shouldUseVideo && nextStream.getVideoTracks().length ? "ready" : "off"
+          shouldUseVideo ? (hasVideoTrack ? "ready" : "error") : "off"
         );
 
-        setError(null);
+        setError(
+          (shouldUseAudio && !hasAudioTrack) || (shouldUseVideo && !hasVideoTrack)
+            ? "error.couldNotStartLocalMedia"
+            : null
+        );
         await enumerateDevices();
         return nextStream;
       } catch {
@@ -249,10 +343,7 @@ export function useLocalMedia() {
     try {
       setAudioStatus("starting");
       const audioDeviceId = useMediaStore.getState().selectedAudioDeviceId;
-      const audioStream = await navigator.mediaDevices.getUserMedia({
-        audio: buildAudioConstraints(audioDeviceId),
-        video: false
-      });
+      const audioStream = await getAudioMediaWithFallback(audioDeviceId);
       const audioTracks = audioStream.getAudioTracks();
 
       if (!audioTracks.length) {
@@ -296,10 +387,7 @@ export function useLocalMedia() {
     try {
       setVideoStatus("starting");
       const videoDeviceId = useMediaStore.getState().selectedVideoDeviceId;
-      const videoStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: buildCameraConstraints(videoDeviceId)
-      });
+      const videoStream = await getVideoMediaWithFallback(videoDeviceId);
       const videoTracks = videoStream.getVideoTracks();
 
       if (!videoTracks.length) {

@@ -10,6 +10,7 @@ import type {
 import {
   closePeerConnection,
   createPeerConnection,
+  ensureRecvTransceivers,
   payloadToIceCandidate,
   payloadToSessionDescription,
   sessionDescriptionToPayload,
@@ -141,7 +142,9 @@ export function useP2PConnections(
       try {
         entry.makingOffer = true;
         entry.pendingOffer = false;
-        await syncLocalTracks(entry.connection, localStreamRef.current);
+        await syncLocalTracks(entry.connection, localStreamRef.current, {
+          reuseRecvOnly: true
+        });
         const shouldRestartIce = entry.pendingRestartIce;
         const offer = await entry.connection.createOffer({
           iceRestart: shouldRestartIce
@@ -202,6 +205,7 @@ export function useP2PConnections(
           publish();
         }
       });
+      ensureRecvTransceivers(connection, { audio: 1, video: 1 });
       const entry: P2PEntry = {
         connection,
         ignoreOffer: false,
@@ -264,7 +268,9 @@ export function useP2PConnections(
 
       entriesRef.current.set(peerId, entry);
       publishConnections();
-      void syncLocalTracks(connection, localStreamRef.current);
+      void syncLocalTracks(connection, localStreamRef.current, {
+        reuseRecvOnly: true
+      });
       return entry;
     },
     [publishConnections, publishRemoteStream, requestOffer, turnServers]
@@ -306,6 +312,7 @@ export function useP2PConnections(
       if (entry.ignoreOffer) {
         return;
       }
+      entry.ignoreOffer = false;
 
       try {
         entry.isSettingRemoteAnswerPending = type === "answer";
@@ -319,7 +326,9 @@ export function useP2PConnections(
       await flushPendingIceCandidates(entry);
 
       if (type === "offer") {
-        await syncLocalTracks(connection, localStreamRef.current);
+        await syncLocalTracks(connection, localStreamRef.current, {
+          reuseRecvOnly: true
+        });
         const answer = await connection.createAnswer();
         await connection.setLocalDescription(answer);
         webSocketManager.send({
@@ -421,7 +430,9 @@ export function useP2PConnections(
     }
 
     entriesRef.current.forEach((entry, peerId) => {
-      void syncLocalTracks(entry.connection, localStream).then(() => {
+      void syncLocalTracks(entry.connection, localStream, {
+        reuseRecvOnly: true
+      }).then(() => {
         void requestOffer(peerId);
       });
     });

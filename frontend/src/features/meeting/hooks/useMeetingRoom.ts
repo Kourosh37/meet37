@@ -11,14 +11,14 @@ interface JoinMeetingInput {
   password?: string;
 }
 
-const MEETING_CLIENT_ID_KEY = "meet_client_id";
+export const MEETING_CLIENT_ID_KEY = "meet_tab_client_id";
 
-function getMeetingClientId() {
+export function getMeetingClientId() {
   if (typeof window === "undefined") {
     return "";
   }
 
-  const existing = window.localStorage.getItem(MEETING_CLIENT_ID_KEY);
+  const existing = window.sessionStorage.getItem(MEETING_CLIENT_ID_KEY);
   if (existing) {
     return existing;
   }
@@ -27,7 +27,7 @@ function getMeetingClientId() {
     typeof crypto !== "undefined" && "randomUUID" in crypto
       ? crypto.randomUUID()
       : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  window.localStorage.setItem(MEETING_CLIENT_ID_KEY, generated);
+  window.sessionStorage.setItem(MEETING_CLIENT_ID_KEY, generated);
   return generated;
 }
 
@@ -36,6 +36,7 @@ export function useMeetingRoom(roomId: string) {
   const websocket = useWebSocket();
   const lastJoinRef = useRef<JoinMeetingInput | null>(null);
   const joinedConnectionIdRef = useRef<number | null>(null);
+  const joinSentConnectionIdRef = useRef<number | null>(null);
   const rejoinSentRef = useRef(false);
   useSignalingMessages();
 
@@ -71,18 +72,29 @@ export function useMeetingRoom(roomId: string) {
       };
       lastJoinRef.current = joinRequest;
       joinedConnectionIdRef.current = null;
+      joinSentConnectionIdRef.current = null;
       rejoinSentRef.current = false;
 
       meeting.beginJoin(roomId);
       websocket.connect();
-      sendJoin(joinRequest);
 
       return { joinedAsHost: Boolean(hostToken) };
     },
-    [meeting, roomId, sendJoin, websocket]
+    [meeting, roomId, websocket]
   );
 
   useLayoutEffect(() => {
+    if (
+      websocket.status === "open" &&
+      meeting.phase === "joining" &&
+      lastJoinRef.current &&
+      joinSentConnectionIdRef.current !== websocket.connectionId
+    ) {
+      joinSentConnectionIdRef.current = websocket.connectionId;
+      sendJoin(lastJoinRef.current);
+      return;
+    }
+
     if (
       websocket.status === "open" &&
       (meeting.phase === "in-call" || meeting.phase === "waiting-approval")
@@ -137,6 +149,7 @@ export function useMeetingRoom(roomId: string) {
   const cancelJoin = useCallback(() => {
     lastJoinRef.current = null;
     joinedConnectionIdRef.current = null;
+    joinSentConnectionIdRef.current = null;
     rejoinSentRef.current = false;
     websocket.close();
     meeting.reset();
@@ -145,6 +158,7 @@ export function useMeetingRoom(roomId: string) {
   const leaveMeeting = useCallback(() => {
     lastJoinRef.current = null;
     joinedConnectionIdRef.current = null;
+    joinSentConnectionIdRef.current = null;
     rejoinSentRef.current = false;
     websocket.send({ type: "leave" });
     websocket.close();

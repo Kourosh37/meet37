@@ -132,4 +132,25 @@ describe("PeerConnectionFactory helpers", () => {
     expect(connection.senders[1]?.track?.id).toBe("camera");
     expect(connection.transceivers[1]?.direction).toBe("sendrecv");
   });
+
+  it("can upgrade recvonly transceivers when P2P local media arrives late", async () => {
+    const connection = new FakeConnection();
+    const sender = new FakeSender(null);
+    connection.senders.push(sender);
+    connection.transceivers.push({
+      direction: "recvonly",
+      receiver: { track: { kind: "video" } },
+      sender
+    } as unknown as RTCRtpTransceiver);
+
+    await syncLocalTracks(
+      connection as unknown as RTCPeerConnection,
+      fakeStream([fakeTrack("camera", "video")]),
+      { reuseRecvOnly: true }
+    );
+
+    expect(connection.senders).toHaveLength(1);
+    expect(sender.track?.id).toBe("camera");
+    expect(connection.transceivers[0]?.direction).toBe("sendrecv");
+  });
 });

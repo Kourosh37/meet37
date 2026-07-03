@@ -140,10 +140,15 @@ export function ensureRecvTransceivers(
   ensureKind("video", counts.video ?? 8);
 }
 
+type SyncLocalTracksOptions = {
+  reuseRecvOnly?: boolean;
+};
+
 async function attachOrReplaceTrack(
   connection: RTCPeerConnection,
   stream: MediaStream,
-  track: MediaStreamTrack
+  track: MediaStreamTrack,
+  options: SyncLocalTracksOptions = {}
 ) {
   const senders = connection.getSenders();
 
@@ -154,7 +159,7 @@ async function attachOrReplaceTrack(
   const reusableSender = senders.find(
     (sender) =>
       senderKind(connection, sender) === track.kind &&
-      senderCanPublish(connection, sender)
+      senderCanPublish(connection, sender, options)
   );
 
   if (reusableSender) {
@@ -225,13 +230,18 @@ function disableSenderDirection(
   }
 }
 
-function senderCanPublish(connection: RTCPeerConnection, sender: RTCRtpSender) {
+function senderCanPublish(
+  connection: RTCPeerConnection,
+  sender: RTCRtpSender,
+  options: SyncLocalTracksOptions = {}
+) {
   if (sender.track) {
     return true;
   }
 
   const transceiver = transceiverForSender(connection, sender);
   return (
+    (options.reuseRecvOnly && transceiver?.direction === "recvonly") ||
     transceiver?.direction === "sendrecv" ||
     transceiver?.direction === "sendonly"
   );
@@ -252,7 +262,8 @@ function senderKind(
 
 export async function syncLocalTracks(
   connection: RTCPeerConnection,
-  stream: MediaStream | null
+  stream: MediaStream | null,
+  options: SyncLocalTracksOptions = {}
 ) {
   const tracksByKind = new Map(
     stream?.getTracks().map((track) => [track.kind, track]) ?? []
@@ -264,7 +275,7 @@ export async function syncLocalTracks(
     const kind = senderKind(connection, sender);
     const replacement = kind ? tracksByKind.get(kind) : undefined;
 
-    if (replacement && !senderCanPublish(connection, sender)) {
+    if (replacement && !senderCanPublish(connection, sender, options)) {
       continue;
     }
 
@@ -297,7 +308,7 @@ export async function syncLocalTracks(
       if (!stream) {
         continue;
       }
-      await attachOrReplaceTrack(connection, stream, track);
+      await attachOrReplaceTrack(connection, stream, track, options);
     }
   }
 }

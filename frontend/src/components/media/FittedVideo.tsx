@@ -162,7 +162,7 @@ export function FittedVideo({
         ref={videoRef}
         autoPlay
         className={cn(
-          "block max-h-full max-w-full bg-black",
+          "block max-h-full max-w-full bg-black object-contain",
           mirrored && "scale-x-[-1]",
           videoClassName
         )}
@@ -179,7 +179,8 @@ export function FittedVideo({
                 width: `${fittedSize.width}px`
               }
             : {
-                height: "auto",
+                height: "100%",
+                objectFit: "contain",
                 width: "100%"
               }
         }

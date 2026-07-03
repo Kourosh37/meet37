@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, CameraOff, Mic, MicOff } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { FittedVideo } from "@/components/media/FittedVideo";
 import { InlineError } from "@/components/feedback/InlineError";
 import { DeviceSplitControl } from "@/features/meeting/components/DeviceSplitControl";
 import { useDeviceSetup } from "@/features/prejoin/hooks/useDeviceSetup";
@@ -10,27 +10,12 @@ import { useLocale } from "@/providers/LocaleProvider";
 export function DeviceSetup() {
   const setup = useDeviceSetup();
   const { t } = useLocale();
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = setup.videoEnabled
-        ? setup.previewStream
-        : null;
-    }
-  }, [setup.previewStream, setup.videoEnabled]);
 
   return (
     <div className="space-y-4">
       <div className="aspect-video overflow-hidden rounded-lg border border-border bg-black">
         {setup.previewStream && setup.videoEnabled ? (
-          <video
-            autoPlay
-            className="h-full w-full scale-x-[-1] object-contain"
-            muted
-            playsInline
-            ref={videoRef}
-          />
+          <FittedVideo mirrored muted stream={setup.previewStream} />
         ) : (
           <div className="flex h-full items-center justify-center text-center text-slate-300">
             <div>

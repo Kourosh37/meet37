@@ -69,6 +69,26 @@ function streamWithoutKind(
   return retainedTracks.length ? new MediaStream(retainedTracks) : null;
 }
 
+function hasLiveTrack(
+  stream: MediaStream | null,
+  kind: MediaStreamTrack["kind"]
+) {
+  return Boolean(
+    stream
+      ?.getTracks()
+      .some((track) => track.kind === kind && track.readyState === "live")
+  );
+}
+
+function stopUnusedTracks(source: MediaStream, retained: MediaStream) {
+  const retainedTrackIds = new Set(retained.getTracks().map((track) => track.id));
+  source.getTracks().forEach((track) => {
+    if (!retainedTrackIds.has(track.id)) {
+      track.stop();
+    }
+  });
+}
+
 async function getDisplayMediaWithFallback() {
   try {
     return await navigator.mediaDevices.getDisplayMedia({
@@ -180,6 +200,52 @@ async function getLocalMediaWithFallback(options: {
   return getVideoMediaWithFallback(videoDeviceId);
 }
 
+async function completePreparedStream(options: {
+  audioDeviceId?: string;
+  preparedStream: MediaStream;
+  shouldUseAudio: boolean;
+  shouldUseVideo: boolean;
+  videoDeviceId?: string;
+}) {
+  const {
+    audioDeviceId,
+    preparedStream,
+    shouldUseAudio,
+    shouldUseVideo,
+    videoDeviceId
+  } = options;
+  const tracks = preparedStream
+    .getTracks()
+    .filter(
+      (track) =>
+        track.readyState === "live" &&
+        ((track.kind === "audio" && shouldUseAudio) ||
+          (track.kind === "video" && shouldUseVideo))
+    );
+
+  const missingAudio =
+    shouldUseAudio && !tracks.some((track) => track.kind === "audio");
+  const missingVideo =
+    shouldUseVideo && !tracks.some((track) => track.kind === "video");
+
+  if (missingAudio || missingVideo) {
+    const streams = await Promise.allSettled([
+      missingAudio ? getAudioMediaWithFallback(audioDeviceId) : null,
+      missingVideo ? getVideoMediaWithFallback(videoDeviceId) : null
+    ]);
+    streams.forEach((result) => {
+      if (result.status !== "fulfilled" || !result.value) {
+        return;
+      }
+      tracks.push(...result.value.getTracks());
+    });
+  }
+
+  const completedStream = new MediaStream(tracks);
+  stopUnusedTracks(preparedStream, completedStream);
+  return completedStream;
+}
+
 export function useLocalMedia() {
   const { t } = useLocale();
   const audioEnabled = useMediaStore((state) => state.audioEnabled);
@@ -271,14 +337,23 @@ export function useLocalMedia() {
         setIsStarting(true);
         setAudioStatus(shouldUseAudio ? "starting" : "off");
         setVideoStatus(shouldUseVideo ? "starting" : "off");
-        const nextStream = await getLocalMediaWithFallback({
-          audioDeviceId,
-          shouldUseAudio,
-          shouldUseVideo,
-          videoDeviceId
-        });
-        const hasAudioTrack = nextStream.getAudioTracks().length > 0;
-        const hasVideoTrack = nextStream.getVideoTracks().length > 0;
+        const preparedStream = mediaState.consumePreparedStream();
+        const nextStream = preparedStream
+          ? await completePreparedStream({
+              audioDeviceId,
+              preparedStream,
+              shouldUseAudio,
+              shouldUseVideo,
+              videoDeviceId
+            })
+          : await getLocalMediaWithFallback({
+              audioDeviceId,
+              shouldUseAudio,
+              shouldUseVideo,
+              videoDeviceId
+            });
+        const hasAudioTrack = hasLiveTrack(nextStream, "audio");
+        const hasVideoTrack = hasLiveTrack(nextStream, "video");
 
         setStream((current) => {
           stopMediaStream(current);

@@ -73,6 +73,7 @@ describe("DeviceSetup", () => {
     useMediaStore.setState({
       audioEnabled: true,
       error: null,
+      preparedStream: null,
       screenSharing: false,
       selectedAudioDeviceId: "",
       selectedVideoDeviceId: "",

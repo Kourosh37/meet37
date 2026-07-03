@@ -82,6 +82,96 @@ function removeTracksByKind(
   return retainedTracks.length ? new MediaStream(retainedTracks) : null;
 }
 
+async function getUserMediaWithFallback(
+  constraints: MediaStreamConstraints,
+  fallback: MediaStreamConstraints
+) {
+  try {
+    return await navigator.mediaDevices.getUserMedia(constraints);
+  } catch (error) {
+    if (
+      error instanceof DOMException &&
+      ["NotAllowedError", "SecurityError", "AbortError"].includes(error.name)
+    ) {
+      throw error;
+    }
+
+    return navigator.mediaDevices.getUserMedia(fallback);
+  }
+}
+
+async function getAudioPreviewStream(deviceId?: string) {
+  return getUserMediaWithFallback(
+    {
+      audio: buildAudioConstraints(deviceId),
+      video: false
+    },
+    {
+      audio: true,
+      video: false
+    }
+  );
+}
+
+async function getVideoPreviewStream(deviceId?: string) {
+  return getUserMediaWithFallback(
+    {
+      audio: false,
+      video: buildCameraConstraints(deviceId)
+    },
+    {
+      audio: false,
+      video: true
+    }
+  );
+}
+
+async function getPreviewStreamWithFallback(options: {
+  audioEnabled: boolean;
+  selectedAudioDeviceId?: string;
+  selectedVideoDeviceId?: string;
+  videoEnabled: boolean;
+}) {
+  const {
+    audioEnabled,
+    selectedAudioDeviceId,
+    selectedVideoDeviceId,
+    videoEnabled
+  } = options;
+
+  if (audioEnabled && videoEnabled) {
+    try {
+      return await navigator.mediaDevices.getUserMedia({
+        audio: buildAudioConstraints(selectedAudioDeviceId),
+        video: buildCameraConstraints(selectedVideoDeviceId)
+      });
+    } catch {
+      const streams = await Promise.allSettled([
+        getAudioPreviewStream(selectedAudioDeviceId),
+        getVideoPreviewStream(selectedVideoDeviceId)
+      ]);
+      const tracks = streams.flatMap((result) =>
+        result.status === "fulfilled" ? result.value.getTracks() : []
+      );
+
+      if (tracks.length > 0) {
+        return new MediaStream(tracks);
+      }
+
+      const firstFailure = streams.find(
+        (result): result is PromiseRejectedResult => result.status === "rejected"
+      );
+      throw firstFailure?.reason ?? new Error("Could not start preview");
+    }
+  }
+
+  if (audioEnabled) {
+    return getAudioPreviewStream(selectedAudioDeviceId);
+  }
+
+  return getVideoPreviewStream(selectedVideoDeviceId);
+}
+
 export function useDeviceSetup() {
   const mediaStore = useMediaStore();
   const initialPreviewStartedRef = useRef(false);
@@ -168,12 +258,15 @@ export function useDeviceSetup() {
       }));
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: audioEnabled
-            ? buildAudioConstraints(selectedAudioDeviceId)
-            : false,
-          video: videoEnabled ? buildCameraConstraints(selectedVideoDeviceId) : false
+        const stream = await getPreviewStreamWithFallback({
+          audioEnabled,
+          selectedAudioDeviceId,
+          selectedVideoDeviceId,
+          videoEnabled
         });
+        const hasAudio = hasLiveTrack(stream, "audio");
+        const hasVideo = hasLiveTrack(stream, "video");
+
         await Promise.all(
           stream
             .getAudioTracks()
@@ -193,8 +286,11 @@ export function useDeviceSetup() {
           return {
             ...current,
             audioEnabled,
-            error: null,
-            permissionState: "granted",
+            error:
+              (audioEnabled && !hasAudio) || (videoEnabled && !hasVideo)
+                ? "error.couldNotStartCameraOrMicrophone"
+                : null,
+            permissionState: hasAudio || hasVideo ? "granted" : "denied",
             previewStream: stream,
             videoEnabled
           };
@@ -239,10 +335,7 @@ export function useDeviceSetup() {
       }));
 
       try {
-        const audioStream = await navigator.mediaDevices.getUserMedia({
-          audio: buildAudioConstraints(audioDeviceId),
-          video: false
-        });
+        const audioStream = await getAudioPreviewStream(audioDeviceId);
         const audioTracks = audioStream.getAudioTracks();
 
         if (!audioTracks.length) {
@@ -317,10 +410,7 @@ export function useDeviceSetup() {
       }));
 
       try {
-        const videoStream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: buildCameraConstraints(videoDeviceId)
-        });
+        const videoStream = await getVideoPreviewStream(videoDeviceId);
         const videoTracks = videoStream.getVideoTracks();
 
         if (!videoTracks.length) {
@@ -458,6 +548,10 @@ export function useDeviceSetup() {
   }, [state]);
 
   useEffect(() => {
+    useMediaStore.getState().setPreparedStream(state.previewStream);
+  }, [state.previewStream]);
+
+  useEffect(() => {
     void enumerateDevices();
   }, [enumerateDevices]);
 
@@ -471,7 +565,20 @@ export function useDeviceSetup() {
     }
   }, [runPreviewOperation, startPreview, state.audioEnabled, state.videoEnabled]);
 
-  useEffect(() => () => stopStream(state.previewStream), [state.previewStream]);
+  useEffect(
+    () => () => {
+      const stream = stateRef.current.previewStream;
+      window.setTimeout(() => {
+        const mediaState = useMediaStore.getState();
+        if (mediaState.preparedStream !== stream) {
+          return;
+        }
+        stopStream(stream);
+        mediaState.setPreparedStream(null);
+      }, 1_500);
+    },
+    []
+  );
 
   return {
     ...state,

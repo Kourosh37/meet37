@@ -1,5 +1,6 @@
 import { useChatStore } from "@/features/meeting/stores/chatStore";
 import { useFileTransferStore } from "@/features/meeting/stores/fileTransferStore";
+import { useMediaStore } from "@/features/meeting/stores/mediaStore";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 import { useMeetingUiStore } from "@/features/meeting/stores/uiStore";
 import { describe, expect, it, beforeEach } from "vitest";
@@ -7,6 +8,15 @@ import { describe, expect, it, beforeEach } from "vitest";
 beforeEach(() => {
   useChatStore.getState().reset();
   useFileTransferStore.getState().reset();
+  useMediaStore.setState({
+    audioEnabled: true,
+    error: null,
+    preparedStream: null,
+    screenSharing: false,
+    selectedAudioDeviceId: "",
+    selectedVideoDeviceId: "",
+    videoEnabled: true
+  });
   useMeetingStore.getState().reset();
   useMeetingUiStore.getState().reset();
 });
@@ -97,6 +107,18 @@ describe("chatStore", () => {
     expect(useChatStore.getState().unreadCount).toBe(1);
     useChatStore.getState().clearUnread();
     expect(useChatStore.getState().unreadCount).toBe(0);
+  });
+});
+
+describe("mediaStore", () => {
+  it("hands a prepared stream to the meeting room once", () => {
+    const stream = { id: "prepared-stream" } as unknown as MediaStream;
+
+    useMediaStore.getState().setPreparedStream(stream);
+
+    expect(useMediaStore.getState().consumePreparedStream()).toBe(stream);
+    expect(useMediaStore.getState().preparedStream).toBeNull();
+    expect(useMediaStore.getState().consumePreparedStream()).toBeNull();
   });
 });
 

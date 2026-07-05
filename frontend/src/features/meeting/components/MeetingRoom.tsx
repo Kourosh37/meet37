@@ -496,8 +496,34 @@ export function MeetingRoom({
   }, [addReaction, meeting.peers, t]);
 
   async function handleCopyInvite() {
+    const inviteUrl = window.location.href;
+    const copyWithFallback = () => {
+      const textarea = document.createElement("textarea");
+      textarea.value = inviteUrl;
+      textarea.setAttribute("readonly", "true");
+      textarea.style.left = "-9999px";
+      textarea.style.position = "fixed";
+      textarea.style.top = "0";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      document.body.removeChild(textarea);
+
+      if (!copied) {
+        throw new Error("Copy command failed");
+      }
+    };
+
     try {
-      await navigator.clipboard.writeText(window.location.href);
+      if (navigator.clipboard?.writeText) {
+        try {
+          await navigator.clipboard.writeText(inviteUrl);
+        } catch {
+          copyWithFallback();
+        }
+      } else {
+        copyWithFallback();
+      }
       toast.success(t("meeting.copyInviteSuccess"));
     } catch {
       toast.error(t("meeting.copyInviteFailed"));

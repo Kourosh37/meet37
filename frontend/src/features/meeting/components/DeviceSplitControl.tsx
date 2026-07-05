@@ -50,10 +50,10 @@ export function DeviceSplitControl({
   } | null>(null);
   const isCompact = variant === "compact";
   const controlClassName = isCompact
-    ? "h-12 min-w-12 max-[430px]:h-8 max-[430px]:min-w-0 max-[430px]:flex-1"
+    ? "h-12 min-w-0"
     : "h-10 min-w-[6.75rem] px-3";
   const selectorClassName = isCompact
-    ? "relative grid w-8 self-stretch place-items-center border-s border-border text-muted-foreground transition max-[430px]:order-first max-[430px]:h-4 max-[430px]:w-full max-[430px]:self-auto max-[430px]:border-b max-[430px]:border-s-0"
+    ? "relative grid min-w-0 self-stretch place-items-center border-s border-border text-muted-foreground transition"
     : "relative grid w-8 self-stretch place-items-center border-s border-border text-muted-foreground transition";
   const canSelectDevice = !disabled;
   const deviceOptions = [
@@ -182,11 +182,11 @@ export function DeviceSplitControl({
     <>
       <div
         className={cn(
-          "group inline-flex h-12 shrink-0 overflow-hidden rounded-md border border-border bg-background text-foreground transition max-[430px]:flex-col",
+          "group inline-grid h-12 min-w-20 shrink-0 grid-cols-[4fr_1fr] overflow-hidden rounded-md border border-border bg-background text-foreground transition",
           !disabled && "hover:bg-muted",
           disabled && "opacity-50",
           !isCompact &&
-            "h-10 max-[430px]:h-10 max-[430px]:w-auto max-[430px]:flex-row",
+            "inline-flex h-10 min-w-0 max-[430px]:h-10 max-[430px]:w-auto",
           className
         )}
       >
@@ -224,10 +224,7 @@ export function DeviceSplitControl({
             title={selectLabel}
             type="button"
           >
-            <ChevronDown
-              className="size-4 max-[430px]:size-3.5 max-[430px]:rotate-180"
-              aria-hidden="true"
-            />
+            <ChevronDown className="size-4" aria-hidden="true" />
           </button>
         </div>
       </div>

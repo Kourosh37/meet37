@@ -9,13 +9,26 @@ import type {
 import { formatBytes } from "@/lib/utils/formatters";
 import { useLocale } from "@/providers/LocaleProvider";
 import type { MessageKey } from "@/lib/i18n/messages";
+import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
 
 interface FileTransferItemProps {
+  embedded?: boolean;
+  showSender?: boolean;
   transfer: FileTransferRecord;
 }
 
-export function FileTransferItem({ transfer }: FileTransferItemProps) {
+export function FileTransferItem({
+  embedded = false,
+  showSender = true,
+  transfer
+}: FileTransferItemProps) {
   const { t } = useLocale();
+  const localPeerId = useMeetingStore((state) => state.localPeerId);
+  const senderName = useMeetingStore((state) =>
+    transfer.senderPeerId === state.localPeerId
+      ? "You"
+      : (state.peers[transfer.senderPeerId]?.displayName ?? "Participant")
+  );
   const statusLabels: Record<FileTransferRuntimeStatus, MessageKey> = {
     accepted: "file.statusAccepted",
     cancelled: "file.statusCancelled",
@@ -25,9 +38,16 @@ export function FileTransferItem({ transfer }: FileTransferItemProps) {
     rejected: "file.statusRejected",
     transferring: "file.statusTransferring"
   };
+  const Wrapper = embedded ? "div" : "article";
 
   return (
-    <article className="rounded-md border border-border bg-background p-3">
+    <Wrapper
+      className={
+        embedded
+          ? "rounded-md border border-border bg-background p-3"
+          : "rounded-md border border-border bg-surface p-3 shadow-sm"
+      }
+    >
       <div className="flex gap-3">
         <FileText className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
@@ -35,7 +55,13 @@ export function FileTransferItem({ transfer }: FileTransferItemProps) {
             {transfer.name}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {formatBytes(transfer.size)} - {transfer.mime || t("common.unknown")} -{" "}
+            {showSender ? (
+              <>
+                {transfer.senderPeerId === localPeerId ? "You" : senderName} -{" "}
+              </>
+            ) : null}
+            {formatBytes(transfer.size)} -{" "}
+            {transfer.mime || t("common.unknown")} -{" "}
             {t(statusLabels[transfer.status])}
           </p>
           {["offered", "accepted", "transferring"].includes(transfer.status) ? (
@@ -65,6 +91,6 @@ export function FileTransferItem({ transfer }: FileTransferItemProps) {
           {t("file.download")}
         </a>
       ) : null}
-    </article>
+    </Wrapper>
   );
 }

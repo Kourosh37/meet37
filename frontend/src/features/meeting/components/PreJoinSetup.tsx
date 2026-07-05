@@ -260,13 +260,6 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
       <DeviceSetup />
 
       <aside className="rounded-lg border border-border bg-surface p-5 shadow-sm">
-        <Link
-          className="mb-4 inline-flex h-10 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
-          href="/"
-        >
-          <Home className="size-4" />
-          {t("common.backHome")}
-        </Link>
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           {data.room.join_policy === "approval"
             ? t("room.hostApproval")
@@ -305,18 +298,27 @@ export function PreJoinSetup({ roomId }: { roomId: string }) {
           {data.room.has_password ? (
             <PasswordPrompt onChange={setPassword} value={password} />
           ) : null}
-          <button
-            className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-            disabled={
-              meeting.phase === "joining" || websocket.status === "connecting"
-            }
-            onClick={handleJoin}
-            type="button"
-          >
-            {meeting.phase === "joining" || websocket.status === "connecting"
-              ? t("common.joining")
-              : t("common.continue")}
-          </button>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              className="rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+              disabled={
+                meeting.phase === "joining" || websocket.status === "connecting"
+              }
+              onClick={handleJoin}
+              type="button"
+            >
+              {meeting.phase === "joining" || websocket.status === "connecting"
+                ? t("common.joining")
+                : t("common.continue")}
+            </button>
+            <Link
+              className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted"
+              href="/"
+            >
+              <Home className="size-4" />
+              {t("common.backHome")}
+            </Link>
+          </div>
           <InlineError message={meeting.error} />
         </div>
       </aside>

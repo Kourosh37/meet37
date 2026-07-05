@@ -38,7 +38,9 @@ interface ReceiveBuffer {
 }
 
 interface SharedFileEntry {
+  createdAt: number;
   file: File;
+  groupId?: string;
   sentPeerIds: Set<string>;
   sendingPeerIds: Set<string>;
   transferIdsByPeerId: Map<string, string>;
@@ -48,9 +50,14 @@ function totalChunksFor(file: File) {
   return Math.ceil(file.size / DEFAULT_FILE_CHUNK_SIZE);
 }
 
-function createSharedFileEntry(file: File): SharedFileEntry {
+function createSharedFileEntry(
+  file: File,
+  options: { createdAt?: number; groupId?: string } = {}
+): SharedFileEntry {
   return {
+    createdAt: options.createdAt ?? Date.now(),
     file,
+    groupId: options.groupId,
     sendingPeerIds: new Set(),
     sentPeerIds: new Set(),
     transferIdsByPeerId: new Map()
@@ -79,9 +86,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer) {
   const batchSize = 0x8000;
 
   for (let index = 0; index < bytes.length; index += batchSize) {
-    binary += String.fromCharCode(
-      ...bytes.subarray(index, index + batchSize)
-    );
+    binary += String.fromCharCode(...bytes.subarray(index, index + batchSize));
   }
 
   return window.btoa(binary);
@@ -160,11 +165,17 @@ export function useFileTransfer(roomId: string | null) {
   }, [loadHistory, localPeerId, roomId]);
 
   const sendFileBytes = useCallback(
-    async (fileId: string, peerId: string, file: File) => {
+    async (
+      fileId: string,
+      peerId: string,
+      file: File,
+      options: { groupId?: string } = {}
+    ) => {
       try {
         webSocketManager.send({
           payload: {
             file_id: fileId,
+            group_id: options.groupId,
             mime: file.type || "application/octet-stream",
             name: file.name,
             size: file.size
@@ -176,6 +187,7 @@ export function useFileTransfer(roomId: string | null) {
         webSocketManager.send({
           payload: {
             file_id: fileId,
+            group_id: options.groupId,
             mime: file.type || "application/octet-stream",
             name: file.name,
             size: file.size,
@@ -239,9 +251,10 @@ export function useFileTransfer(roomId: string | null) {
       const file = sharedFile.file;
       const fileId = transferIdForPeer(sourceFileId, peerId, sharedFile);
       const transfer: FileTransferRecord = {
-        createdAt: Date.now(),
+        createdAt: sharedFile.createdAt,
         direction: "outgoing",
         fileId,
+        groupId: sharedFile.groupId,
         mime: file.type || "application/octet-stream",
         name: file.name,
         progress: {
@@ -257,7 +270,9 @@ export function useFileTransfer(roomId: string | null) {
       };
 
       addOrUpdateTransfer(transfer);
-      void sendFileBytes(fileId, peerId, file)
+      void sendFileBytes(fileId, peerId, file, {
+        groupId: sharedFile.groupId
+      })
         .then(() => {
           sharedFile.sentPeerIds.add(peerId);
         })
@@ -344,6 +359,7 @@ export function useFileTransfer(roomId: string | null) {
           createdAt: Date.now(),
           direction: "incoming",
           fileId: message.payload.file_id,
+          groupId: message.payload.group_id,
           mime: message.payload.mime,
           name: message.payload.name,
           progress: {
@@ -372,6 +388,7 @@ export function useFileTransfer(roomId: string | null) {
             createdAt: Date.now(),
             direction: "incoming",
             fileId: message.payload.file_id,
+            groupId: message.payload.group_id,
             mime: message.payload.mime,
             name: message.payload.name,
             progress: {
@@ -507,7 +524,7 @@ export function useFileTransfer(roomId: string | null) {
           });
           sharedFiles.current.set(
             file.fileId,
-            createSharedFileEntry(restoredFile)
+            createSharedFileEntry(restoredFile, { createdAt: file.createdAt })
           );
           restoredOutgoingCount += 1;
         }
@@ -545,7 +562,7 @@ export function useFileTransfer(roomId: string | null) {
   }, [addOrUpdateTransfer, localPeerId, roomId]);
 
   const sendFile = useCallback(
-    (file: File) => {
+    (file: File, options: { createdAt?: number; groupId?: string } = {}) => {
       try {
         assertFilePolicy(file);
       } catch (error) {
@@ -566,14 +583,22 @@ export function useFileTransfer(roomId: string | null) {
           "outgoing"
         );
       }
-      sharedFiles.current.set(sourceFileId, createSharedFileEntry(file));
+      const createdAt = options.createdAt ?? Date.now();
+      sharedFiles.current.set(
+        sourceFileId,
+        createSharedFileEntry(file, {
+          createdAt,
+          groupId: options.groupId
+        })
+      );
       setSharedFileVersion((version) => version + 1);
 
       addOrUpdateTransfer({
-        completedAt: Date.now(),
-        createdAt: Date.now(),
+        completedAt: createdAt,
+        createdAt,
         direction: "outgoing",
         fileId: sourceFileId,
+        groupId: options.groupId,
         mime: file.type || "application/octet-stream",
         name: file.name,
         objectUrl,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, X } from "lucide-react";
 import { toast } from "sonner";
 import type { ReactNode } from "react";
@@ -18,7 +18,7 @@ const defaultPermissions: PeerPermissions = {
   can_use_mic: true
 };
 
-type SettingsSection = "meeting" | "host" | "bans";
+type SettingsSection = "host" | "bans";
 
 function AccordionSection({
   children,
@@ -66,19 +66,12 @@ function AccordionSection({
 }
 
 interface SettingsDrawerProps {
-  audioEnabled: boolean;
   bannedParticipants?: BannedParticipant[];
   canManageBans?: boolean;
-  canShareScreen?: boolean;
-  canUseCamera?: boolean;
-  canUseMic?: boolean;
   isHost?: boolean;
   isOpen: boolean;
   joinPolicy?: "open" | "approval";
   onClose: () => void;
-  onToggleAudio: () => void;
-  onToggleScreenShare: () => void;
-  onToggleVideo: () => void;
   onListBans?: () => void;
   onUnbanPeer?: (banId: string) => void;
   onUpdateRoomSettings?: (settings: {
@@ -87,45 +80,32 @@ interface SettingsDrawerProps {
     permissions?: PeerPermissions;
     applyToExisting?: boolean;
   }) => void;
-  screenSharing: boolean;
-  screenShareSupported?: boolean;
-  screenShareUnavailableReason?: string;
-  videoEnabled: boolean;
 }
 
 export function SettingsDrawer({
-  audioEnabled,
   bannedParticipants = [],
   canManageBans = false,
-  canShareScreen = true,
-  canUseCamera = true,
-  canUseMic = true,
   isHost = false,
   isOpen,
   joinPolicy: initialJoinPolicy = "open",
   onClose,
   onListBans,
-  onToggleAudio,
-  onToggleScreenShare,
-  onToggleVideo,
   onUnbanPeer,
-  onUpdateRoomSettings,
-  screenSharing,
-  screenShareSupported = true,
-  screenShareUnavailableReason,
-  videoEnabled
+  onUpdateRoomSettings
 }: SettingsDrawerProps) {
   const { t } = useLocale();
+  const panelRef = useRef<HTMLElement | null>(null);
   const [shouldRender, setShouldRender] = useState(isOpen);
-  const [joinPolicy, setJoinPolicy] =
-    useState<"open" | "approval">(initialJoinPolicy);
+  const [joinPolicy, setJoinPolicy] = useState<"open" | "approval">(
+    initialJoinPolicy
+  );
   const [password, setPassword] = useState("");
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [permissions, setPermissions] =
     useState<PeerPermissions>(defaultPermissions);
   const [applyToExisting, setApplyToExisting] = useState(true);
   const [openSections, setOpenSections] = useState<Set<SettingsSection>>(
-    () => new Set(["meeting"])
+    () => new Set(["host", "bans"])
   );
 
   useEffect(() => {
@@ -141,6 +121,25 @@ export function SettingsDrawer({
     const timeout = window.setTimeout(() => setShouldRender(false), 260);
     return () => window.clearTimeout(timeout);
   }, [canManageBans, initialJoinPolicy, isOpen, onListBans]);
+
+  useEffect(() => {
+    if (!isOpen || !shouldRender) {
+      return;
+    }
+
+    function handleDocumentClick(event: MouseEvent) {
+      const target = event.target;
+
+      if (target instanceof Node && !panelRef.current?.contains(target)) {
+        onClose();
+      }
+    }
+
+    document.addEventListener("click", handleDocumentClick);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, [isOpen, onClose, shouldRender]);
 
   if (!shouldRender) {
     return null;
@@ -160,10 +159,11 @@ export function SettingsDrawer({
 
   return (
     <aside
+      ref={panelRef}
       className={
         isOpen
-          ? "meet-settings-drawer-open fixed bottom-[4.25rem] end-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
-          : "meet-settings-drawer-close fixed bottom-[4.25rem] end-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
+          ? "meet-settings-drawer-open fixed bottom-[8rem] end-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
+          : "meet-settings-drawer-close fixed bottom-[8rem] end-0 top-0 z-40 flex w-[min(380px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
       }
     >
       <div className="flex shrink-0 items-center justify-between border-b border-border p-4">
@@ -182,163 +182,117 @@ export function SettingsDrawer({
       <div className="min-h-0 flex-1 overflow-y-auto p-4">
         <div className="grid gap-3 pb-6">
           <AccordionSection
-            id="meeting"
-            isOpen={openSections.has("meeting")}
+            id="host"
+            isOpen={openSections.has("host")}
             onToggle={toggleSection}
-            title={t("meeting.meetingControls")}
+            title={t("meeting.hostControls")}
           >
-            <div className="grid gap-3">
+            <div className={isHost ? "grid gap-3" : "grid gap-3 opacity-45"}>
+              <label className="grid gap-1 text-sm font-medium text-foreground">
+                {t("room.joinPolicy")}
+                <select
+                  className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                  disabled={!isHost}
+                  onChange={(event) =>
+                    setJoinPolicy(event.target.value as "open" | "approval")
+                  }
+                  value={joinPolicy}
+                >
+                  <option value="open">{t("common.open")}</option>
+                  <option value="approval">{t("meeting.hostApproval")}</option>
+                </select>
+              </label>
+              <label className="grid gap-1 text-sm font-medium text-foreground">
+                {t("room.roomPassword")}
+                <input
+                  className="h-10 rounded-md border border-border bg-background px-3 text-sm"
+                  disabled={!isHost}
+                  onChange={(event) => {
+                    setPassword(event.target.value);
+                    setPasswordTouched(true);
+                  }}
+                  placeholder={t("meeting.leaveEmptyToRemove")}
+                  type="password"
+                  value={password}
+                />
+              </label>
+              <div className="grid gap-2 rounded-md border border-border p-3">
+                {[
+                  ["can_use_mic", t("meeting.microphone")],
+                  ["can_use_camera", t("meeting.camera")],
+                  ["can_share_screen", t("meeting.shareScreen")],
+                  ["can_chat", t("meeting.chat")],
+                  ["can_react", t("meeting.sendReaction")]
+                ].map(([key, label]) => (
+                  <label
+                    className="flex items-center justify-between gap-3 text-sm text-foreground"
+                    key={key}
+                  >
+                    {label}
+                    <input
+                      checked={permissions[key as keyof PeerPermissions]}
+                      className="size-4"
+                      disabled={!isHost}
+                      onChange={(event) =>
+                        setPermissions((current) => ({
+                          ...current,
+                          [key]: event.target.checked
+                        }))
+                      }
+                      type="checkbox"
+                    />
+                  </label>
+                ))}
+              </div>
+              <label className="flex items-center justify-between gap-3 text-sm text-foreground">
+                {t("meeting.applyToCurrentParticipants")}
+                <input
+                  checked={applyToExisting}
+                  className="size-4"
+                  disabled={!isHost}
+                  onChange={(event) => setApplyToExisting(event.target.checked)}
+                  type="checkbox"
+                />
+              </label>
               <button
-                className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!audioEnabled && !canUseMic}
-                onClick={onToggleAudio}
+                className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={!isHost}
+                onClick={() => {
+                  onUpdateRoomSettings?.({
+                    applyToExisting,
+                    joinPolicy,
+                    password: passwordTouched ? password : undefined,
+                    permissions
+                  });
+                  toast.success(t("meeting.permissionsSaved"));
+                }}
                 type="button"
               >
-                {t("meeting.microphone")}
-                <span>{audioEnabled ? t("common.on") : t("common.off")}</span>
-              </button>
-              <button
-                className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={!videoEnabled && !canUseCamera}
-                onClick={onToggleVideo}
-                type="button"
-              >
-                {t("meeting.camera")}
-                <span>{videoEnabled ? t("common.on") : t("common.off")}</span>
-              </button>
-              <button
-                className="flex items-center justify-between rounded-md border border-border px-3 py-2 text-sm font-medium text-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                disabled={
-                  !screenSharing && (!screenShareSupported || !canShareScreen)
-                }
-                onClick={onToggleScreenShare}
-                title={
-                  screenSharing || screenShareSupported
-                    ? undefined
-                    : screenShareUnavailableReason ?? t("common.unavailable")
-                }
-                type="button"
-              >
-                {t("meeting.shareScreen")}
-                <span>
-                  {screenSharing
-                    ? t("common.on")
-                    : screenShareSupported
-                      ? t("common.off")
-                      : t("common.unavailable")}
-                </span>
+                {t("meeting.saveHostControls")}
               </button>
             </div>
           </AccordionSection>
 
-          {isHost ? (
-            <AccordionSection
-              id="host"
-              isOpen={openSections.has("host")}
-              onToggle={toggleSection}
-              title={t("meeting.hostControls")}
-            >
-              <div className="grid gap-3">
-                <label className="grid gap-1 text-sm font-medium text-foreground">
-                  {t("room.joinPolicy")}
-                  <select
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    onChange={(event) =>
-                      setJoinPolicy(event.target.value as "open" | "approval")
-                    }
-                    value={joinPolicy}
-                  >
-                    <option value="open">{t("common.open")}</option>
-                    <option value="approval">{t("meeting.hostApproval")}</option>
-                  </select>
-                </label>
-                <label className="grid gap-1 text-sm font-medium text-foreground">
-                  {t("room.roomPassword")}
-                  <input
-                    className="h-10 rounded-md border border-border bg-background px-3 text-sm"
-                    onChange={(event) => {
-                      setPassword(event.target.value);
-                      setPasswordTouched(true);
-                    }}
-                    placeholder={t("meeting.leaveEmptyToRemove")}
-                    type="password"
-                    value={password}
-                  />
-                </label>
-                <div className="grid gap-2 rounded-md border border-border p-3">
-                  {[
-                    ["can_use_mic", t("meeting.microphone")],
-                    ["can_use_camera", t("meeting.camera")],
-                    ["can_share_screen", t("meeting.shareScreen")],
-                    ["can_chat", t("meeting.chat")],
-                    ["can_react", t("meeting.sendReaction")]
-                  ].map(([key, label]) => (
-                    <label
-                      className="flex items-center justify-between gap-3 text-sm text-foreground"
-                      key={key}
-                    >
-                      {label}
-                      <input
-                        checked={permissions[key as keyof PeerPermissions]}
-                        className="size-4"
-                        onChange={(event) =>
-                          setPermissions((current) => ({
-                            ...current,
-                            [key]: event.target.checked
-                          }))
-                        }
-                        type="checkbox"
-                      />
-                    </label>
-                  ))}
-                </div>
-                <label className="flex items-center justify-between gap-3 text-sm text-foreground">
-                  {t("meeting.applyToCurrentParticipants")}
-                  <input
-                    checked={applyToExisting}
-                    className="size-4"
-                    onChange={(event) =>
-                      setApplyToExisting(event.target.checked)
-                    }
-                    type="checkbox"
-                  />
-                </label>
-                <button
-                  className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90"
-                  onClick={() => {
-                    onUpdateRoomSettings?.({
-                      applyToExisting,
-                      joinPolicy,
-                      password: passwordTouched ? password : undefined,
-                      permissions
-                    });
-                    toast.success(t("meeting.permissionsSaved"));
-                  }}
-                  type="button"
-                >
-                  {t("meeting.saveHostControls")}
-                </button>
-              </div>
-            </AccordionSection>
-          ) : null}
-
-          {canManageBans ? (
-            <AccordionSection
-              id="bans"
-              isOpen={openSections.has("bans")}
-              onToggle={toggleSection}
-              title={t("meeting.bannedParticipants")}
+          <AccordionSection
+            id="bans"
+            isOpen={openSections.has("bans")}
+            onToggle={toggleSection}
+            title={t("meeting.bannedParticipants")}
+          >
+            <div
+              className={canManageBans ? "grid gap-4" : "grid gap-4 opacity-45"}
             >
               <div className="flex items-center justify-end">
                 <button
-                  className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-foreground transition hover:bg-muted"
+                  className="rounded-md border border-border px-2 py-1 text-xs font-semibold text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={!canManageBans}
                   onClick={onListBans}
                   type="button"
                 >
                   {t("common.refresh")}
                 </button>
               </div>
-              <div className="mt-4 grid gap-2">
+              <div className="grid gap-2">
                 {bannedParticipants.length ? (
                   bannedParticipants.map((ban) => (
                     <div
@@ -361,7 +315,8 @@ export function SettingsDrawer({
                           </p>
                         </div>
                         <button
-                          className="shrink-0 rounded-md border border-danger/30 px-2 py-1 text-xs font-semibold text-danger transition hover:bg-danger/10"
+                          className="shrink-0 rounded-md border border-danger/30 px-2 py-1 text-xs font-semibold text-danger transition hover:bg-danger/10 disabled:cursor-not-allowed disabled:opacity-60"
+                          disabled={!canManageBans}
                           onClick={() => {
                             onUnbanPeer?.(ban.id);
                             toast.success(t("meeting.participantUnbanned"));
@@ -379,8 +334,8 @@ export function SettingsDrawer({
                   </p>
                 )}
               </div>
-            </AccordionSection>
-          ) : null}
+            </div>
+          </AccordionSection>
         </div>
       </div>
     </aside>

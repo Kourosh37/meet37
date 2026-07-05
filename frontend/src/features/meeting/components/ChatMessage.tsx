@@ -24,7 +24,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
   }
 
   return (
-    <article className="rounded-md bg-background p-3">
+    <article className="rounded-md border border-border bg-surface p-3 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <p className="truncate text-sm font-semibold text-foreground">
           {message.displayName}
@@ -43,7 +43,11 @@ export function ChatMessage({ message }: ChatMessageProps) {
             title={t("common.copy")}
             type="button"
           >
-            {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+            {copied ? (
+              <Check className="size-3.5" />
+            ) : (
+              <Copy className="size-3.5" />
+            )}
           </button>
         </div>
       </div>

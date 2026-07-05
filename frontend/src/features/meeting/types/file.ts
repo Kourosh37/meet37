@@ -10,6 +10,7 @@ export type FileTransferRuntimeStatus =
 
 export interface FileOffer {
   fileId: string;
+  groupId?: string;
   senderPeerId: string;
   targetPeerId: string;
   name: string;

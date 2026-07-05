@@ -50,7 +50,7 @@ export function DeviceSplitControl({
   } | null>(null);
   const isCompact = variant === "compact";
   const controlClassName = isCompact
-    ? "h-11 min-w-11 max-[430px]:h-7"
+    ? "h-12 min-w-12 max-[430px]:h-8 max-[430px]:min-w-0 max-[430px]:flex-1"
     : "h-10 min-w-[6.75rem] px-3";
   const selectorClassName = isCompact
     ? "relative grid w-8 self-stretch place-items-center border-s border-border text-muted-foreground transition max-[430px]:order-first max-[430px]:h-4 max-[430px]:w-full max-[430px]:self-auto max-[430px]:border-b max-[430px]:border-s-0"
@@ -182,7 +182,7 @@ export function DeviceSplitControl({
     <>
       <div
         className={cn(
-          "group inline-flex h-11 shrink-0 overflow-hidden rounded-md border border-border bg-background text-foreground transition max-[430px]:w-11 max-[430px]:flex-col",
+          "group inline-flex h-12 shrink-0 overflow-hidden rounded-md border border-border bg-background text-foreground transition max-[430px]:flex-col",
           !disabled && "hover:bg-muted",
           disabled && "opacity-50",
           !isCompact &&

@@ -80,7 +80,6 @@ export function MeetingRoom({
     Record<string, number>
   >({});
   const [reactions, setReactions] = useState<FloatingReaction[]>([]);
-  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
   const [currentJoinPolicy, setCurrentJoinPolicy] =
     useState<JoinPolicy>(roomJoinPolicy);
   const peerIds = useMemo(
@@ -528,7 +527,10 @@ export function MeetingRoom({
     }
 
     const scrollElement = scroller;
-    const maxTop = Math.max(0, scrollElement.scrollHeight - scrollElement.clientHeight);
+    const maxTop = Math.max(
+      0,
+      scrollElement.scrollHeight - scrollElement.clientHeight
+    );
     const finalTop = Math.min(Math.max(0, Math.round(targetTop)), maxTop);
     const startTop = scrollElement.scrollTop;
     const distance = finalTop - startTop;
@@ -698,26 +700,15 @@ export function MeetingRoom({
         pendingPeers={moderation.pendingPeers}
       />
       <SettingsDrawer
-        audioEnabled={localMedia.audioEnabled}
         bannedParticipants={moderation.bannedParticipants}
         canManageBans={moderation.canManageBans}
-        canShareScreen={canShareScreen}
-        canUseCamera={canUseCamera}
-        canUseMic={canUseMic}
         joinPolicy={currentJoinPolicy}
         isHost={meeting.isHost}
         isOpen={ui.settingsOpen}
         onClose={() => ui.closePanel("settings")}
         onListBans={moderation.listBans}
-        onToggleAudio={localMedia.toggleAudio}
-        onToggleScreenShare={localMedia.toggleScreenShare}
-        onToggleVideo={localMedia.toggleVideo}
         onUnbanPeer={moderation.unbanPeer}
         onUpdateRoomSettings={moderation.updateRoomSettings}
-        screenSharing={localMedia.screenSharing}
-        screenShareSupported={localMedia.screenShareSupported}
-        screenShareUnavailableReason={localMedia.screenShareUnavailableReason}
-        videoEnabled={localMedia.videoEnabled}
       />
       <ChatPanel
         isOpen={ui.chatOpen && canChat}
@@ -734,7 +725,7 @@ export function MeetingRoom({
         canUseMic={canUseMic}
         chatUnreadCount={chatUnreadCount}
         onCopyInvite={() => void handleCopyInvite()}
-        onLeave={() => setLeaveConfirmOpen(true)}
+        onLeave={handleLeave}
         onOpenSettings={() => ui.togglePanel("settings")}
         onReaction={handleReaction}
         onSelectAudioDevice={localMedia.setSelectedAudioDeviceId}
@@ -767,45 +758,6 @@ export function MeetingRoom({
         videoEnabled={localMedia.videoEnabled}
         videoInputs={localMedia.videoInputs}
       />
-      {leaveConfirmOpen ? (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/55 p-4 backdrop-blur-sm"
-          role="presentation"
-        >
-          <section
-            aria-modal="true"
-            aria-labelledby="leave-meeting-title"
-            className="w-full max-w-sm rounded-lg border border-border bg-surface p-5 text-surface-foreground shadow-2xl"
-            role="dialog"
-          >
-            <h2
-              className="text-base font-semibold tracking-normal"
-              id="leave-meeting-title"
-            >
-              {t("meeting.leaveConfirmTitle")}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              {t("meeting.leaveConfirmMediaBody")}
-            </p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                className="inline-flex h-10 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-semibold text-foreground transition hover:bg-muted"
-                onClick={() => setLeaveConfirmOpen(false)}
-                type="button"
-              >
-                {t("common.cancel")}
-              </button>
-              <button
-                className="inline-flex h-10 items-center justify-center rounded-md bg-danger px-3 text-sm font-semibold text-danger-foreground transition hover:bg-danger/90"
-                onClick={handleLeave}
-                type="button"
-              >
-                {t("meeting.leave")}
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 }

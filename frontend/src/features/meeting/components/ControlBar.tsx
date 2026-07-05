@@ -5,11 +5,11 @@ import {
   CameraOff,
   Copy,
   Link2,
-  LogOut,
   MessageSquare,
   Mic,
   MicOff,
   MonitorUp,
+  Phone,
   Settings,
   SmilePlus
 } from "lucide-react";
@@ -109,7 +109,7 @@ export function ControlBar({
   const reactionPicker =
     mounted && reactionMenuOpen
       ? createPortal(
-          <div className="meet-emoji-picker fixed bottom-[4.75rem] left-1/2 z-[9999] flex w-[min(24rem,calc(100vw-1rem))] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-lg border border-border bg-surface p-2 shadow-2xl sm:bottom-[5.5rem] sm:w-auto">
+          <div className="meet-emoji-picker fixed bottom-[8.5rem] left-1/2 z-[9999] flex w-[min(24rem,calc(100vw-1rem))] -translate-x-1/2 flex-wrap justify-center gap-1 rounded-lg border border-border bg-surface p-2 shadow-2xl sm:bottom-[5.5rem] sm:w-auto">
             {REACTION_EMOJIS.map((emoji, index) => (
               <button
                 aria-label={t("meeting.sendEmojiReaction", { emoji })}
@@ -132,9 +132,10 @@ export function ControlBar({
 
   return (
     <>
-      <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-7xl items-center justify-center gap-2 overflow-x-auto border-x border-t border-border bg-surface px-3 py-3 shadow-[0_-14px_36px_rgb(15_23_42/0.12)] backdrop-blur sm:px-6 sm:py-4">
+      <footer className="fixed inset-x-0 bottom-0 z-30 mx-auto grid w-full max-w-7xl grid-cols-4 justify-items-stretch gap-2 border-x border-t border-border bg-surface px-2 py-3 shadow-[0_-14px_36px_rgb(15_23_42/0.12)] backdrop-blur sm:flex sm:items-center sm:justify-center sm:px-6 sm:py-4">
         <DeviceSplitControl
           activeIcon={<Mic className="size-5" />}
+          className="w-full sm:w-auto"
           defaultDeviceLabel={t("meeting.defaultMicrophone")}
           devices={audioInputs}
           disabled={!audioEnabled && !canUseMic}
@@ -160,6 +161,7 @@ export function ControlBar({
         />
         <DeviceSplitControl
           activeIcon={<Camera className="size-5" />}
+          className="w-full sm:w-auto"
           defaultDeviceLabel={t("meeting.defaultCamera")}
           devices={videoInputs}
           disabled={!videoEnabled && !canUseCamera}
@@ -178,7 +180,9 @@ export function ControlBar({
                 : t("meeting.cameraPermissionTitle")
           }
           toggleLabel={
-            videoEnabled ? t("meeting.turnCameraOff") : t("meeting.turnCameraOn")
+            videoEnabled
+              ? t("meeting.turnCameraOff")
+              : t("meeting.turnCameraOn")
           }
         />
         <button
@@ -189,8 +193,8 @@ export function ControlBar({
           }
           className={
             screenSharing
-              ? "grid size-11 place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90"
-              : "grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+              ? "grid h-12 w-full place-items-center rounded-md bg-primary text-primary-foreground transition hover:bg-primary/90 sm:size-12"
+              : "grid h-12 w-full place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background sm:size-12"
           }
           onClick={onToggleScreenShare}
           disabled={!screenSharing && !canShareScreen}
@@ -199,10 +203,10 @@ export function ControlBar({
         >
           <MonitorUp className="size-5" />
         </button>
-      
+
         <button
           aria-label={t("meeting.copyInvite")}
-          className="inline-flex h-11 min-w-11 items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-foreground transition hover:bg-muted"
+          className="inline-flex h-12 w-full min-w-12 items-center justify-center gap-2 rounded-md border border-border bg-background px-3 text-foreground transition hover:bg-muted sm:w-auto"
           onClick={onCopyInvite}
           title={t("meeting.copyInvite")}
           type="button"
@@ -218,7 +222,7 @@ export function ControlBar({
         <button
           aria-expanded={reactionMenuOpen}
           aria-label={t("meeting.sendReaction")}
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          className="grid h-12 w-full place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background sm:size-12"
           disabled={!canReact}
           onClick={() => setReactionMenuOpen((open) => !open)}
           title={
@@ -236,12 +240,10 @@ export function ControlBar({
               ? `${t("meeting.openChat")} (${chatUnreadLabel})`
               : t("meeting.openChat")
           }
-          className="relative grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background"
+          className="relative grid h-12 w-full place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-background sm:size-12"
           disabled={!canChat}
           onClick={onToggleChat}
-          title={
-            canChat ? t("meeting.openChat") : t("meeting.chat")
-          }
+          title={canChat ? t("meeting.openChat") : t("meeting.chat")}
           type="button"
         >
           <MessageSquare className="size-5" />
@@ -253,7 +255,7 @@ export function ControlBar({
         </button>
         <button
           aria-label={t("meeting.toggleSettings")}
-          className="grid size-11 place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted"
+          className="grid h-12 w-full place-items-center rounded-md border border-border bg-background text-foreground transition hover:bg-muted sm:size-12"
           onClick={onOpenSettings}
           title={t("meeting.toggleSettings")}
           type="button"
@@ -262,12 +264,12 @@ export function ControlBar({
         </button>
         <button
           aria-label={t("meeting.leave")}
-          className="grid size-11 place-items-center rounded-md bg-danger text-danger-foreground transition hover:bg-danger/90"
+          className="grid h-12 w-full place-items-center rounded-md bg-danger text-danger-foreground transition hover:bg-danger/90 sm:size-12"
           onClick={onLeave}
           title={t("meeting.leave")}
           type="button"
         >
-          <LogOut className="size-5" />
+          <Phone className="size-5 rotate-[135deg]" />
         </button>
       </footer>
       {reactionPicker}

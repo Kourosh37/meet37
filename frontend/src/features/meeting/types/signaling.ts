@@ -140,6 +140,7 @@ export interface PeerModeChangedPayload {
 }
 
 export interface ChatPayload {
+  group_id?: string;
   text: string;
 }
 
@@ -168,6 +169,7 @@ export interface ReactionPayload {
 
 export interface FileOfferPayload {
   file_id: string;
+  group_id?: string;
   name: string;
   size: number;
   mime: string;
@@ -181,6 +183,7 @@ export interface FileAnswerPayload {
 
 export interface FileStartPayload {
   file_id: string;
+  group_id?: string;
   mime: string;
   name: string;
   size: number;

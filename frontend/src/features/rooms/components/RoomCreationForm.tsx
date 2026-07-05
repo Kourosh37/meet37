@@ -17,6 +17,7 @@ import {
 } from "@/lib/utils/validators";
 import { useCreateRoom } from "@/features/rooms/hooks/useCreateRoom";
 import { useLocale } from "@/providers/LocaleProvider";
+import { Home } from "lucide-react";
 
 export function RoomCreationForm() {
   const router = useRouter();
@@ -164,16 +165,25 @@ export function RoomCreationForm() {
 
       <input type="hidden" {...register("expires_in")} />
 
-      <button
-        className="inline-flex items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
-        disabled={createRoom.isPending || settings.isLoading}
-        type="submit"
-      >
-        {createRoom.isPending || settings.isLoading ? (
-          <LoadingSpinner label={t("room.creatingRoom")} size="sm" />
-        ) : null}
-        {createRoom.isPending ? t("common.creating") : t("room.createRoom")}
-      </button>
+      <div className="grid gap-2">
+        <button
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={createRoom.isPending || settings.isLoading}
+          type="submit"
+        >
+          {createRoom.isPending || settings.isLoading ? (
+            <LoadingSpinner label={t("room.creatingRoom")} size="sm" />
+          ) : null}
+          {createRoom.isPending ? t("common.creating") : t("room.createRoom")}
+        </button>
+        <Link
+          className="inline-flex w-full items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-2.5 text-sm font-semibold text-foreground transition hover:bg-muted"
+          href="/"
+        >
+          <Home className="size-4" />
+          {t("common.backHome")}
+        </Link>
+      </div>
     </form>
   );
 }

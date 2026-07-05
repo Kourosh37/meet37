@@ -3,6 +3,7 @@ import { create } from "zustand";
 
 export interface ChatMessageRecord {
   displayName: string;
+  groupId?: string;
   id: string;
   peerId?: string;
   text: string;

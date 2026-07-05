@@ -124,9 +124,42 @@ export function FittedVideo({
     const retryTimeouts = [250, 500, 1000, 2000, 3500].map((delay) =>
       window.setTimeout(updateFit, delay)
     );
+    let frameAttempts = 0;
+    let frameRequest = 0;
+    let videoFrameRequest = 0;
+    let videoFrameAttempts = 0;
+
+    const watchUntilReady = () => {
+      updateFit();
+      frameAttempts += 1;
+
+      if (frameAttempts < 90 && (!video.videoWidth || !video.videoHeight)) {
+        frameRequest = window.requestAnimationFrame(watchUntilReady);
+      }
+    };
+
+    frameRequest = window.requestAnimationFrame(watchUntilReady);
+
+    if ("requestVideoFrameCallback" in video) {
+      const requestVideoFrameCallback = video.requestVideoFrameCallback.bind(
+        video
+      );
+      const onVideoFrame: VideoFrameRequestCallback = () => {
+        updateFit();
+        videoFrameAttempts += 1;
+        if (videoFrameAttempts < 90) {
+          videoFrameRequest = requestVideoFrameCallback(onVideoFrame);
+        }
+      };
+      videoFrameRequest = requestVideoFrameCallback(onVideoFrame);
+    }
 
     return () => {
       window.cancelAnimationFrame(animationFrame);
+      window.cancelAnimationFrame(frameRequest);
+      if ("cancelVideoFrameCallback" in video && videoFrameRequest) {
+        video.cancelVideoFrameCallback(videoFrameRequest);
+      }
       window.clearTimeout(timeout);
       retryTimeouts.forEach((retryTimeout) => {
         window.clearTimeout(retryTimeout);
@@ -217,6 +250,7 @@ export function FittedVideo({
           fittedSize.width && fittedSize.height
             ? {
                 height: `${fittedSize.height}px`,
+                objectFit: "contain",
                 width: `${fittedSize.width}px`
               }
             : {

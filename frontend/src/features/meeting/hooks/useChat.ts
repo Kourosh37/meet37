@@ -56,6 +56,7 @@ export function useChat(roomId: string | null, isOpen: boolean) {
             message.from === meetingState.localPeerId
               ? "You"
               : (peer?.displayName ?? "Participant"),
+          groupId: message.payload.group_id,
           id: `live-${Date.now()}-${Math.random().toString(16).slice(2)}`,
           peerId: message.from,
           text: message.payload.text,
@@ -67,17 +68,21 @@ export function useChat(roomId: string | null, isOpen: boolean) {
   }, [appendMessage, isOpen]);
 
   const sendMessage = useCallback(
-    (text: string) => {
+    (text: string, groupId?: string) => {
       const trimmed = text.trim();
 
       if (!trimmed) {
         return;
       }
 
-      webSocketManager.send({ payload: { text: trimmed }, type: "chat" });
+      webSocketManager.send({
+        payload: { group_id: groupId, text: trimmed },
+        type: "chat"
+      });
       appendMessage(
         {
           displayName: "You",
+          groupId,
           id: `local-${Date.now()}-${Math.random().toString(16).slice(2)}`,
           peerId: localPeerId ?? undefined,
           text: trimmed,

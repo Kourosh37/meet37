@@ -221,6 +221,7 @@ export const defaultMessages = {
   "meeting.emojiDisabled": "Reactions are disabled in this meeting.",
   "meeting.emptyBans": "No banned participants.",
   "meeting.emptyChat": "No messages yet.",
+  "meeting.emptyFiles": "No files yet.",
   "meeting.ended": "Meeting ended",
   "meeting.fileReady": "File is ready and will be sent to new participants.",
   "meeting.goHome": "Go home",

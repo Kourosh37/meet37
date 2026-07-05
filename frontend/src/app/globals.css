@@ -80,18 +80,18 @@
   --meet-font-hebrew:
     "Meet El Messiri", "Segoe UI Variable Text", "Segoe UI", Arial, "Noto Sans Hebrew",
     sans-serif;
-  --background: 248 250 252;
-  --foreground: 15 23 42;
-  --muted: 241 245 249;
-  --muted-foreground: 71 85 105;
-  --border: 203 213 225;
-  --surface: 255 255 255;
-  --surface-foreground: 15 23 42;
-  --primary: 20 184 166;
+  --background: 232 228 218;
+  --foreground: 33 31 27;
+  --muted: 218 212 200;
+  --muted-foreground: 93 85 74;
+  --border: 188 178 162;
+  --surface: 247 244 236;
+  --surface-foreground: 33 31 27;
+  --primary: 15 118 110;
   --primary-foreground: 240 253 250;
-  --danger: 220 38 38;
+  --danger: 185 28 28;
   --danger-foreground: 254 242 242;
-  --ring: 20 184 166;
+  --ring: 15 118 110;
 }
 
 .dark {
@@ -289,6 +289,34 @@ textarea:disabled {
   backface-visibility: hidden;
   transform: translate3d(-8px, 0, 0);
   will-change: transform;
+}
+
+.meet-toast {
+  --meet-toast-duration: 4200ms;
+  position: relative !important;
+}
+
+.meet-toast::after {
+  animation: meet-toast-timer var(--meet-toast-duration) linear forwards;
+  background: currentColor;
+  border-radius: 999px;
+  bottom: 0;
+  content: "";
+  height: 2px;
+  inset-inline-start: 0;
+  opacity: 0.42;
+  pointer-events: none;
+  position: absolute;
+  transform-origin: left center;
+  width: 100%;
+}
+
+.meet-toast-loading::after {
+  display: none;
+}
+
+.is-rtl .meet-toast::after {
+  transform-origin: right center;
 }
 
 .meet-chat-panel-open {
@@ -633,6 +661,15 @@ html.meet-locale-to-rtl [data-radix-popper-content-wrapper] {
   }
   100% {
     opacity: 0.15;
+  }
+}
+
+@keyframes meet-toast-timer {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
   }
 }
 

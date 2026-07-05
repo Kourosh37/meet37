@@ -15,7 +15,12 @@ export function DeviceSetup() {
     <div className="space-y-4">
       <div className="aspect-video overflow-hidden rounded-lg border border-border bg-black">
         {setup.previewStream && setup.videoEnabled ? (
-          <FittedVideo mirrored muted stream={setup.previewStream} />
+          <FittedVideo
+            deferUntilReady
+            mirrored
+            muted
+            stream={setup.previewStream}
+          />
         ) : (
           <div className="flex h-full items-center justify-center text-center text-slate-300">
             <div>

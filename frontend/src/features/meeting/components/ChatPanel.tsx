@@ -9,7 +9,7 @@ import {
   useRef,
   useState
 } from "react";
-import { Paperclip, Send, X } from "lucide-react";
+import { Files, MessageSquare, Paperclip, Send, X } from "lucide-react";
 import { LoadingSpinner } from "@/components/feedback/LoadingSpinner";
 import { ChatMessage } from "@/features/meeting/components/ChatMessage";
 import { FileTransferItem } from "@/features/meeting/components/FileTransferItem";
@@ -30,6 +30,7 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
   const [draft, setDraft] = useState("");
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [shouldRender, setShouldRender] = useState(isOpen);
+  const [viewMode, setViewMode] = useState<"all" | "files">("all");
   const panelRef = useRef<HTMLElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const timelineRef = useRef<HTMLDivElement | null>(null);
@@ -100,7 +101,14 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
       (left, right) => left.timestamp - right.timestamp
     );
   }, [chat.messages, files.transfers, localPeerId, peers]);
-  const lastTimelineId = timeline.at(-1)?.id ?? "";
+  const displayedTimeline = useMemo(
+    () =>
+      viewMode === "files"
+        ? timeline.filter((entry) => entry.files.length > 0)
+        : timeline,
+    [timeline, viewMode]
+  );
+  const lastDisplayedTimelineId = displayedTimeline.at(-1)?.id ?? "";
 
   const scrollToLatestMessage = useCallback(() => {
     timelineRef.current?.scrollTo({
@@ -137,11 +145,11 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
     };
   }, [
     chat.isLoadingHistory,
+    displayedTimeline.length,
     isOpen,
-    lastTimelineId,
+    lastDisplayedTimelineId,
     scrollToLatestMessage,
-    shouldRender,
-    timeline.length
+    shouldRender
   ]);
 
   useEffect(() => {
@@ -215,45 +223,84 @@ export function ChatPanel({ isOpen, onClose, roomId }: ChatPanelProps) {
           : "meet-chat-panel-close fixed bottom-[8rem] end-0 top-0 z-40 flex w-[min(420px,100vw)] flex-col border-s border-border bg-surface shadow-xl sm:bottom-[4.75rem] lg:inset-y-0"
       }
     >
-      <div className="flex items-center justify-between border-b border-border p-4">
-        <div>
-          <h2 className="text-sm font-semibold text-surface-foreground">
-            {t("meeting.chat")}
-          </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            {chat.isLoadingHistory ? (
-              <span className="inline-flex items-center gap-1.5">
-                <LoadingSpinner
-                  label={t("meeting.loadingChatHistory")}
-                  size="sm"
-                />
-                {t("meeting.loadingChatHistory")}
-              </span>
-            ) : (
-              t("meeting.messages", { count: chat.messages.length })
-            )}
-          </p>
+      <div className="border-b border-border p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-semibold text-surface-foreground">
+              {t("meeting.chat")}
+            </h2>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {chat.isLoadingHistory ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <LoadingSpinner
+                    label={t("meeting.loadingChatHistory")}
+                    size="sm"
+                  />
+                  {t("meeting.loadingChatHistory")}
+                </span>
+              ) : (
+                t("meeting.messages", { count: chat.messages.length })
+              )}
+            </p>
+          </div>
+          <button
+            aria-label={t("meeting.closeChat")}
+            className="grid size-9 place-items-center rounded-md border border-border text-foreground transition hover:bg-muted"
+            onClick={onClose}
+            type="button"
+          >
+            <X className="size-4" />
+          </button>
         </div>
-        <button
-          aria-label={t("meeting.closeChat")}
-          className="grid size-9 place-items-center rounded-md border border-border text-foreground transition hover:bg-muted"
-          onClick={onClose}
-          type="button"
+
+        <div
+          aria-label={t("meeting.chat")}
+          className="mt-3 grid grid-cols-2 gap-1 rounded-md border border-border bg-background p-1"
+          role="tablist"
         >
-          <X className="size-4" />
-        </button>
+          <button
+            aria-selected={viewMode === "all"}
+            className={
+              viewMode === "all"
+                ? "inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm"
+                : "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            }
+            onClick={() => setViewMode("all")}
+            role="tab"
+            type="button"
+          >
+            <MessageSquare className="size-4" />
+            {t("meeting.chat")}
+          </button>
+          <button
+            aria-selected={viewMode === "files"}
+            className={
+              viewMode === "files"
+                ? "inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm"
+                : "inline-flex h-9 items-center justify-center gap-2 rounded-md px-3 text-xs font-semibold text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            }
+            onClick={() => setViewMode("files")}
+            role="tab"
+            type="button"
+          >
+            <Files className="size-4" />
+            {t("common.files")}
+          </button>
+        </div>
       </div>
 
       <div
         className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-muted/45 p-4"
         ref={timelineRef}
       >
-        {timeline.length === 0 ? (
+        {displayedTimeline.length === 0 ? (
           <p className="rounded-md border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
-            {t("meeting.emptyChat")}
+            {viewMode === "files"
+              ? t("meeting.emptyFiles")
+              : t("meeting.emptyChat")}
           </p>
         ) : (
-          timeline.map((entry) =>
+          displayedTimeline.map((entry) =>
             entry.files.length === 0 && entry.message ? (
               <ChatMessage key={entry.id} message={entry.message} />
             ) : (

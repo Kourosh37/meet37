@@ -10,6 +10,7 @@ type FittedSize = {
 
 interface FittedVideoProps {
   className?: string;
+  deferUntilReady?: boolean;
   mirrored?: boolean;
   muted?: boolean;
   stream: MediaStream | null;
@@ -17,23 +18,16 @@ interface FittedVideoProps {
 }
 
 function getTrackDimensions(stream: MediaStream | null) {
-  const settings = stream?.getVideoTracks()[0]?.getSettings?.();
+  const settings = stream?.getVideoTracks()[0]?.getSettings();
   const width = settings?.width ?? 0;
   const height = settings?.height ?? 0;
 
   return width > 0 && height > 0 ? { height, width } : null;
 }
 
-function shouldUseNativeMobileFit() {
-  if (typeof navigator === "undefined") {
-    return false;
-  }
-
-  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-}
-
 export function FittedVideo({
   className,
+  deferUntilReady = false,
   mirrored = false,
   muted = true,
   stream,
@@ -45,8 +39,7 @@ export function FittedVideo({
     height: null,
     width: null
   });
-  const useNativeMobileFit = useMemo(shouldUseNativeMobileFit, []);
-  const [mobileVideoReady, setMobileVideoReady] = useState(false);
+  const [hasInitialFit, setHasInitialFit] = useState(!deferUntilReady);
   const videoTrackKey = useMemo(
     () =>
       stream
@@ -77,16 +70,6 @@ export function FittedVideo({
     const videoWidth = video?.videoWidth || trackDimensions?.width || 0;
     const videoHeight = video?.videoHeight || trackDimensions?.height || 0;
 
-    if (useNativeMobileFit) {
-      setFittedSize({ height: null, width: null });
-      setMobileVideoReady(
-        videoWidth > 0 &&
-          videoHeight > 0 &&
-          (!video || video.readyState >= HTMLMediaElement.HAVE_METADATA)
-      );
-      return;
-    }
-
     if (videoWidth <= 0 || videoHeight <= 0) {
       setFittedSize({ height: null, width: null });
       return;
@@ -100,6 +83,7 @@ export function FittedVideo({
         height: heightIfWidthMatchesTile,
         width: frame.clientWidth
       });
+      setHasInitialFit(true);
       return;
     }
 
@@ -107,7 +91,8 @@ export function FittedVideo({
       height: frame.clientHeight,
       width: frame.clientHeight * (videoWidth / videoHeight)
     });
-  }, [stream, useNativeMobileFit]);
+    setHasInitialFit(true);
+  }, [stream]);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -116,7 +101,7 @@ export function FittedVideo({
     }
 
     const nextStream = stream;
-    setMobileVideoReady(false);
+    setHasInitialFit(!deferUntilReady || !nextStream);
     if (video.srcObject !== nextStream) {
       video.srcObject = nextStream;
     }
@@ -127,7 +112,9 @@ export function FittedVideo({
       const play = () => {
         try {
           const result = video.play();
-          result?.then?.(() => updateFit()).catch?.(() => updateFit());
+          result
+            ?.then?.(() => updateFit())
+            .catch?.(() => updateFit());
         } catch {
           updateFit();
           return;
@@ -152,10 +139,7 @@ export function FittedVideo({
       updateFit();
       frameAttempts += 1;
 
-      if (
-        frameAttempts < 90 &&
-        (useNativeMobileFit || !video.videoWidth || !video.videoHeight)
-      ) {
+      if (frameAttempts < 90 && (!video.videoWidth || !video.videoHeight)) {
         frameRequest = window.requestAnimationFrame(watchUntilReady);
       }
     };
@@ -189,7 +173,7 @@ export function FittedVideo({
         video.srcObject = null;
       }
     };
-  }, [muted, stream, updateFit, useNativeMobileFit, videoTrackKey]);
+  }, [deferUntilReady, muted, stream, updateFit, videoTrackKey]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -268,26 +252,23 @@ export function FittedVideo({
         onResize={updateFit}
         playsInline
         style={
-          useNativeMobileFit
+          fittedSize.width && fittedSize.height
             ? {
+                height: `${fittedSize.height}px`,
+                objectFit: "contain",
+                opacity:
+                  hasInitialFit || process.env.NODE_ENV === "test" ? 1 : 0,
+                transition: deferUntilReady ? "opacity 120ms ease" : undefined,
+                width: `${fittedSize.width}px`
+              }
+            : {
                 height: "100%",
                 objectFit: "contain",
                 opacity:
-                  mobileVideoReady || process.env.NODE_ENV === "test" ? 1 : 0,
-                transition: "opacity 120ms ease",
+                  hasInitialFit || process.env.NODE_ENV === "test" ? 1 : 0,
+                transition: deferUntilReady ? "opacity 120ms ease" : undefined,
                 width: "100%"
               }
-            : fittedSize.width && fittedSize.height
-              ? {
-                  height: `${fittedSize.height}px`,
-                  objectFit: "contain",
-                  width: `${fittedSize.width}px`
-                }
-              : {
-                  height: "100%",
-                  objectFit: "contain",
-                  width: "100%"
-                }
         }
       />
     </div>

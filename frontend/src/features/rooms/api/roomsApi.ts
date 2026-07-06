@@ -6,16 +6,11 @@ import type {
   CreateRoomRequest,
   CreateRoomResponse,
   FileHistoryItem,
-  Room,
   RoomDetailsResponse
 } from "@/types/api";
 
 export function getPublicSettings() {
   return apiRequest<AdminSettingsResponse>(endpoints.settings);
-}
-
-export function listRooms() {
-  return apiRequest<Room[]>(endpoints.rooms.base);
 }
 
 export function createRoom(

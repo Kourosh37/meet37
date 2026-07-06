@@ -35,8 +35,6 @@ const config = [
       "next-env.d.ts",
       "node_modules/**",
       "coverage/**",
-      "playwright-report/**",
-      "test-results/**",
       "tsconfig.tsbuildinfo"
     ]
   },
@@ -82,19 +80,6 @@ const config = [
       next: {
         rootDir: ["frontend/"]
       }
-    }
-  },
-  {
-    files: ["tests/e2e/**/*.js"],
-    languageOptions: {
-      ecmaVersion: "latest",
-      globals: {
-        MediaStream: "readonly",
-        module: "readonly",
-        require: "readonly",
-        window: "readonly"
-      },
-      sourceType: "commonjs"
     }
   }
 ];

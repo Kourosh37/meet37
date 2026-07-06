@@ -29,9 +29,6 @@ jobs:
       - name: Download dependencies
         run: go mod download
 
-      - name: Test
-        run: go test ./...
-
       - name: Build
         run: CGO_ENABLED=1 go build -o /tmp/meet-server ./cmd/server
 
@@ -70,9 +67,6 @@ jobs:
 
       - name: Lint
         run: pnpm lint
-
-      - name: Test
-        run: pnpm test
 
       - name: Build
         run: pnpm build

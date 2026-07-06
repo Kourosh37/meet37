@@ -1,12 +1,7 @@
-import {
-  getPublicSettings,
-  getRoom,
-  listRooms
-} from "@/features/rooms/api/roomsApi";
+import { getPublicSettings, getRoom } from "@/features/rooms/api/roomsApi";
 import { useQuery } from "@tanstack/react-query";
 
 export const roomQueryKeys = {
-  all: ["rooms"] as const,
   settings: ["settings"] as const,
   detail: (roomId: string) => ["rooms", roomId] as const
 };
@@ -16,14 +11,6 @@ export function usePublicSettings() {
     queryFn: getPublicSettings,
     queryKey: roomQueryKeys.settings,
     staleTime: 0
-  });
-}
-
-export function useRooms() {
-  return useQuery({
-    queryFn: listRooms,
-    queryKey: roomQueryKeys.all,
-    staleTime: 15_000
   });
 }
 

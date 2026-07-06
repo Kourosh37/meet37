@@ -1,95 +1,71 @@
-# meet37
+<p align="center">
+  <img src="frontend/public/icons/meet37-logo-dark.svg" alt="Meet37" width="120" />
+</p>
 
-meet37 is a browser-based meeting platform for real-time rooms, audio, camera, screen sharing, chat, and file transfer. The project is built as a full-stack application with a Go backend, a Next.js frontend, WebRTC media flows, Docker deployment support, and CI/CD automation.
+<h1 align="center">Meet37</h1>
 
-This README is intentionally short. The complete project documentation lives in [docs](docs/README.md).
+<p align="center">
+  <a href="https://meet.dev37.ir"><img src="https://readme-typing-svg.demolab.com?font=Inter&weight=700&size=22&duration=2800&pause=900&color=2563EB&center=true&vCenter=true&width=520&lines=Modern+open-source+video+meetings;Fast%2C+clean%2C+privacy-minded+rooms;Built+for+real-time+collaboration" alt="Meet37 animated intro" /></a>
+</p>
 
-## What It Includes
+<p align="center">
+  <a href="https://meet.dev37.ir"><img src="https://img.shields.io/badge/Live-meet.dev37.ir-2563eb?style=for-the-badge" alt="Live website" /></a>
+  <img src="https://img.shields.io/badge/License-AGPL--3.0-111827?style=for-the-badge" alt="AGPL-3.0 license" />
+  <img src="https://img.shields.io/badge/Open%20Source-Always-16a34a?style=for-the-badge" alt="Always open source" />
+</p>
 
-- Public and private meeting rooms.
-- Meet-style room IDs and landing-page room joining.
-- Real-time camera, microphone, and screen sharing.
-- WebRTC peer/media coordination with server-side signaling.
-- Host and admin moderation for media, chat, reactions, kicking, and rejoin blocks.
-- Chat and file transfer inside rooms.
-- Responsive desktop and mobile meeting UI.
-- Docker and production deployment support.
-- Offline image build tooling.
-- Server requirement checks for media ports and runtime dependencies.
-- Self-contained `deploy/` layout for `/opt/meet37` with Caddy, certs, images, compose, and server prep script.
-- GitHub Actions CI/CD for the `production` branch.
+Meet37 is a polished open-source video meeting app focused on quick room creation, clean pre-join controls, real-time chat, file sharing, reactions, notifications, and a responsive meeting experience across desktop and mobile.
 
-## Documentation
+Website: [meet.dev37.ir](https://meet.dev37.ir)
 
-- [Documentation Index](docs/README.md)
-- [Documentation Plan](docs/documentation-plan.md)
-- [Project Overview](docs/product/overview.md)
-- [Feature Catalog](docs/product/features.md)
-- [User Flows](docs/product/user-flows.md)
-- [Architecture Overview](docs/architecture/overview.md)
-- [Frontend Architecture](docs/architecture/frontend.md)
-- [Backend Architecture](docs/architecture/backend.md)
-- [WebRTC And Media](docs/architecture/webrtc-media.md)
-- [File Transfer](docs/architecture/file-transfer.md)
-- [Local Development](docs/setup/local-development.md)
-- [Configuration](docs/setup/configuration.md)
-- [Environment Variables](docs/setup/environment-variables.md)
-- [Docker Deployment](docs/deployment/docker.md)
-- [Production Compose](docs/deployment/production-compose.md)
-- [Caddy Reverse Proxy](docs/deployment/caddy.md)
-- [Offline Images](docs/deployment/offline-images.md)
-- [CI/CD](docs/deployment/ci-cd.md)
-- [Operations Runbook](docs/operations/runbook.md)
-- [Troubleshooting](docs/operations/troubleshooting.md)
-- [Testing Strategy](docs/testing/strategy.md)
-- [Security](docs/security/overview.md)
-- [API Reference](docs/reference/api.md)
-- [WebSocket Signaling](docs/reference/websocket-signaling.md)
-- [Contribution Guide](docs/contributing.md)
+## Highlights
+
+- Instant meeting rooms with a simple setup flow
+- Camera, microphone, screen share, chat, reactions, and file attachments
+- Mobile-friendly meeting controls and responsive room layout
+- Real-time signaling and media flow designed for live collaboration
+- Modern notification and sound system with user controls
+- Docker-ready deployment for production environments
+
+## Technical Architecture
+
+Meet37 is split into a real-time backend and a modern frontend:
+
+- **Frontend:** Next.js, React, TypeScript, responsive UI, room/pre-join flows, chat, file UI, notification and sound controls
+- **Backend:** Go API server with room, signaling, middleware, database, and SFU-related internals
+- **Real-time layer:** WebSocket signaling coordinates participants, chat events, reactions, device state, and room updates
+- **Media layer:** WebRTC handles live audio/video streams, with SFU-oriented backend structure for scalable meetings
+- **Deployment:** Docker Compose, Caddy, and production compose files are included for self-hosting
 
 ## Quick Start
 
-Create an environment file from the example:
+```bash
+docker compose up -d --build
+```
+
+Frontend development:
 
 ```bash
-cp .env.example .env
+cd frontend
+pnpm install
+pnpm dev
 ```
 
-Run the application with Docker:
+Backend development:
 
 ```bash
-docker compose up --build
+cd backend
+go build ./cmd/server
 ```
 
-For production image-based deployment, use:
+## Contributing
 
-```bash
-python scripts/build_images.py --version <tag>
-rsync -a deploy/ root@server:/opt/meet37/
-cd /opt/meet37
-docker load -i images/meet37-images-<tag>.tar.gz
-python3 scripts/prepare_server.py --public-origin https://meet.example.com --public-ip <server-public-ip>
-docker compose --env-file .env -f docker-compose.prod.yml up -d
-```
+Contributions, ideas, bug reports, and improvements are welcome.
 
-Before deploying media features on a server, validate ports and runtime requirements:
+Telegram: [@kourosh_37](https://t.me/kourosh_37)
 
-```bash
-python scripts/prepare_server.py --install-docker
-```
+## License
 
-## Repository Layout
+Meet37 is licensed under the **GNU Affero General Public License v3.0 only**.
 
-```text
-backend/      Go backend, HTTP APIs, signaling, media coordination
-frontend/     Next.js frontend, meeting UI, WebRTC client code
-scripts/      Image bundle and server preparation scripts
-docs/         Central project documentation
-.github/      GitHub Actions workflows
-```
-
-## Production Notes
-
-The CI/CD pipeline is configured around the `production` branch. Production deployment should use the variables in `.env` and `.env.example`; avoid hard-coded domains, ports, image tags, and network names in application code.
-
-For server setup, start from [Production Compose](docs/deployment/production-compose.md), [Caddy Reverse Proxy](docs/deployment/caddy.md), and [Operations Runbook](docs/operations/runbook.md).
+This project must remain open source. If you modify, run, host, or distribute it, follow the AGPL-3.0 requirements and keep the corresponding source code available.

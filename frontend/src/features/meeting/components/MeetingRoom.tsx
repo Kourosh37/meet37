@@ -31,6 +31,7 @@ import type { MeetingPeer } from "@/features/meeting/types/peer";
 import type { JoinPolicy } from "@/types/api";
 import { useKeyboard } from "@/hooks/useKeyboard";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { playUiSound } from "@/lib/audio/uiSounds";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 import { useLocale } from "@/providers/LocaleProvider";
 
@@ -440,6 +441,7 @@ export function MeetingRoom({
   );
 
   function handleLeave() {
+    playUiSound("callEnd");
     stopLocalMedia();
     websocket.close();
     meeting.reset();
@@ -477,6 +479,7 @@ export function MeetingRoom({
         return;
       }
       addReaction(emoji, displayName);
+      playUiSound("reaction");
       webSocketManager.send({ payload: { emoji }, type: "reaction" });
     },
     [addReaction, canReact, displayName, t]
@@ -492,6 +495,7 @@ export function MeetingRoom({
         (message.from ? meeting.peers[message.from]?.displayName : undefined) ??
         t("common.guest");
       addReaction(message.payload.emoji, senderName);
+      playUiSound("reaction");
     });
   }, [addReaction, meeting.peers, t]);
 

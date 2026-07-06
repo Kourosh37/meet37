@@ -8,6 +8,14 @@ import type {
   BannedParticipant,
   PeerPermissions
 } from "@/features/meeting/types/signaling";
+import {
+  defaultUiSoundSettings,
+  getUiSoundSettings,
+  previewUiSound,
+  setUiSoundSettings,
+  type UiSoundKind,
+  type UiSoundSettings
+} from "@/lib/audio/uiSounds";
 import { useLocale } from "@/providers/LocaleProvider";
 
 const defaultPermissions: PeerPermissions = {
@@ -18,7 +26,7 @@ const defaultPermissions: PeerPermissions = {
   can_use_mic: true
 };
 
-type SettingsSection = "host" | "bans";
+type SettingsSection = "host" | "bans" | "sounds";
 
 function AccordionSection({
   children,
@@ -103,15 +111,19 @@ export function SettingsDrawer({
   const [passwordTouched, setPasswordTouched] = useState(false);
   const [permissions, setPermissions] =
     useState<PeerPermissions>(defaultPermissions);
+  const [soundSettings, setSoundSettings] = useState<UiSoundSettings>(
+    defaultUiSoundSettings
+  );
   const [applyToExisting, setApplyToExisting] = useState(true);
   const [openSections, setOpenSections] = useState<Set<SettingsSection>>(
-    () => new Set(["host", "bans"])
+    () => new Set(["host", "sounds", "bans"])
   );
 
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
       setJoinPolicy(initialJoinPolicy);
+      setSoundSettings(getUiSoundSettings());
       if (canManageBans) {
         onListBans?.();
       }
@@ -156,6 +168,41 @@ export function SettingsDrawer({
       return next;
     });
   }
+
+  function updateSoundSetting(key: keyof UiSoundSettings, value: boolean) {
+    setSoundSettings((current) => {
+      const next = { ...current, [key]: value };
+      setUiSoundSettings(next);
+      return next;
+    });
+  }
+
+  const soundRows: Array<{
+    key: keyof UiSoundSettings;
+    preview: UiSoundKind;
+    title: string;
+  }> = [
+    {
+      key: "notifications",
+      preview: "toast",
+      title: t("meeting.soundNotifications")
+    },
+    {
+      key: "chat",
+      preview: "chat",
+      title: t("meeting.soundChat")
+    },
+    {
+      key: "reactions",
+      preview: "reaction",
+      title: t("meeting.soundReactions")
+    },
+    {
+      key: "actions",
+      preview: "action",
+      title: t("meeting.soundActions")
+    }
+  ];
 
   return (
     <aside
@@ -270,6 +317,61 @@ export function SettingsDrawer({
               >
                 {t("meeting.saveHostControls")}
               </button>
+            </div>
+          </AccordionSection>
+
+          <AccordionSection
+            id="sounds"
+            isOpen={openSections.has("sounds")}
+            onToggle={toggleSection}
+            title={t("meeting.soundSettings")}
+          >
+            <div className="grid gap-3">
+              <label className="flex items-center justify-between gap-3 rounded-md border border-border bg-background px-3 py-2 text-sm font-semibold text-foreground">
+                {t("meeting.soundAll")}
+                <input
+                  checked={soundSettings.enabled}
+                  className="size-4"
+                  onChange={(event) =>
+                    updateSoundSetting("enabled", event.target.checked)
+                  }
+                  type="checkbox"
+                />
+              </label>
+
+              <div
+                className={
+                  soundSettings.enabled ? "grid gap-2" : "grid gap-2 opacity-45"
+                }
+              >
+                {soundRows.map((row) => (
+                  <div
+                    className="flex items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2"
+                    key={row.key}
+                  >
+                    <label className="flex min-w-0 flex-1 items-center justify-between gap-3 text-sm text-foreground">
+                      <span className="truncate">{row.title}</span>
+                      <input
+                        checked={soundSettings[row.key]}
+                        className="size-4"
+                        disabled={!soundSettings.enabled}
+                        onChange={(event) =>
+                          updateSoundSetting(row.key, event.target.checked)
+                        }
+                        type="checkbox"
+                      />
+                    </label>
+                    <button
+                      className="shrink-0 rounded-md border border-border px-2 py-1 text-xs font-semibold text-foreground transition hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
+                      disabled={!soundSettings.enabled}
+                      onClick={() => previewUiSound(row.preview)}
+                      type="button"
+                    >
+                      {t("meeting.soundPreview")}
+                    </button>
+                  </div>
+                ))}
+              </div>
             </div>
           </AccordionSection>
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getRoomChat } from "@/features/rooms/api/roomsApi";
 import { useChatStore } from "@/features/meeting/stores/chatStore";
 import { useMeetingStore } from "@/features/meeting/stores/meetingStore";
+import { playUiSound } from "@/lib/audio/uiSounds";
 import { webSocketManager } from "@/lib/websocket/WebSocketManager";
 
 export function useChat(roomId: string | null, isOpen: boolean) {
@@ -50,6 +51,8 @@ export function useChat(roomId: string | null, isOpen: boolean) {
     return webSocketManager.subscribe("chat", (message) => {
       const meetingState = useMeetingStore.getState();
       const peer = message.from ? meetingState.peers[message.from] : undefined;
+      const isIncomingMessage = message.from !== meetingState.localPeerId;
+
       appendMessage(
         {
           displayName:
@@ -64,6 +67,10 @@ export function useChat(roomId: string | null, isOpen: boolean) {
         },
         !isOpen
       );
+
+      if (isIncomingMessage) {
+        playUiSound("chat");
+      }
     });
   }, [appendMessage, isOpen]);
 

@@ -296,6 +296,14 @@ textarea:disabled {
   position: relative !important;
 }
 
+[data-sonner-toaster] {
+  --gap: -30px !important;
+}
+
+[data-sonner-toast][data-front="true"] {
+  z-index: 999999999 !important;
+}
+
 .meet-toast::after {
   animation: meet-toast-timer var(--meet-toast-duration) linear forwards;
   background: currentColor;

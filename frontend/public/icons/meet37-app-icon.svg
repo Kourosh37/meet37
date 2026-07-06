@@ -1,24 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="meet37 app icon">
   <defs>
-    <linearGradient id="outer" x1="74" y1="52" x2="438" y2="462" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#f8fafc"/>
-      <stop offset="1" stop-color="#dbeafe"/>
+    <linearGradient id="paper" x1="64" y1="44" x2="448" y2="468" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#f7f4ec"/>
+      <stop offset="0.55" stop-color="#e8e4da"/>
+      <stop offset="1" stop-color="#d6cdbc"/>
     </linearGradient>
-    <linearGradient id="tile" x1="124" y1="102" x2="392" y2="410" gradientUnits="userSpaceOnUse">
+    <linearGradient id="tile" x1="116" y1="94" x2="402" y2="420" gradientUnits="userSpaceOnUse">
       <stop stop-color="#2dd4bf"/>
-      <stop offset="0.55" stop-color="#14b8a6"/>
-      <stop offset="1" stop-color="#0f766e"/>
+      <stop offset="0.52" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#134e4a"/>
     </linearGradient>
+    <radialGradient id="lensGlow" cx="0" cy="0" r="1" gradientTransform="matrix(86 0 0 86 246 246)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ccfbf1"/>
+      <stop offset="0.65" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </radialGradient>
     <filter id="shadow" x="42" y="50" width="428" height="428" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
-      <feDropShadow dx="0" dy="18" flood-color="#0f172a" flood-opacity="0.22" stdDeviation="22"/>
+      <feDropShadow dx="0" dy="18" flood-color="#211f1b" flood-opacity="0.2" stdDeviation="22"/>
     </filter>
   </defs>
-  <rect width="512" height="512" rx="112" fill="#0f172a"/>
-  <rect x="40" y="40" width="432" height="432" rx="96" fill="url(#outer)"/>
+  <rect width="512" height="512" rx="112" fill="#211f1b"/>
+  <rect x="34" y="34" width="444" height="444" rx="102" fill="url(#paper)"/>
+  <rect x="34" y="34" width="444" height="444" rx="102" fill="none" stroke="#bcb2a2" stroke-width="6"/>
   <g filter="url(#shadow)">
     <rect x="92" y="92" width="328" height="328" rx="88" fill="url(#tile)"/>
-    <path d="M142 213c0-35.9 29.1-65 65-65h62c35.9 0 65 29.1 65 65v20l54-33v112l-54-33v20c0 35.9-29.1 65-65 65h-62c-35.9 0-65-29.1-65-65v-86Z" fill="#f8fafc"/>
-    <circle cx="238" cy="256" r="38" fill="#0f766e"/>
-    <circle cx="238" cy="256" r="19" fill="#99f6e4"/>
+    <path d="M142 213c0-35.9 29.1-65 65-65h62c35.9 0 65 29.1 65 65v20l54-33v112l-54-33v20c0 35.9-29.1 65-65 65h-62c-35.9 0-65-29.1-65-65v-86Z" fill="#f7f4ec"/>
+    <circle cx="238" cy="256" r="40" fill="#134e4a"/>
+    <circle cx="238" cy="256" r="24" fill="url(#lensGlow)"/>
+    <circle cx="229" cy="244" r="7" fill="#f0fdfa" opacity="0.9"/>
   </g>
 </svg>

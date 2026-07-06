@@ -18,16 +18,27 @@ export const metadata: Metadata = {
   applicationName: "meet37",
   manifest: "/manifest.webmanifest",
   icons: {
-    apple: "/icons/meet37-apple-touch.png",
+    apple: "/apple-touch-icon.png",
     icon: [
-      { url: "/icons/meet37-favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
       {
-        url: "/icons/meet37-icon-192.png",
+        url: "/favicon-32x32.png",
+        sizes: "32x32",
+        type: "image/png"
+      },
+      {
+        url: "/favicon-16x16.png",
+        sizes: "16x16",
+        type: "image/png"
+      },
+      {
+        url: "/icon-192.png",
         sizes: "192x192",
         type: "image/png"
       },
       {
-        url: "/icons/meet37-icon-512.png",
+        url: "/icon-512.png",
         sizes: "512x512",
         type: "image/png"
       },
@@ -42,7 +53,7 @@ export const metadata: Metadata = {
         type: "image/svg+xml"
       }
     ],
-    shortcut: "/icons/meet37-favicon.svg"
+    shortcut: "/favicon.ico"
   }
 };
 
@@ -53,7 +64,7 @@ export const viewport: Viewport = {
   userScalable: false,
   colorScheme: "light dark",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: light)", color: "#e8e4da" },
     { media: "(prefers-color-scheme: dark)", color: "#0f172a" }
   ]
 };
